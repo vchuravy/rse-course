@@ -1,0 +1,27 @@
+[Export]
+baked_state = false
+baked_notebookfile = false
+offer_binder = true
+ignore_cache = [
+    "index.jl",
+]
+create_index = false
+exclude = [
+    # these are in the repo but not used on the website
+    "tools/*",
+    "PlutoPages.jl",
+]
+
+[SliderServer]
+port = 8080
+host = "0.0.0.0"
+exclude=[
+    # these are in the repo but not used on the website
+    "tools/*",
+    "PlutoPages.jl",
+    
+    # notebooks not interactive
+
+    # don't run homeworks
+    "*/hw*.jl",
+]
