@@ -72,7 +72,7 @@ window.pluto_preamble_html = undefined;
                     <h2>Choose your track:</h2>
                     <select>
                         <option value="">Choose...</option>
-                        <option value="julia">💻 Julia programming</option> <option value="material">Material development</option> <option value="setup">Website maintenance</option> 
+                        <option value="principles">Principles of RSE</option> <option value="performance">Performance Engineering</option> <option value="parallel">Parallel programming</option> <option value="ad">Automatic Differentiation</option> 
                     </select>
                     </label>
                 </div>
@@ -84,21 +84,33 @@ window.pluto_preamble_html = undefined;
 </ul>
 </li>
 <li>
-<h3>Module 1: Website setup</h3>
+<h3>Module 1: Introduction</h3>
 <ul>
-<li class=' lecture tag_module1 tag_track_setup tag_teaching tag_repository_structure'><a href='./mod1_setup_website/getting_started/'><span class="entry-number">1.1</span> Getting started</a></li><li class=' lecture tag_module1 tag_track_setup tag_teaching tag_metadata'><a href='./mod1_setup_website/basic_info/'><span class="entry-number">1.2</span> Fill course basic information</a></li><li class=' lecture tag_module1 tag_track_setup tag_track_julia tag_PlutoSliderServer tag_pluto'><a href='./mod1_setup_website/working_locally/'><span class="entry-number">1.3</span> Working locally</a></li>
+<li class=' lecture tag_module1 tag_track_principles'><a href='./mod1_introduction/research_software_engineering/'><span class="entry-number">1.1</span> Research Software Engineering</a></li><li class=' lecture tag_module1 tag_track_parallel'><a href='./mod1_introduction/parallelism/'><span class="entry-number">1.2</span> Parallelism</a></li><li class=' lecture tag_module1 tag_track_performance'><a href='./mod1_introduction/performance_engineering/'><span class="entry-number">1.3</span> Performance Engineeering</a></li><li class=' lecture tag_module1 tag_track_ad'><a href='./mod1_introduction/automatic_differentiation/'><span class="entry-number">1.4</span> Automatic Differentiation</a></li>
 </ul>
 </li>
 <li>
-<h3>Module 2: Adding course material</h3>
+<h3>Module 2: Principles of Research Software Engineering</h3>
 <ul>
-<li class=' lecture tag_module2 tag_track_material tag_markdown tag_frontmatter'><a href='./mod2_add_material/add_markdown/'><span class="entry-number">2.1</span> Add markdown files</a></li><li class=' lecture tag_module2 tag_track_julia tag_track_material tag_Pluto tag_PlutoUI'><a href='./mod2_add_material/add_pluto/'><span class="entry-number">2.2</span> Add Pluto notebooks</a></li><li class=' homework tag_module2 tag_track_julia tag_track_material tag_homeworks tag_pluto tag_PlutoTeachingTools'><a href='./homework/hw1/' title='sample howework'><span class="entry-number">Homework 1:</span> sample homework</a></li><li class=' lecture tag_module2 tag_track_julia tag_track_material tag_Pluto tag_PlutoUI tag_interactivity'><a href='./mod2_add_material/plutoui_showcase/'><span class="entry-number">2.3</span> PlutoUI showcase</a></li>
+<li class=' lecture tag_module2 tag_track_principles'><a href='./mod2_principles_of_rse/github/'><span class="entry-number">2.1</span> Sofware development with Github</a></li><li class=' lecture tag_module2 tag_track_principles'><a href='./mod2_principles_of_rse/reproducibility/'><span class="entry-number">2.2</span> Reproducibility</a></li><li class=' lecture tag_module2 tag_track_principles'><a href='./mod2_principles_of_rse/debugging/'><span class="entry-number">2.3</span> Debugging</a></li>
 </ul>
 </li>
 <li>
-<h3>Module 3: Publishing your website</h3>
+<h3>Module 3: Parallelism</h3>
 <ul>
-<li class=' lecture tag_module3 tag_track_setup tag_deploy tag_netlify tag_github_actions tag_github_pages'><a href='./mod3_publish_website/deploy_static/'><span class="entry-number">3.1</span> Deploy your website as static</a></li><li class=' lecture tag_module3 tag_track_setup tag_track_julia tag_deploy tag_precompute tag_Pluto tag_PlutoSliderServer'><a href='./mod3_publish_website/precompute_output/'><span class="entry-number">3.2</span> Precompute the pluto notebooks</a></li><li class=' lecture tag_module3 tag_track_setup tag_deploy tag_server tag_dynamic tag_droplet'><a href='./mod3_publish_website/setup_server/'><span class="entry-number">3.3</span> Setup a server for your website</a></li>
+<li class=' lecture tag_module3 tag_track_parallel'><a href='./mod3_parallelism/shared-memory/'><span class="entry-number">3.1</span> Shared-memory parallelism</a></li><li class=' lecture tag_module3 tag_track_parallel'><a href='./mod3_parallelism/distributed/'><span class="entry-number">3.2</span> Distributed</a></li><li class=' lecture tag_module3 tag_track_parallel'><a href='./mod3_parallelism/accelerated/'><span class="entry-number">3.3</span> GPU</a></li>
+</ul>
+</li>
+<li>
+<h3>Module 4: Automatic Differentiation</h3>
+<ul>
+<li class=' lecture tag_module4 tag_track_ad'><a href='./mod4_automatic_differentiation/machine_learning/'><span class="entry-number">4.1</span> Automatic Differentiation and Machine Learning</a></li><li class=' lecture tag_module4 tag_track_ad'><a href='./mod4_automatic_differentiation/ad_in_science/'><span class="entry-number">4.2</span> Examples of Automatic Differentiation</a></li>
+</ul>
+</li>
+<li>
+<h3>Module 5: Performance Engineering</h3>
+<ul>
+<li class=' lecture tag_module5 tag_track_performance'><a href='./mod5_performance_engineering/profiling/'><span class="entry-number">5.1</span> Profiling</a></li><li class=' lecture tag_module5 tag_track_performance'><a href='./mod5_performance_engineering/compilers/'><span class="entry-number">5.2</span> Compilers</a></li><li class=' lecture tag_module5 tag_track_performance'><a href='./mod5_performance_engineering/simd/'><span class="entry-number">5.3</span> SIMD</a></li>
 </ul>
 </li>
 
@@ -125,12 +137,10 @@ window.pluto_preamble_html = undefined;
            
         <link rel="stylesheet" href="./assets/styles/homepage.css" type="text/css" />
 <div id="title" class="banner">
-    <h1>Computational thinking <strong>website template</strong></h1>
+    <h1>Research Software Engineering with Julia</h1>
 </div>
-<blockquote class="banner"><p><div class="markdown"><p>This template will allow you to build a website like the <strong>Computational thinking with Julia</strong> class tought at MIT. Use it to harness the power of Julia and Pluto in your own teaching and enhance students learning experience.</p>
-</div></p></blockquote>
 <main class="homepage">
-<div class="subjectscontainer wide">
+<!-- <div class="subjectscontainer wide">
   <h1>Highlights</h1>
   <div class="contain">
   <section>
@@ -168,22 +178,34 @@ window.pluto_preamble_html = undefined;
 <div class="wide subjectscontainer">
 <h1>Subjects</h1>
 <div class="subjects">
-<a class='no-decoration tag_module1 tag_track_setup tag_teaching tag_repository_structure' href='./mod1_setup_website/getting_started/'>
-    <h3>Getting started</h3>
-    <img src='https://user-images.githubusercontent.com/49938764/249456747-c93b41a0-308a-4ad4-9afb-6ce3309633d1.png'>
-</a><a class='no-decoration tag_module1 tag_track_setup tag_teaching tag_metadata' href='./mod1_setup_website/basic_info/'>
-    <h3>Fill course basic information</h3>
-    <img src='https://user-images.githubusercontent.com/49938764/249464984-ae268773-b804-459a-9c33-ed2839802ad8.png'>
-</a><a class='no-decoration tag_module1 tag_track_setup tag_track_julia tag_PlutoSliderServer tag_pluto' href='./mod1_setup_website/working_locally/'>
-    <h3>Working locally</h3>
-    <img src='https://user-images.githubusercontent.com/49938764/249456721-2ff021b2-326d-443d-a3ac-b433692647e0.png'>
+</div>
+</div>
+ -->
+<div class="wide subjectscontainer">
+<h1>Schedule</h1>
+<div class="subjects">
+<a class='no-decoration tag_module1 tag_track_principles' href='./mod1_introduction/research_software_engineering/'>
+    <h3>Research Software Engineering</h3>
+    2025-04-16
+</a><a class='no-decoration tag_module1 tag_track_parallel' href='./mod1_introduction/parallelism/'>
+    <h3>Parallelism</h3>
+    2025-04-23
+</a><a class='no-decoration tag_module1 tag_track_performance' href='./mod1_introduction/performance_engineering/'>
+    <h3>Performance Engineeering</h3>
+    2025-04-30
+</a><a class='no-decoration tag_module1 tag_track_ad' href='./mod1_introduction/automatic_differentiation/'>
+    <h3>Automatic Differentiation</h3>
+    2025-05-7
 </a>
-<a class='no-decoration tag_module2 tag_track_julia tag_track_material tag_Pluto tag_PlutoUI' href='./mod2_add_material/add_pluto/'>
-    <h3>Add Pluto notebooks</h3>
-    <img src='https://raw.githubusercontent.com/fonsp/Pluto.jl/580ab811f13d565cc81ebfa70ed36c84b125f55d/demo/plutodemo.gif'>
-</a><a class='no-decoration tag_module2 tag_track_julia tag_track_material tag_Pluto tag_PlutoUI tag_interactivity' href='./mod2_add_material/plutoui_showcase/'>
-    <h3>PlutoUI showcase</h3>
-    <img src='https://user-images.githubusercontent.com/6933510/174067690-50c8128d-748b-4f50-8a76-2ce18166642b.png'>
+<a class='no-decoration tag_module2 tag_track_principles' href='./mod2_principles_of_rse/github/'>
+    <h3>Sofware development with Github</h3>
+    2025-05-14
+</a><a class='no-decoration tag_module2 tag_track_principles' href='./mod2_principles_of_rse/reproducibility/'>
+    <h3>Reproducibility</h3>
+    2025-05-21
+</a><a class='no-decoration tag_module2 tag_track_principles' href='./mod2_principles_of_rse/debugging/'>
+    <h3>Debugging</h3>
+    2025-05-28
 </a>
 </div>
 </div>
