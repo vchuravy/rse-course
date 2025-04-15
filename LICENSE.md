@@ -1,6 +1,12 @@
 My license here:
 
-<insert license for your material 🧑‍⚖️>
+The material in this repository is licensed as follows:
+
+- The **code** is under the [MIT license](https://opensource.org/licenses/MIT).
+
+- The **text** is under the [CC BY-SA 4.0 license](https://creativecommons.org/licenses/by-sa/4.0).
+
+Copyright Valentin Churavy, 2025
 
 
 This repository was generated from https://github.com/JuliaPluto/computational-thinking-template which is licensed as follows:
