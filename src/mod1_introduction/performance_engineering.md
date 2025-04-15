@@ -1,5 +1,5 @@
 ---
-title: "Performance Engineeering"
+title: "Performance Engineering"
 order: 3
 chapter: 1
 section: 3
