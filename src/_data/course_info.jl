@@ -1,12 +1,12 @@
 Dict(
-    "course_name" => "Name of your course",
-    "course_subtitle" => "a short catchy phrase about your course",
-    "code" => "code of your course",
+    "course_name" => "Research Software Engineering with Julia",
+    "course_subtitle" => "",
+    "code" => "",
     "semester" => "2025",
     "authors" => [
         "Valentin Churavy" => "https://vchuravy.dev",
     ],
     "institution" => "University of Mainz",
-    "institution_logo" => "name of your institution logo file, e.g. `logo.svg`. Place this under `assets`",
+    "institution_logo" => "jgu_logo.jpg",
     "repo" => "https://github.com/vchuravy/rse-course"
 )
