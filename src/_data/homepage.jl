@@ -1,11 +1,9 @@
 Dict(
-    "title" => @htl("Computational thinking <strong>website template</strong>"),
+    "title" => @htl("Research Software Engineering with Julia"),
 
     # # add a disclaimer to the course webpage. Remove it if you dont want to include it.
-    "disclaimer" => md"""
-    This template will allow you to build a website like the **Computational thinking with Julia** class tought at MIT.
-    Use it to harness the power of Julia and Pluto in your own teaching and enhance students learning experience.
-    """,
+#     "disclaimer" => md"""
+#     """,
 
     # Highlights the key features of your class to make it more engaging. Remove it if you dont want to include it.
     "highlights" => [
