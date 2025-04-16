@@ -73,9 +73,13 @@ $(Resource("https://www.software.ac.uk/sites/default/files/images/content/Better
 
 - Code is science
 - Writing programms is akin to writing paper -- a way of scientific communication
-  - Academcic recognition of this is still a challenge
-- 
-
+  - Academic recognition of this is still a challenge
+- Science is built on "trust-but-verify"
+  - Reproduction of code is a challenge
+  - Too often "works only on one system"
+- Building scientific software together
+  - Leads to building communities
+  - Reuse
 """
 
 # ╔═╡ 95dd4cbd-c9b9-4337-9dff-594c099952cf
@@ -100,13 +104,68 @@ md"""
 
 ### Small (1 user/developer)
 
-### Medium (1 developer / N users) (N developers / users)
+- 1 developer
+- developer == user
+- Most likely what you will build during this class or for your thesis
+- Reproducibility for papers / our future-selves
 
-### Large (N developers / M users)
+### Medium 
+- Small number of developers 
+- Equal number of users / Slightly more users than developers
+- Most research projects
+
+### Large
+- Small number of developers
+- Many users
+- Multiple organization invested
+- Hopefully self-sustaining
+
+!!! note
+    In the end we have a choice between letting a small project grow (if it is useful to not just us), or 
 
 ## Maintainership
 
+- Bus-factor
+  - Crudly: How many people could be hit by a bus, before the project becomes umaintainble
+- Often a one to many relationship
+  - It can be very easy to become overwhelmed
+  - Many things vying for attention:
+    - Slack
+    - Github Issues
+    - Discourse
+- Going from small to medium:
+  - Giving up some measure of control
+
+- Communities:
+  - User community
+  - Developer community
+
 ## Open-Source
+
+- Necessary for Open-Science
+- All to often people are afraid of releasing their code:
+  - It's not ready yet1
+  - It's ugly!
+  - I don't want someone to scoop me.
+- Often: Release the source-code that was used to produce results in a paper
+- But! It is worthwhile to think about converting something from a "project" to "a package"
+  - Encourage reuse
+  - Separate concerns
+  - Then release a project that uses a package to do something
+
+## The role of Git/Github
+
+- Git is a version-control system
+	- Keeps track of previous state of the project
+	  - Don't email tarballs!
+	- "Branches" can be used to keep track of concurrent developments
+- GitHub is a collaboration platform
+  - Supports "pull-request"
+  - Keeping track of "issues"
+  - Software releases
+  - Continous integration
+  - Documentation hosting
+  - Very much building a community
 """
 
 # ╔═╡ 5f43567e-1645-4fdb-b0d6-f83e3ca6438f
