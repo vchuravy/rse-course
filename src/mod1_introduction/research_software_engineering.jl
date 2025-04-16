@@ -153,6 +153,19 @@ md"""
   - Separate concerns
   - Then release a project that uses a package to do something
 
+## The role of Git/Github
+
+- Git is a version-control system
+	- Keeps track of previous state of the project
+	  - Don't email tarballs!
+	- "Branches" can be used to keep track of concurrent developments
+- GitHub is a collaboration platform
+  - Supports "pull-request"
+  - Keeping track of "issues"
+  - Software releases
+  - Continous integration
+  - Documentation hosting
+  - Very much building a community
 """
 
 # ╔═╡ 5f43567e-1645-4fdb-b0d6-f83e3ca6438f
@@ -1944,7 +1957,7 @@ version = "3.6.0+0"
 # ╟─c40b6c87-0f39-4d57-8b8f-5257c6be0b5a
 # ╟─ea4755b6-192d-4965-b780-b956535ca868
 # ╟─95dd4cbd-c9b9-4337-9dff-594c099952cf
-# ╠═ecaaf7eb-f748-4ab8-99e8-63c436f2045b
+# ╟─ecaaf7eb-f748-4ab8-99e8-63c436f2045b
 # ╟─5f43567e-1645-4fdb-b0d6-f83e3ca6438f
 # ╟─ea0cc08c-3cfa-4c04-a6a2-129ab341a1a4
 # ╟─fd9bdd0d-ecb5-4276-8b22-17a44774d7ba
