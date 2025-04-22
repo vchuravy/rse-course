@@ -122,20 +122,20 @@ $(pluto_head)
                         tags = get(output.frontmatter, "tags", String[])
                         active = page.url == other_page.url
                         
-                        homework_number = get(output.frontmatter, "homework_number", nothing)
+                        exercise_number = get(output.frontmatter, "exercise_number", nothing)
                         
                         href = root_url * "/" * other_page.url
 
                         class = [
                             active ? "active" : nothing,
-                            homework_number === nothing ? "lecture" : "homework",
+                            exercise_number === nothing ? "lecture" : "exercise",
                             ("tag_$(replace(x, " "=>"_"))" for x in tags)...,
                         ]
                         
-                        if homework_number === nothing
+                        if exercise_number === nothing
                             @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">$(number)</span> $(name)</a></li>""")
                         else
-                            @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">Homework $(homework_number):</span> $(name)</a></li>""")
+                            @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">Exercise $(exercise_number):</span> $(name)</a></li>""")
                         end
                     end for other_page in collections[section_id].pages
                 ])
@@ -166,8 +166,8 @@ $(pluto_head)
         </nav>
         <div id="pages-content">
            $(isempty(f("title", "")) ? nothing : @htl("""<div class="lecture-header" >
-                $(if !isempty(f("homework_number", ""))
-                @htl("""<p class="number">Homework $(f("homework_number", ""))</p>""")
+                $(if !isempty(f("exercise_number", ""))
+                @htl("""<p class="number">Exercise $(f("exercise_number", ""))</p>""")
                 elseif !isempty(f("chapter", "")) && !isempty(f("section", ""))
                 @htl("""<p class="number">Section $(f("chapter", "-")).$(f("section", "-"))</p>""")
                 else

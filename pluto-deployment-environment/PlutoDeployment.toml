@@ -22,6 +22,6 @@ exclude=[
     
     # notebooks not interactive
 
-    # don't run homeworks
-    "*/hw*.jl",
+    # don't run exercises
+    "*/exercise*.jl",
 ]

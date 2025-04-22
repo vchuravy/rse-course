@@ -167,7 +167,7 @@
     align-items: stretch;
 }
 
-#pages-sidebar li li.homework {
+#pages-sidebar li li.exercise {
     padding-left: 1ch;
     /* background: yellow; */
 }
@@ -176,21 +176,21 @@
     margin: 0.2em 0;
 }
 
-#pages-sidebar li li.homework a {
+#pages-sidebar li li.exercise a {
     /* background: #ffb60012; */
     margin: 0.4em 0px;
     outline: 3px dashed #92929278;
     outline-offset: -1px;
 }
 
-/* #pages-sidebar li li.homework a::before {
+/* #pages-sidebar li li.exercise a::before {
     content: "👉 ";
 } */
 
 #pages-sidebar li li span.entry-number {
     opacity: 0.6;
 }
-#pages-sidebar li li.homework span.entry-number {
+#pages-sidebar li li.exercise span.entry-number {
     display: block;
 }
 
