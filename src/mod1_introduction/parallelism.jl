@@ -39,6 +39,12 @@ md"""
 ## Notions of scalability
 """
 
+# ╔═╡ b65c1a48-38d8-44d6-b351-919faef5abb4
+TODO("Strong scalability.")
+
+# ╔═╡ 32294d52-611e-47de-b0f0-02589a6e75ce
+TODO("Weak scalabilty.")
+
 # ╔═╡ 1fccadd6-498f-4d10-8740-81f4e2114e03
 md"""
 ## Node-level
@@ -105,13 +111,18 @@ From
 md"""
 ### Composable parallelism
 
-- The issue with BLAS
 """
+
+# ╔═╡ 19dbfab5-68ea-4adb-90d7-9fafeb481b22
+TODO("The issue with BLAS.")
 
 # ╔═╡ 971b0fc4-cf03-44e6-a515-fdb74a36003f
 md"""
 ### Acelerated
 """
+
+# ╔═╡ 48b8dada-3e0c-4cee-82ae-8ab7d1df1054
+TODO("What even is a GPU.")
 
 # ╔═╡ 2cc61da7-f7b2-46fa-85c8-ed5cdd3e412a
 md"""
@@ -171,6 +182,9 @@ Y .= a .* X .+ Y
 ```
 
 """
+
+# ╔═╡ 2646f143-dd19-4934-8ddb-ea3884defae9
+TODO("Introduction to KA.")
 
 # ╔═╡ 38b99eb2-a6dc-4872-ab86-8f21cb4c7f59
 md"""
@@ -714,15 +728,20 @@ version = "17.4.0+2"
 # ╟─6044b1cf-97b2-428c-8d2c-d3cf078599f3
 # ╟─4af02ca9-0b62-463e-ab58-7eea703ed638
 # ╟─97ee45b8-77a7-48b8-96ef-ad38b68cfe9e
+# ╠═b65c1a48-38d8-44d6-b351-919faef5abb4
+# ╠═32294d52-611e-47de-b0f0-02589a6e75ce
 # ╟─1fccadd6-498f-4d10-8740-81f4e2114e03
 # ╠═6327d081-fabd-4b9d-9627-01f18a537409
 # ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
 # ╠═0b1b3a0d-ee2a-4a97-98b7-e6a40da9465e
 # ╟─c8c5bf61-c6ca-495f-82f1-fbf84d29be57
-# ╟─d0d64acb-2eb5-4bbe-aac0-05a2ef1bd97a
+# ╠═d0d64acb-2eb5-4bbe-aac0-05a2ef1bd97a
+# ╠═19dbfab5-68ea-4adb-90d7-9fafeb481b22
 # ╟─971b0fc4-cf03-44e6-a515-fdb74a36003f
+# ╠═48b8dada-3e0c-4cee-82ae-8ab7d1df1054
 # ╟─2cc61da7-f7b2-46fa-85c8-ed5cdd3e412a
 # ╟─b21b17f7-bc3e-4286-ad0b-3004e1bb4d78
+# ╠═2646f143-dd19-4934-8ddb-ea3884defae9
 # ╟─38b99eb2-a6dc-4872-ab86-8f21cb4c7f59
 # ╟─a10ab271-4a58-47d3-90d6-8d48745ce712
 # ╟─33d2c72d-f6f1-4805-b3a6-1c6c6e79caa3

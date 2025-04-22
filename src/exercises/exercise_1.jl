@@ -316,6 +316,9 @@ end
 ```
 """))
 
+# ╔═╡ 8041c741-55e7-462c-8cba-1f2d77e112b4
+TODO("Benchmark High-level vs KA")
+
 # ╔═╡ 1c76d376-ef91-4410-a981-d8a6dea3033f
 md"""
 ### Diffusion kernel
@@ -2385,6 +2388,7 @@ version = "3.6.0+0"
 # ╠═956a0315-a772-48cb-af83-1fb8d660b985
 # ╟─c4ef9a23-bcec-4290-a146-a0c9d5c3f183
 # ╟─fb8de770-fa00-4642-8eee-3ceac9b7e2ff
+# ╠═8041c741-55e7-462c-8cba-1f2d77e112b4
 # ╟─1c76d376-ef91-4410-a981-d8a6dea3033f
 # ╠═f7829706-3981-45b5-bdc3-d8b21155229a
 # ╠═0b20861c-995c-4890-81b9-98b8aca5095a
