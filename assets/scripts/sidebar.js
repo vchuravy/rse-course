@@ -20,9 +20,9 @@ document.querySelectorAll(".track-chooser select").forEach((trackSelect) => {
 
         localStorage.setItem("chosen track", track)
 
-        let lectures_homeworks = Array.from(sidebar.querySelectorAll(".lecture,.homework"))
+        let lectures_exercises = Array.from(sidebar.querySelectorAll(".lecture,.exercise"))
 
-        lectures_homeworks.forEach((el) => {
+        lectures_exercises.forEach((el) => {
             let intrack = track === "" || el.classList.contains(`tag_track_${track}`) || el.classList.contains(`tag_welcome`)
             el.classList.toggle("not_in_track", !intrack)
         })

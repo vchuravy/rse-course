@@ -372,8 +372,49 @@ function mandel(z)
 	return maxiter
 end
 
+# ╔═╡ b880c381-9780-4cdf-8133-fbc215ffafc7
+function mandel(::String)
+	"Hello world"
+end
+
+# ╔═╡ 0c433fae-4307-42fa-b827-db6de4e0b9e3
+mandel("")
+
+# ╔═╡ 5e6491f5-7368-46da-a4f4-4ebfc6be7f5a
+function f(a::Int, b)
+	return "first method"
+end
+
+# ╔═╡ 71c3e875-4860-4e67-ab23-bd12e8649725
+function f(a, b::Int)
+	return "second method"
+end
+
+# ╔═╡ ae95853e-7fd9-4a66-9e8d-f233b98c5b40
+function f(::Int64, ::Int64)
+   "third method"
+end
+
+# ╔═╡ a28e1bb4-3910-4f23-b29d-75f0411ce198
+f(1, "")
+
+# ╔═╡ 59743f8b-6b5e-465f-b6c2-a63018221b01
+f("", 1)
+
+# ╔═╡ ef5d4bfc-7fc4-4466-949a-69880d7fd884
+f(1, 1)
+
 # ╔═╡ 6fc6fc92-7067-4d9b-9692-5c93ce25ea64
 mandel(complex(.3, -.6))
+
+# ╔═╡ d9c95228-2084-4c0f-b9bb-9f6b0745787b
+dump(0.3-0.6im)
+
+# ╔═╡ 0bdd2d56-c6cf-45d3-abe8-65e6ebf7529f
+π
+
+# ╔═╡ 1ad4cbd7-be8b-42b0-a036-3f24fc4093dc
+
 
 # ╔═╡ 7f2f5c61-e72f-450e-881c-b7e8f3360e14
 md"""
@@ -1970,7 +2011,18 @@ version = "3.6.0+0"
 # ╟─04fd17b9-4e9b-4415-b11f-15d8f75e495e
 # ╟─adffe1c0-bea7-48a8-961f-57cb3afdf7f1
 # ╠═b81ffae8-acf3-4866-852b-0a0f81fa1292
+# ╠═b880c381-9780-4cdf-8133-fbc215ffafc7
+# ╠═0c433fae-4307-42fa-b827-db6de4e0b9e3
+# ╠═5e6491f5-7368-46da-a4f4-4ebfc6be7f5a
+# ╠═71c3e875-4860-4e67-ab23-bd12e8649725
+# ╠═a28e1bb4-3910-4f23-b29d-75f0411ce198
+# ╠═59743f8b-6b5e-465f-b6c2-a63018221b01
+# ╠═ef5d4bfc-7fc4-4466-949a-69880d7fd884
+# ╠═ae95853e-7fd9-4a66-9e8d-f233b98c5b40
 # ╠═6fc6fc92-7067-4d9b-9692-5c93ce25ea64
+# ╠═d9c95228-2084-4c0f-b9bb-9f6b0745787b
+# ╠═0bdd2d56-c6cf-45d3-abe8-65e6ebf7529f
+# ╠═1ad4cbd7-be8b-42b0-a036-3f24fc4093dc
 # ╟─7f2f5c61-e72f-450e-881c-b7e8f3360e14
 # ╠═7ae1138f-520d-478c-857d-46092be4ae9b
 # ╠═08a29bb2-a294-4072-9ad9-0a47114399d0
