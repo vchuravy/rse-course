@@ -398,6 +398,59 @@ md"""
 - Launch kernel `kernel(args..., ndrange=...)` while specifying the grid to execute over.
 """
 
+# ╔═╡ b400807c-c2ee-4f11-bd49-6394ad73b3e8
+TwoColumn(
+md"""
+```julia
+function vadd(a, b, c)
+	for i in eachindex(c)
+		c[i] = a[i] + b[i]
+	end
+end
+
+
+
+a = rand(N)
+b = rand(N)
+c = similar(a)
+
+	
+vadd(a, b, c)
+```
+""",
+md"""
+```julia
+import KernelAbstractions as KA
+	
+@kernel function vadd(a, b, c)
+	i = @index(Global)
+	c[i] = a[i] + b[i]
+end
+
+backend = CUDABackend()
+a = KA.allocate(backend, Float32, N)
+b = KA.allocate(backend, Float32, N)
+c = similar(a)
+
+vadd_kernel = vadd(backend)
+vadd_kernel(a, b, c; ndrange=size(c))
+```
+""")
+
+# ╔═╡ e3d2ed97-e8b3-450e-a38b-03f8cb4f9824
+md"""
+!!! note
+	GPU execution is asynchronous! We will discuss the details in the later GPU lecture. When benchmarking you need to synchronize the device!
+
+	```julia
+		@benchmark begin 
+			vadd_kernel(a, b, c; ndrange=size(c))
+			KA.synchronize(backend)
+		end
+	```
+	Otherwise you are only measuring the **launch** of the kernel.
+"""
+
 # ╔═╡ 38b99eb2-a6dc-4872-ab86-8f21cb4c7f59
 md"""
 #### High-level array based programming
@@ -2166,7 +2219,7 @@ version = "3.6.0+0"
 # ╟─4af02ca9-0b62-463e-ab58-7eea703ed638
 # ╟─4689d3e7-4cc1-4ee5-9408-c0daccfd7581
 # ╟─5e3971e1-ad84-48b8-9f85-9236460d239e
-# ╠═6232b081-3344-4f1b-a32c-71811f7eccd4
+# ╟─6232b081-3344-4f1b-a32c-71811f7eccd4
 # ╠═54b850e1-12db-47d3-8933-e96a3c1bb37e
 # ╠═34a1ecf2-97ca-467c-9eea-8fbecf14b6bf
 # ╟─7bebbeed-12f7-4f5b-8ad8-43bb55e04911
@@ -2204,6 +2257,8 @@ version = "3.6.0+0"
 # ╟─2cc61da7-f7b2-46fa-85c8-ed5cdd3e412a
 # ╟─b21b17f7-bc3e-4286-ad0b-3004e1bb4d78
 # ╟─84d01e31-e216-42c8-9251-031030d8f088
+# ╟─b400807c-c2ee-4f11-bd49-6394ad73b3e8
+# ╟─e3d2ed97-e8b3-450e-a38b-03f8cb4f9824
 # ╟─38b99eb2-a6dc-4872-ab86-8f21cb4c7f59
 # ╟─a10ab271-4a58-47d3-90d6-8d48745ce712
 # ╟─33d2c72d-f6f1-4805-b3a6-1c6c6e79caa3
