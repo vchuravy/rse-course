@@ -26,7 +26,7 @@ $(
 
 ## Step 1: Install Julia $version
 
-Go to [https://julialang.org/downloads](https://julialang.org/downloads) and download the current stable release, Julia $(version), using the correct version for your operating system (Linux x86, Mac, Windows, etc).
+Go to [https://julialang.org/install/](https://julialang.org/install/) and download `juliaup`, `juliaup` will install the current stable release, Julia $(version), using the correct version for your operating system (Linux x86, Mac, Windows, etc).
 
 ## Step 2: Run Julia
 
