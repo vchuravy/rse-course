@@ -183,6 +183,12 @@ with_terminal() do
 	Hwloc.topology()
 end
 
+# ╔═╡ b71bd928-96da-4020-b7dc-ce493f5244e6
+HW
+
+# ╔═╡ 51a50068-7443-466d-ba01-8e53a191a8c7
+# TODO: Add HT/SMT
+
 # ╔═╡ c8c5bf61-c6ca-495f-82f1-fbf84d29be57
 md"""
 ### Shared-memory parallelism
@@ -239,15 +245,31 @@ function myfun()
 end
 
 # ╔═╡ 06361851-f0bc-4f4e-8d23-f656fcc5bfb1
-function bench(f)
-	a = zeros(1000)
+function bench(f, N = 10)
+	a = zeros(N)
 	Threads.@threads for i in 1:length(a)
 		a[i] = f()
 	end
+	a
 end
 
+# ╔═╡ 79a7fc85-16e2-4da8-9818-0d460c1ed107
+function bench_Serial(f, N = 10)
+	a = zeros(N)
+	for i in 1:length(a)
+		a[i] = f()
+	end
+	a
+end
+
+# ╔═╡ 12872821-0b70-45dd-9faf-715c1cfe64c6
+@time bench_Serial(myfun, 1000)
+
+# ╔═╡ 74dc14cf-e24f-4a28-8dbf-04b79b51c1d7
+@time bench(myfun, 1000)
+
 # ╔═╡ 26c0ff81-aff1-40e3-958f-95b8a6c57c5d
- @benchmark bench(myfun) samples=10 evals=3
+ @benchmark bench(myfun, 1000) samples=10 evals=3
 
 # ╔═╡ 83737466-fe3b-4b36-9739-249dd1ee1adf
 question_box(md"What are potential issues with `myfun`")
@@ -298,7 +320,10 @@ function myfun_improved()
 end
 
 # ╔═╡ ec60c217-cb1d-4227-8e30-cead67424572
- @benchmark bench(myfun_improved) samples=10 evals=3
+ @benchmark bench(myfun_improved, 1000) samples=10 evals=3
+
+# ╔═╡ a6e0179a-31e0-4644-8178-3456a4909602
+@benchmark bench_Serial(myfun_improved, 1000) samples=10 evals=3
 
 # ╔═╡ 971b0fc4-cf03-44e6-a515-fdb74a36003f
 md"""
@@ -2239,10 +2264,15 @@ version = "3.6.0+0"
 # ╠═6327d081-fabd-4b9d-9627-01f18a537409
 # ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
 # ╠═0b1b3a0d-ee2a-4a97-98b7-e6a40da9465e
+# ╠═b71bd928-96da-4020-b7dc-ce493f5244e6
+# ╠═51a50068-7443-466d-ba01-8e53a191a8c7
 # ╟─c8c5bf61-c6ca-495f-82f1-fbf84d29be57
 # ╠═90feafed-4d87-48c9-9d9b-44418883c5a9
 # ╠═06361851-f0bc-4f4e-8d23-f656fcc5bfb1
 # ╠═e04ec567-f8c5-4eba-a657-2dc0e882ffd5
+# ╠═79a7fc85-16e2-4da8-9818-0d460c1ed107
+# ╠═12872821-0b70-45dd-9faf-715c1cfe64c6
+# ╠═74dc14cf-e24f-4a28-8dbf-04b79b51c1d7
 # ╠═26c0ff81-aff1-40e3-958f-95b8a6c57c5d
 # ╠═83737466-fe3b-4b36-9739-249dd1ee1adf
 # ╟─23da347a-6814-4ba9-8437-d6a4056d682e
@@ -2253,6 +2283,7 @@ version = "3.6.0+0"
 # ╠═16bbccec-b1c5-426d-87f9-52d6aed30113
 # ╠═64c73702-e5ac-4105-a546-81f5d5cfaaf6
 # ╠═ec60c217-cb1d-4227-8e30-cead67424572
+# ╠═a6e0179a-31e0-4644-8178-3456a4909602
 # ╟─971b0fc4-cf03-44e6-a515-fdb74a36003f
 # ╟─7d0e35dd-3222-4d7d-8b87-3ff28da984df
 # ╟─baa49acf-f012-4ccd-a60e-e8f84e067ab2
