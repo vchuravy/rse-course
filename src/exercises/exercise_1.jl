@@ -30,6 +30,9 @@ using PlutoTeachingTools, PlutoUI
 # ╔═╡ 0331dc20-fa0b-4b7f-badc-a2040795f15a
 using LinearAlgebra
 
+# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+using BenchmarkTools
+
 # ╔═╡ 4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
 using KernelAbstractions
 
@@ -137,12 +140,6 @@ md"""
 ### Multi-threaded map
 """
 
-# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
-# ╠═╡ disabled = true
-#=╠═╡
-using BenchmarkTools
-  ╠═╡ =#
-
 # ╔═╡ 0c8cfee6-5edb-4400-b7cd-753c2975a1e4
 function tmap(fn, itr)
     # for each i ∈ itr, spawn a task to compute fn(i)
@@ -162,25 +159,19 @@ begin
 end
 
 # ╔═╡ 1fe0391a-7cee-4b9a-a775-3b78335f475c
-#=╠═╡
 begin
 	blas_edge
 	serial_map_svdals_b = @benchmark map(svdvals, $Ms) samples=10 evals=3
 end
-  ╠═╡ =#
 
 # ╔═╡ cb042477-6a3e-4940-b3e6-38511936d370
-#=╠═╡
 begin
 	blas_edge
 	threaded_map_svdals_b = @benchmark tmap(svdvals, $Ms) samples=10 evals=3
 end
-  ╠═╡ =#
 
 # ╔═╡ 3923ae23-1000-49ab-b5a2-c31567822e5d
-#=╠═╡
 (minimum(serial_map_svdals_b.times) / minimum(threaded_map_svdals_b.times)) / Threads.nthreads() * 100 # parallel efficiency
-  ╠═╡ =#
 
 # ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
 md"""
