@@ -163,6 +163,9 @@ $\text{Efficiency} = \frac{t_1}{t_n}$
 	The definition of $t_N$ includes the amount of **work** being scaled up!
 """
 
+# ╔═╡ 558c2a17-cfe6-4d76-8e68-bf7c1f26d5da
+RobustLocalResource("https://raw.githubusercontent.com/eth-cscs/ImplicitGlobalGrid.jl/master/docs/src/assets/images/fig_parEff_HM3D_Julia_CUDA_all_Daint_extrapol.png", "parallel_efficiency.png")
+
 # ╔═╡ 1fccadd6-498f-4d10-8740-81f4e2114e03
 md"""
 ## Node-level
@@ -2231,6 +2234,7 @@ version = "3.6.0+0"
 # ╟─e8bcbdae-bed6-4708-9105-423416212977
 # ╟─f3c0e360-3f3f-4c23-938d-6843fb09399c
 # ╟─32294d52-611e-47de-b0f0-02589a6e75ce
+# ╟─558c2a17-cfe6-4d76-8e68-bf7c1f26d5da
 # ╟─1fccadd6-498f-4d10-8740-81f4e2114e03
 # ╠═6327d081-fabd-4b9d-9627-01f18a537409
 # ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
