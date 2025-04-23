@@ -30,9 +30,6 @@ using PlutoTeachingTools, PlutoUI
 # ╔═╡ 0331dc20-fa0b-4b7f-badc-a2040795f15a
 using LinearAlgebra
 
-# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
-using BenchmarkTools
-
 # ╔═╡ 4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
 using KernelAbstractions
 
@@ -68,6 +65,11 @@ PlutoUI.TableOfContents(; depth=4)
 md"""
 # Parallelism Exercises
 
+"""
+
+# ╔═╡ 64e33738-e7b0-4a7a-893c-69b0b48b6215
+md"""
+This notebook uses **$(Threads.nthreads()) threads**
 """
 
 # ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
@@ -135,6 +137,12 @@ md"""
 ### Multi-threaded map
 """
 
+# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+# ╠═╡ disabled = true
+#=╠═╡
+using BenchmarkTools
+  ╠═╡ =#
+
 # ╔═╡ 0c8cfee6-5edb-4400-b7cd-753c2975a1e4
 function tmap(fn, itr)
     # for each i ∈ itr, spawn a task to compute fn(i)
@@ -148,24 +156,31 @@ Ms = [rand(100,100) for i in 1:(8 * Threads.nthreads())];
 
 # ╔═╡ 4297ac26-de6b-4041-940e-531184860d84
 begin
-	# BLAS.set_num_threads(1) # Fix number of BLAS threads
+	BLAS.set_num_threads(Sys.CPU_THREADS) # Fix number of BLAS threads
+	# BLAS.set_num_threads(1)
 	blas_edge = nothing
 end
 
 # ╔═╡ 1fe0391a-7cee-4b9a-a775-3b78335f475c
+#=╠═╡
 begin
 	blas_edge
 	serial_map_svdals_b = @benchmark map(svdvals, $Ms) samples=10 evals=3
 end
+  ╠═╡ =#
 
 # ╔═╡ cb042477-6a3e-4940-b3e6-38511936d370
+#=╠═╡
 begin
 	blas_edge
 	threaded_map_svdals_b = @benchmark tmap(svdvals, $Ms) samples=10 evals=3
 end
+  ╠═╡ =#
 
 # ╔═╡ 3923ae23-1000-49ab-b5a2-c31567822e5d
+#=╠═╡
 (minimum(serial_map_svdals_b.times) / minimum(threaded_map_svdals_b.times)) / Threads.nthreads() * 100 # parallel efficiency
+  ╠═╡ =#
 
 # ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
 md"""
@@ -316,8 +331,8 @@ end
 ```
 """))
 
-# ╔═╡ 8041c741-55e7-462c-8cba-1f2d77e112b4
-TODO("Benchmark High-level vs KA")
+# ╔═╡ fc859cea-a41a-4d96-bf86-5a23bca19589
+question_box(md"Benchmark the KernelAbstraction implementation against a high-level array implementation at different problem sizes")
 
 # ╔═╡ 1c76d376-ef91-4410-a981-d8a6dea3033f
 md"""
@@ -337,28 +352,51 @@ dt = dx^2 * dy^2 / (2.0 * a * (dx^2 + dy^2)) # Largest stable time step
 # ╔═╡ 83042a1e-f964-483d-b316-a486cfabd7e0
 N = 64
 
+# ╔═╡ d2d925a0-8fd5-4345-8ee2-fa4dc4a75407
+md"""
+Implement a kernel that solves the 2D Diffusion Equation.
+
+$\frac{\partial U}{\partial t} = a * (\frac{\partial^2 U}{\partial x^2} + \frac{\partial^2 U}{\partial y^2})$
+
+Using a finite-difference approximation:
+
+$dU = a * dt * (\frac{U[i+1, j] - 2U[i,j] + U[i-1,j]}{dx^2} + \frac{U[i, j+1] - 2U[i,j] + U[i,j-1]}{dy^2} )$
+
+!!! note
+	The code below implements the harness using OffsetArrays and wrap around boundary conditions to make your life easier.
+"""
+
 # ╔═╡ 9eb166fa-360e-4a5d-a2ac-9113c2f264b3
-@kernel function diffuse(out, @Const(D), a, dt, dx, dy)
-	i, j = @index(Global, NTuple)
-	out[i, j] = a * dt * (
-		(D[i - 1, j] - 2 * D[i, j] + D[i + 1, j]) / dx^2 +
-		(D[i, j - 1] - 2 * D[i, j] + D[i, j + 1]) / dy^2
-	)
+@kernel function diffuse(dU, @Const(U), a, dt, dx, dy)
+	# implement me
 end
 
 # ╔═╡ aa2d455e-c9fc-4a7b-b50e-77709481c2a7
-function diffuse!(data, a, dt, dx, dy)
-    out = similar(data)
-	diffuse(get_backend(data))(out, data, a, dt, dx, dy; ndrange=(N,N))
-	data .+= out
+function diffuse!(U, a, dt, dx, dy)
+    dU = zero(U)
+	diffuse(get_backend(U))(dU, U, a, dt, dx, dy; ndrange=(N,N))
+	U .+= dU
 	
     # update boundary condition (wrap around)
-    data[0, :]   .= data[N, :]
-    data[N+1, :] .= data[1, :]
-    data[:, 0]   .= data[:, N]
-    data[:, N+1] .= data[:, 0]
-    data
+    U[0, :]   .= U[N, :]
+    U[N+1, :] .= U[1, :]
+    U[:, 0]   .= U[:, N]
+    U[:, N+1] .= U[:, 0]
+    U
 end
+
+# ╔═╡ f912ee44-15ed-469f-b417-cf7d8d87146e
+answer_box(hint(md"""
+```julia
+@kernel function diffuse(dU, @Const(U), a, dt, dx, dy)
+	i, j = @index(Global, NTuple)
+	out[i, j] = a * dt * (
+		(U[i + 1, j] - 2 * U[i, j] + U[i - 1, j]) / dx^2 +
+		(U[i, j + 1] - 2 * U[i, j] + U[i, j - 1]) / dy^2
+	)
+end
+```
+"""))
 
 # ╔═╡ 2a986721-f513-488d-970e-4797f0de135f
 let
@@ -408,7 +446,7 @@ oneAPI = "~2.0.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "1d148b38730be5abdeb0b86eed5e24ca3e2dc7fe"
 
@@ -1572,7 +1610,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.5+0"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2353,6 +2391,7 @@ version = "3.6.0+0"
 # ╟─8577787d-d72d-4d92-8c69-9e516a85b779
 # ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
 # ╟─e022e3ce-15d1-11ee-2c26-a506ce7d9895
+# ╟─64e33738-e7b0-4a7a-893c-69b0b48b6215
 # ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
 # ╟─2d039f15-fe74-4296-8e26-53cce9dde7c6
 # ╠═cbbfe10c-2131-42a0-8db7-06e7518508d9
@@ -2388,14 +2427,16 @@ version = "3.6.0+0"
 # ╠═956a0315-a772-48cb-af83-1fb8d660b985
 # ╟─c4ef9a23-bcec-4290-a146-a0c9d5c3f183
 # ╟─fb8de770-fa00-4642-8eee-3ceac9b7e2ff
-# ╠═8041c741-55e7-462c-8cba-1f2d77e112b4
+# ╠═fc859cea-a41a-4d96-bf86-5a23bca19589
 # ╟─1c76d376-ef91-4410-a981-d8a6dea3033f
 # ╠═f7829706-3981-45b5-bdc3-d8b21155229a
 # ╠═0b20861c-995c-4890-81b9-98b8aca5095a
 # ╠═0ad45abb-0d9f-4e8d-b097-b0b42ba024f7
 # ╠═83042a1e-f964-483d-b316-a486cfabd7e0
+# ╟─d2d925a0-8fd5-4345-8ee2-fa4dc4a75407
 # ╠═9eb166fa-360e-4a5d-a2ac-9113c2f264b3
 # ╠═aa2d455e-c9fc-4a7b-b50e-77709481c2a7
+# ╟─f912ee44-15ed-469f-b417-cf7d8d87146e
 # ╠═2a986721-f513-488d-970e-4797f0de135f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
