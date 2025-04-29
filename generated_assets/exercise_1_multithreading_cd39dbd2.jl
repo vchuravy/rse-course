@@ -2,9 +2,9 @@
 # v0.20.6
 
 #> [frontmatter]
-#> order = "2.5"
+#> order = "2.1"
 #> exercise_number = "1"
-#> title = "Exercise"
+#> title = "Shared-memory parallelism"
 #> tags = ["module1", "track_parallel", "exercises"]
 #> layout = "layout.jlhtml"
 #> description = "sample exercise"

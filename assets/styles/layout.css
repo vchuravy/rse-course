@@ -172,11 +172,23 @@
     /* background: yellow; */
 }
 
+#pages-sidebar li li.indepth {
+    padding-left: 1ch;
+    /* background: yellow; */
+}
+
 #pages-sidebar li li a {
     margin: 0.2em 0;
 }
 
 #pages-sidebar li li.exercise a {
+    /* background: #ffb60012; */
+    margin: 0.4em 0px;
+    outline: 3px dashed #92929278;
+    outline-offset: -1px;
+}
+
+#pages-sidebar li li.indepth a {
     /* background: #ffb60012; */
     margin: 0.4em 0px;
     outline: 3px dashed #92929278;
@@ -191,6 +203,9 @@
     opacity: 0.6;
 }
 #pages-sidebar li li.exercise span.entry-number {
+    display: block;
+}
+#pages-sidebar li li.indepth span.entry-number {
     display: block;
 }
 
