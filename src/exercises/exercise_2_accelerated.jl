@@ -4,7 +4,7 @@
 #> [frontmatter]
 #> order = "2.2"
 #> exercise_number = "2"
-#> title = "Exercise"
+#> title = "Introduction to accelerated computing"
 #> tags = ["module1", "track_parallel", "exercises"]
 #> layout = "layout.jlhtml"
 #> description = "Introduction to accelerated computing"
