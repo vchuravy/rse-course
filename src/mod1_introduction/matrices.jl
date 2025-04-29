@@ -141,8 +141,14 @@ end
 md"""
 Now, we will plot the results. Since the number of flops is $2n^3$, we will plot $2n^3/t$ for time $t$ in microseconds in order to plot the gigaflops rate (billions of flops per second). If you naively think of a CPU as a box that performs floating-point instructions at a fixed rate, with all other instructions being negligible (a picture that may have been true circa 1985), this would be a flat horizontal line independent of $n$, but we will see that reality is quite different.
 
-The OpenBLAS library gets an "unfair" factor of 8 speedup on typical modern Intel processors thanks to hand-coded support for [AVX-512](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions) SIMD instructions, which perform 8 double-precision floating-point operations simultaneously, so we will divide the BLAS performance by 8 for comparison purposes.
+The OpenBLAS library gets an "unfair" factor of 8 speedup on typical modern Intel processors thanks to hand-coded support for [AVX-512](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions) SIMD instructions, which perform 8 double-precision floating-point operations simultaneously.
 """
+
+# ╔═╡ db422443-97b0-40c2-bd03-b8fca41b5894
+begin 
+	blas_threads
+	peakflops() * 1e-9
+end
 
 # ╔═╡ 3038a7ff-3ab3-4795-afa8-285b9b6d33d9
 let
@@ -172,8 +178,6 @@ As a first step in the right direction, we'll implement a [cache-oblivious algor
 """
 
 # ╔═╡ 227558b9-bd0d-432d-b458-89e00c8cb14e
-
-
 function add_matmul_rec!(m,n,p, i0,j0,k0, C,A,B)
     if m+n+p <= 64   # base case: naive matmult for sufficiently large matrices
         for i = 1:m
@@ -213,7 +217,6 @@ p")
 end
 
 # ╔═╡ 47cc3dc5-5294-4aed-83ce-a82bd4a34916
-
 matmul_rec(A, B) = matmul_rec!(Array{promote_type(eltype(A), eltype(B))}(undef, 
                                      size(A,1), size(B,2)),
                                A, B)
@@ -1881,6 +1884,7 @@ version = "3.6.0+0"
 # ╠═36da8b88-960c-45d4-a55b-28745750c372
 # ╟─6599d6a8-073c-4a83-81bd-c65c1a62839b
 # ╠═f08a7392-5f7e-45f8-a713-adb51eb43a7e
+# ╠═db422443-97b0-40c2-bd03-b8fca41b5894
 # ╠═3038a7ff-3ab3-4795-afa8-285b9b6d33d9
 # ╟─7fd5e1f7-3ac5-4f9e-8c6c-dc6a397bdc13
 # ╠═227558b9-bd0d-432d-b458-89e00c8cb14e
