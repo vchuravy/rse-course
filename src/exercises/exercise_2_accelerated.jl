@@ -2,12 +2,12 @@
 # v0.20.6
 
 #> [frontmatter]
-#> order = "2.5"
-#> exercise_number = "1"
+#> order = "2.2"
+#> exercise_number = "2"
 #> title = "Exercise"
 #> tags = ["module1", "track_parallel", "exercises"]
 #> layout = "layout.jlhtml"
-#> description = "sample exercise"
+#> description = "Introduction to accelerated computing"
 
 using Markdown
 using InteractiveUtils
@@ -27,8 +27,8 @@ end
 # ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
 using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ 0331dc20-fa0b-4b7f-badc-a2040795f15a
-using LinearAlgebra
+# ╔═╡ 51588c4c-2b03-4ff2-b64e-7fd2e3bef81c
+using LinearAlgebra, Random
 
 # ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
 using BenchmarkTools
@@ -36,155 +36,23 @@ using BenchmarkTools
 # ╔═╡ 4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
 using KernelAbstractions
 
-# ╔═╡ 51588c4c-2b03-4ff2-b64e-7fd2e3bef81c
-using Random
-
-# ╔═╡ d9e9247b-a7e2-4def-9910-2338e0b77e6d
-using CUDA
-
-# ╔═╡ 4bafd8e3-bd15-424a-bd8a-d37b85b920c5
-using Metal;
-
-# ╔═╡ 8654d29f-e0f2-4e0b-852d-9940af8b7795
-begin
-	# Work around <https://github.com/JuliaGPU/oneAPI.jl/issues/445>.
-	ENV["SYCL_PI_LEVEL_ZERO_BATCH_SIZE"] = "1"
-	using oneAPI
-end;
-
 # ╔═╡ f7829706-3981-45b5-bdc3-d8b21155229a
 begin
 	using OffsetArrays
 	using CairoMakie
 end
 
-# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
-ChooseDisplayMode()
-
 # ╔═╡ 3e5c3c97-4401-41d4-a701-d9b24f9acdc6
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ e022e3ce-15d1-11ee-2c26-a506ce7d9895
-md"""
-# Parallelism Exercises
-
-"""
-
-# ╔═╡ 64e33738-e7b0-4a7a-893c-69b0b48b6215
-md"""
-This notebook uses **$(Threads.nthreads()) threads**
-"""
-
-# ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
-md"""
-## Shared-memory parallelism
-"""
-
-# ╔═╡ 2d039f15-fe74-4296-8e26-53cce9dde7c6
-md"""
-### Parallel fibonacci
-
-Remember:
-
-```julia
-t = Threads.@spawn begin # `@spawn` returns right away
-    3 + 3
-end
-
-fetch(t) # `fetch` waits for the task to finish
-```
-"""
-
-# ╔═╡ cbbfe10c-2131-42a0-8db7-06e7518508d9
-function fib(n)
-	if n <= 1
-        return n
-    end
-	return fib(n-1) + fib(n-2)
-end
-
-# ╔═╡ 89858748-ebe6-4d00-b09c-6cb1064e101f
-fib(12)
-
-# ╔═╡ 03228a70-2298-4dcd-96e8-2be48603b860
-# TODO: Implement pfib
-
-# ╔═╡ 031dc47b-8a1c-48a2-abe6-de88050ae1c7
-let
-	if !@isdefined(pfib)
-		func_not_defined(:pfib)
-	elseif pfib(12) !== fib(12)
-		keep_working(md"Your solution and the reference solution disagree!")
-	else
-		correct()
-	end
-end
-
-# ╔═╡ 4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
-answer_box(hint(
-md"""
-```julia
-function pfib(n)
-	if n <= 1
-		return n
-	end
-	t = Threads.@spawn pfib(n-2)
-	return pfib(n-1) + fetch(t)::Int
-end
-```
-"""
-))
-
-# ╔═╡ 5d888f29-0204-4388-ab81-53aefafd5092
-md"""
-### Multi-threaded map
-"""
-
-# ╔═╡ 0c8cfee6-5edb-4400-b7cd-753c2975a1e4
-function tmap(fn, itr)
-    # for each i ∈ itr, spawn a task to compute fn(i)
-    tasks = map(i -> Threads.@spawn(fn(i)), itr)
-    # fetch and return all the results
-    return fetch.(tasks)
-end
-
-# ╔═╡ b2aecd04-115e-4aef-90d9-077aa886e70e
-Ms = [rand(100,100) for i in 1:(8 * Threads.nthreads())];
-
-# ╔═╡ 4297ac26-de6b-4041-940e-531184860d84
-begin
-	BLAS.set_num_threads(Sys.CPU_THREADS) # Fix number of BLAS threads
-	# BLAS.set_num_threads(1)
-	blas_edge = nothing
-end
-
-# ╔═╡ 1fe0391a-7cee-4b9a-a775-3b78335f475c
-begin
-	blas_edge
-	serial_map_svdals_b = @benchmark map(svdvals, $Ms) samples=10 evals=3
-end
-
-# ╔═╡ cb042477-6a3e-4940-b3e6-38511936d370
-begin
-	blas_edge
-	threaded_map_svdals_b = @benchmark tmap(svdvals, $Ms) samples=10 evals=3
-end
-
-# ╔═╡ 3923ae23-1000-49ab-b5a2-c31567822e5d
-(minimum(serial_map_svdals_b.times) / minimum(threaded_map_svdals_b.times)) / Threads.nthreads() * 100 # parallel efficiency
-
-# ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
-md"""
-!!! note
-     Vary the number of threads the BLAS library uses.
-     (See the cell above with `BLAS.set_num_threads()`)
-"""
+# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
+ChooseDisplayMode()
 
 # ╔═╡ d4c35d94-5a04-43a3-99b4-c8e9f05a2d5e
 md"""
-## Accelerated computing
+# Exercise: Introduction to accelerated computing
 
-### AXPY with KernelAbstractions
+## AXPY with KernelAbstractions
 
 KernelAbstractions is a light-weight domain-specific language that enables you to write portable kernels.
 
@@ -198,9 +66,17 @@ It allows us to target many different backend packages:
 And it provides a fallback implementation for CPU
 """
 
-# ╔═╡ fce789ed-6a4f-40a1-a196-01cb2e7bc92f
-# **sigh** Currently crashes inside Pluto
-# using AMDGPU 
+# ╔═╡ 8c26083e-8931-4362-970c-4741e0b89b89
+begin
+	import CUDA
+	import Metal
+	# Work around <https://github.com/JuliaGPU/oneAPI.jl/issues/445>.
+	ENV["SYCL_PI_LEVEL_ZERO_BATCH_SIZE"] = "1"
+	import oneAPI
+	
+	# **sigh** Currently crashes inside Pluto
+	# import AMDGPU
+end;
 
 # ╔═╡ c5d51b19-b627-47f0-915c-d114f0c6e4fd
 md"""
@@ -209,20 +85,21 @@ Choose your own backend:
 
 # ╔═╡ 20fbd4f0-893c-45e2-9f86-d8e933477151
 let
-	available_backends = KernelAbstractions.Backend[CPU()]
+    available_backends = KernelAbstractions.Backend[CPU()]
+    CI = get(ENV, "GITHUB_ACTIONS", "false") == "true"
 	# Always shows all backend when rendering the notebook on GitHub Actions,
 	# notebooks will be static anyway.
-	if CUDA.functional() || get(ENV, "GITHUB_ACTIONS", "false") == "true"
-		push!(available_backends, CUDABackend())
+	if CUDA.functional() || CI
+		push!(available_backends, CUDA.CUDABackend())
 	end
-	if oneAPI.functional() || get(ENV, "GITHUB_ACTIONS", "false") == "true"
-		push!(available_backends, oneAPIBackend())
+	if oneAPI.functional() || CI
+		push!(available_backends, oneAPI.oneAPIBackend())
 	end
-	if Metal.functional() || get(ENV, "GITHUB_ACTIONS", "false") == "true"
-		push!(available_backends, MetalBackend())
+	if Metal.functional() || CI
+		push!(available_backends, Metal.MetalBackend())
 	end
-	# if AMDGPU.functional() || get(ENV, "GITHUB_ACTIONS", "false") == "true"
-	# 	push!(available_backends, ROCBackend())
+	# if AMDGPU.functional() || CI
+	# 	push!(available_backends, AMDGPU.ROCBackend())
 	# end
 	@bind backend Select(available_backends)
 end
@@ -317,7 +194,6 @@ answer_box(hint(md"""
 function axpy_kernel!(Y, a, X)
 	i = @index(Global)
 	Y[i] += a*X[i]
-	return nothing
 end
 ```
 """))
@@ -396,9 +272,10 @@ let
 	domain = OffsetArray(
 		KernelAbstractions.zeros(backend, Float32, N+2, N+2),
 		xs, ys)
-	domain[16:32, 16:32] .= 5
+	# TODO: Split out into initalize function
+	parent(domain)[16:32, 16:32] .= 5
 	
-	fig, ax, hm = heatmap(xs, ys, parent(domain))
+	fig, ax, hm = heatmap(xs, ys, Array(parent(domain)))
 	
 	Makie.Record(fig, 1:250) do i
 	    diffuse!(domain, a, dt, dx, dy)  # update data
@@ -935,10 +812,10 @@ uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
 version = "0.2.0"
 
 [[deps.GPUCompiler]]
-deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "TimerOutputs", "UUIDs"]
-git-tree-sha1 = "b08c164134dd0dbc76ff54e45e016cf7f30e16a4"
+deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
+git-tree-sha1 = "43c2e60efa2badefe7a32a50b586b4ac1b8b8249"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "1.3.2"
+version = "1.4.0"
 
 [[deps.GPUToolbox]]
 git-tree-sha1 = "15d8b0f5a6dca9bf8c02eeaf6687660dafa638d0"
@@ -1265,9 +1142,9 @@ version = "4.0.1+0"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Unicode"]
-git-tree-sha1 = "5fcfea6df2ff3e4da708a40c969c3812162346df"
+git-tree-sha1 = "f0e861832695dbb70e710606a7d18b7f81acec92"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "9.2.0"
+version = "9.3.1"
 weakdeps = ["BFloat16s"]
 
     [deps.LLVM.extensions]
@@ -1357,6 +1234,12 @@ version = "1.7.2+0"
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
 version = "1.11.0+1"
+
+[[deps.LibTracyClient_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "d2bc4e1034b2d43076b50f0e34ea094c2cb0a717"
+uuid = "ad6e5548-8b26-5c9f-8ef3-ef0ad883f3a5"
+version = "0.9.1+6"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -2109,17 +1992,17 @@ git-tree-sha1 = "f21231b166166bebc73b99cea236071eb047525b"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
 version = "0.11.3"
 
-[[deps.TimerOutputs]]
-deps = ["ExprTools", "Printf"]
-git-tree-sha1 = "f57facfd1be61c42321765d3551b3df50f7e09f6"
-uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
-version = "0.5.28"
+[[deps.Tracy]]
+deps = ["ExprTools", "LibTracyClient_jll", "Libdl"]
+git-tree-sha1 = "16439d004690d4086da35528f0c6b4d7006d6dae"
+uuid = "e689c965-62c8-4b79-b2c5-8359227902fd"
+version = "0.1.4"
 
-    [deps.TimerOutputs.extensions]
-    FlameGraphsExt = "FlameGraphs"
+    [deps.Tracy.extensions]
+    TracyProfilerExt = "TracyProfiler_jll"
 
-    [deps.TimerOutputs.weakdeps]
-    FlameGraphs = "08572546-2f56-4bcf-ba4e-bab62c3a3f89"
+    [deps.Tracy.weakdeps]
+    TracyProfiler_jll = "0c351ed6-8a68-550e-8b79-de6f926da83c"
 
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
@@ -2379,36 +2262,15 @@ version = "3.6.0+0"
 
 # ╔═╡ Cell order:
 # ╟─75b9bee9-7d03-4c90-b828-43e9e946517b
-# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
 # ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
-# ╟─e022e3ce-15d1-11ee-2c26-a506ce7d9895
-# ╟─64e33738-e7b0-4a7a-893c-69b0b48b6215
-# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
-# ╟─2d039f15-fe74-4296-8e26-53cce9dde7c6
-# ╠═cbbfe10c-2131-42a0-8db7-06e7518508d9
-# ╠═89858748-ebe6-4d00-b09c-6cb1064e101f
-# ╠═03228a70-2298-4dcd-96e8-2be48603b860
-# ╟─031dc47b-8a1c-48a2-abe6-de88050ae1c7
-# ╟─4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
-# ╟─5d888f29-0204-4388-ab81-53aefafd5092
-# ╠═0331dc20-fa0b-4b7f-badc-a2040795f15a
-# ╠═91f3684d-ed56-4ee2-b914-79ab4b6ed87a
-# ╠═0c8cfee6-5edb-4400-b7cd-753c2975a1e4
-# ╠═b2aecd04-115e-4aef-90d9-077aa886e70e
-# ╠═4297ac26-de6b-4041-940e-531184860d84
-# ╠═1fe0391a-7cee-4b9a-a775-3b78335f475c
-# ╠═cb042477-6a3e-4940-b3e6-38511936d370
-# ╠═3923ae23-1000-49ab-b5a2-c31567822e5d
-# ╟─c88229ac-c421-41e5-8db8-c62afdb54322
+# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
 # ╟─d4c35d94-5a04-43a3-99b4-c8e9f05a2d5e
-# ╠═4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
 # ╠═51588c4c-2b03-4ff2-b64e-7fd2e3bef81c
-# ╠═d9e9247b-a7e2-4def-9910-2338e0b77e6d
-# ╠═4bafd8e3-bd15-424a-bd8a-d37b85b920c5
-# ╠═fce789ed-6a4f-40a1-a196-01cb2e7bc92f
-# ╠═8654d29f-e0f2-4e0b-852d-9940af8b7795
+# ╠═91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+# ╠═4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
+# ╠═8c26083e-8931-4362-970c-4741e0b89b89
 # ╟─c5d51b19-b627-47f0-915c-d114f0c6e4fd
-# ╟─20fbd4f0-893c-45e2-9f86-d8e933477151
+# ╠═20fbd4f0-893c-45e2-9f86-d8e933477151
 # ╟─9b30a955-5d30-42d7-86c9-a4cc52e370d4
 # ╠═b9c0df0e-efd9-4616-9ece-18584fef3828
 # ╠═4b5c9ffe-05c2-4c34-9e27-e5e88e2bbe04

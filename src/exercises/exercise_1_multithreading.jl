@@ -2,624 +2,172 @@
 # v0.20.6
 
 #> [frontmatter]
-#> chapter = "1"
-#> section = "2"
-#> order = "2"
-#> title = "Parallelism"
-#> date = "2025-04-23"
-#> tags = ["module1", "track_parallel"]
+#> order = "2.1"
+#> exercise_number = "1"
+#> title = "Exercise"
+#> tags = ["module1", "track_parallel", "exercises"]
 #> layout = "layout.jlhtml"
-#> 
-#>     [[frontmatter.author]]
-#>     name = "Valentin Churavy"
-#>     url = "https://vchuravy.dev"
+#> description = "sample exercise"
 
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 07565449-7cf6-47f2-b8f7-5a1bb2cd56ce
-using PlutoUI, PlutoTeachingTools
+# ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
+using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
-using CairoMakie
+# ╔═╡ 0331dc20-fa0b-4b7f-badc-a2040795f15a
+using LinearAlgebra
 
-# ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
-using Hwloc
+# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+using BenchmarkTools
 
-# ╔═╡ e04ec567-f8c5-4eba-a657-2dc0e882ffd5
-using BenchmarkTools, LinearAlgebra
+# ╔═╡ 4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
+using KernelAbstractions
 
-# ╔═╡ 16bbccec-b1c5-426d-87f9-52d6aed30113
-using StaticArrays
+# ╔═╡ 51588c4c-2b03-4ff2-b64e-7fd2e3bef81c
+using Random
 
-# ╔═╡ df284ffd-14eb-41eb-a4b8-94f4d7cee298
+# ╔═╡ f7829706-3981-45b5-bdc3-d8b21155229a
+begin
+	using OffsetArrays
+	using CairoMakie
+end
+
+# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
 ChooseDisplayMode()
 
-# ╔═╡ 6044b1cf-97b2-428c-8d2c-d3cf078599f3
+# ╔═╡ 3e5c3c97-4401-41d4-a701-d9b24f9acdc6
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ 4af02ca9-0b62-463e-ab58-7eea703ed638
+# ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
 md"""
-# Parallelism
+# Exercise: Shared-memory parallelism
 """
 
-# ╔═╡ 4689d3e7-4cc1-4ee5-9408-c0daccfd7581
+# ╔═╡ 64e33738-e7b0-4a7a-893c-69b0b48b6215
 md"""
-## Why do we need parallelism in the first place?
-"""
-
-# ╔═╡ 5e3971e1-ad84-48b8-9f85-9236460d239e
-md"""
-### What has your processor done for you recently
-
-
-> As programmers we have the mental model that a processor executes our program in linear order
-
-
-Processors are:
-
-- Out-of-order
-- Superscalar
-- Predictive
-- Micro-ops
-
-"""
-
-# ╔═╡ 6232b081-3344-4f1b-a32c-71811f7eccd4
-md"""
-### An (idealized) processor
-
-$(RobustLocalResource("https://s3.amazonaws.com/media-p.slid.es/uploads/779853/images/4327544/pasted-from-clipboard.png", "arch.png"))
-"""
-
-# ╔═╡ 54b850e1-12db-47d3-8933-e96a3c1bb37e
-function my_dot(a, b)
-	acc = zero(eltype(a))
-	@inbounds for i in eachindex(a,b)
-		acc += a[i] * b[i]
-	end
-	return acc
-end
-
-# ╔═╡ 34a1ecf2-97ca-467c-9eea-8fbecf14b6bf
-with_terminal() do
-	@code_native debuginfo = :none my_dot(zeros(3), zeros(3))
-end
-
-# ╔═╡ 7bebbeed-12f7-4f5b-8ad8-43bb55e04911
-md"""
-### End of Moore's Law
-
-Roughly: Processors keep getting faster, but until when?
-"""
-
-# ╔═╡ 06a7ba62-dbd8-4d83-b44c-24bcad33f425
-RobustLocalResource("https://www.alleywatch.com/wp-content/uploads/2023/01/screen-shot-2017-03-03-at-1-59-21-pm.png", "moore.png")
-
-# ╔═╡ 97ee45b8-77a7-48b8-96ef-ad38b68cfe9e
-md"""
-## Notions of scalability
-"""
-
-# ╔═╡ 744e22ce-2323-4e95-9df7-6acc6da94399
-md"""
-### Speedup / Strong scalability
-
-Given a program that can execute with some compute units $N$, we define $t_N$ as the total time the program takes.
-
-!!! note
-    Computers have many different ways of measure time, total time or wall-clock time is the 'human' experienced time.
-
-$\text{Speedup} = \frac{t_1}{t_N}$
-
-The time it takes for a program to execute with one compute unit, vs $N$ compute units.
-"""
-
-# ╔═╡ 0f903ad0-5917-4dd8-8e6f-960d242e1c7c
-md"""
-### Amdahl's law
-
-Given a function $f$ that consists of a parallel portion $p$  and a serial portion $s$. In 1967, Amdahl pointed out that the speedup is limited by the fraction of the serial part of the software that is not amenable to parallelization.
-
-$\text{Speedup} = \frac{1}{S + P/N}$
-
-
-Amdahl’s law states that, for a fixed problem, the upper limit of speedup is determined by the serial fraction of the code.
-"""
-
-# ╔═╡ d87bf932-1b1b-47fe-ac43-6bed182297bd
-speedup(s, p, N) = 1/(s+p/N)
-
-# ╔═╡ e8bcbdae-bed6-4708-9105-423416212977
-let 
-	fig, ax = lines(1:16, (N)->speedup(0, 1, N), label="0%")
-	lines!(ax, 1:16, (N)->speedup(.01, .99, N), label="1%")
-	lines!(ax, 1:16, (N)->speedup(.05, .95, N), label="5%")
-	lines!(ax, 1:16, (N)->speedup(.1, .9, N), label="10%")
-	lines!(ax, 1:16, (N)->speedup(.2, .8, N), label="20%")
-	lines!(ax, 1:16, (N)->speedup(.4, .6, N), label="40%")
-	lines!(ax, 1:16, (N)->speedup(.6, .4, N), label="60%")
-	lines!(ax, 1:16, (N)->speedup(.8, .2, N), label="80%")
-	lines!(ax, 1:16, (N)->speedup(1, 0, N), label="100%")
-	fig[1, 2] = Legend(fig, ax, "Serial", framevisible = false)
-	fig
-end
-
-# ╔═╡ f3c0e360-3f3f-4c23-938d-6843fb09399c
-md"""
-!!! note
-    For strong scalability the problem size stays constant, and we only vary the amount of compute available.
-"""
-
-# ╔═╡ 32294d52-611e-47de-b0f0-02589a6e75ce
-md"""
-### Weak Scaling Efficiency
-
-Given a program that can do $N$ work with $N$ compute units , we define $t_N$ as the total time the program takes.
-
-$\text{Efficiency} = \frac{t_1}{t_n}$
-
-!!! note
-	The definition of $t_N$ includes the amount of **work** being scaled up!
-"""
-
-# ╔═╡ 558c2a17-cfe6-4d76-8e68-bf7c1f26d5da
-RobustLocalResource("https://raw.githubusercontent.com/eth-cscs/ImplicitGlobalGrid.jl/master/docs/src/assets/images/fig_parEff_HM3D_Julia_CUDA_all_Daint_extrapol.png", "parallel_efficiency.png")
-
-# ╔═╡ 1fccadd6-498f-4d10-8740-81f4e2114e03
-md"""
-## Node-level
-
 This notebook uses **$(Threads.nthreads()) threads**
 """
 
-# ╔═╡ 6327d081-fabd-4b9d-9627-01f18a537409
-with_terminal() do
-	Sys.cpu_summary()
-end
-
-# ╔═╡ 0b1b3a0d-ee2a-4a97-98b7-e6a40da9465e
-with_terminal() do
-	Hwloc.topology()
-end
-
-# ╔═╡ 51a50068-7443-466d-ba01-8e53a191a8c7
-TODO("Explain Hyper-threading")
-
-# ╔═╡ c8c5bf61-c6ca-495f-82f1-fbf84d29be57
+# ╔═╡ 2d039f15-fe74-4296-8e26-53cce9dde7c6
 md"""
-### Shared-memory parallelism
+## Parallel fibonacci
 
-- Julia is task-based (`M:N`-threading, green threads)
-- `Channel`, locks and atomics
+Remember:
 
 ```julia
-function pfib(n::Int)
-    if n <= 1
+t = Threads.@spawn begin # `@spawn` returns right away
+    3 + 3
+end
+
+fetch(t) # `fetch` waits for the task to finish
+```
+"""
+
+# ╔═╡ cbbfe10c-2131-42a0-8db7-06e7518508d9
+function fib(n)
+	if n <= 1
         return n
     end
-    t = Threads.@spawn pfib(n-2)
-    return pfib(n-1) + fetch(t)::Int
+	return fib(n-1) + fib(n-2)
 end
-```
 
-```julia
-using Base.Threads: @threads
-function prefix_threads!(⊕, y::AbstractVector)
-	l = length(y)
-	k = ceil(Int, log2(l))
-	# do reduce phase
-	for j = 1:k
-		@threads for i = 2^j:2^j:min(l, 2^k)
-			@inbounds y[i] = y[i - 2^(j - 1)] ⊕ y[i]
-		end
+# ╔═╡ 89858748-ebe6-4d00-b09c-6cb1064e101f
+fib(12)
+
+# ╔═╡ 03228a70-2298-4dcd-96e8-2be48603b860
+# TODO: Implement pfib
+
+# ╔═╡ 031dc47b-8a1c-48a2-abe6-de88050ae1c7
+let
+	if !@isdefined(pfib)
+		func_not_defined(:pfib)
+	elseif pfib(12) !== fib(12)
+		keep_working(md"Your solution and the reference solution disagree!")
+	else
+		correct()
 	end
-	# do expand phase
-	for j = (k - 1):-1:1
-		@threads for i = 3*2^(j - 1):2^j:min(l, 2^k)
-			@inbounds y[i] = y[i - 2^(j - 1)] ⊕ y[i]
-		end
-	end
-	return y
-end
-A = fill(1, 500_000)
-prefix_threads!(+, A)
-```
-
-From
-
-> Nash et al., (2021). Basic Threading Examples in JuliaLang v1.3. JuliaCon Proceedings, 1(1), 54, https://doi.org/10.21105/jcon.00054
-"""
-
-# ╔═╡ 90feafed-4d87-48c9-9d9b-44418883c5a9
-function myfun()
-	s = 0.0
-	N = 10000
-	for i in 1:N
-		s += det(randn(3,3))
-	end
-	s/N
 end
 
-# ╔═╡ 06361851-f0bc-4f4e-8d23-f656fcc5bfb1
-function bench(f, N = 10)
-	a = zeros(N)
-	Threads.@threads for i in 1:length(a)
-		a[i] = f()
-	end
-	a
-end
-
-# ╔═╡ 79a7fc85-16e2-4da8-9818-0d460c1ed107
-function bench_Serial(f, N = 10)
-	a = zeros(N)
-	for i in 1:length(a)
-		a[i] = f()
-	end
-	a
-end
-
-# ╔═╡ 12872821-0b70-45dd-9faf-715c1cfe64c6
-@time bench_Serial(myfun, 1000)
-
-# ╔═╡ 74dc14cf-e24f-4a28-8dbf-04b79b51c1d7
-@time bench(myfun, 1000)
-
-# ╔═╡ 26c0ff81-aff1-40e3-958f-95b8a6c57c5d
- @benchmark bench(myfun, 1000) samples=10 evals=3
-
-# ╔═╡ 83737466-fe3b-4b36-9739-249dd1ee1adf
-question_box(md"What are potential issues with `myfun`")
-
-# ╔═╡ 23da347a-6814-4ba9-8437-d6a4056d682e
-answer_box(
-md"""
-- Lot's of memory allocation in the hot loop
-- How is `det` implemented? \
-  `@which det(zeros(3,3))` -> `det(lufact(A))`
-- `det` calls into BLAS
-"""
-)
-
-# ╔═╡ d0d64acb-2eb5-4bbe-aac0-05a2ef1bd97a
-md"""
-### Composable parallelism
-"""
-
-# ╔═╡ 1d6e82bf-ad11-4351-b2d0-a0ac5838876d
-question_box(md"Who is in charge of parallelism?")
-
-# ╔═╡ bc839c48-bc2f-406c-8c17-f63bd7577e01
-md"""
-Potential answers:
-- The user?
-- The library?
-  - Are they all written in Julia?
-- "The system"
-"""
-
-# ╔═╡ eaafb75b-4a1c-47ce-9085-38e1e7d4d712
-md"""
-As an example for linear algebra Julia uses OpenBLAS. OpenBLAS manages it's own thread-pool `BLAS.set_num_threads`.
-
-We can run into contention issues when we use Julia own parallelism using tasks
-and system libraries.
-"""
-
-# ╔═╡ 64c73702-e5ac-4105-a546-81f5d5cfaaf6
-function myfun_improved()
-	s = 0.0
-	N = 10000
-	for i in 1:N
-		s += det(randn(SMatrix{3,3}))
-	end
-	s/N
-end
-
-# ╔═╡ ec60c217-cb1d-4227-8e30-cead67424572
- @benchmark bench(myfun_improved, 1000) samples=10 evals=3
-
-# ╔═╡ a6e0179a-31e0-4644-8178-3456a4909602
-@benchmark bench_Serial(myfun_improved, 1000) samples=10 evals=3
-
-# ╔═╡ 971b0fc4-cf03-44e6-a515-fdb74a36003f
-md"""
-### Accelerated
-"""
-
-# ╔═╡ 7d0e35dd-3222-4d7d-8b87-3ff28da984df
-md"""
-A GPU has many "lightweight" threads
-"""
-
-# ╔═╡ baa49acf-f012-4ccd-a60e-e8f84e067ab2
-md"""
-#### CPU die shot
-
-$(RobustLocalResource("https://s3.amazonaws.com/media-p.slid.es/uploads/779853/images/4399827/800px-coffee_lake_die__quad_core___annotated_.png", "quad_core.png"))
-"""
-
-# ╔═╡ df27cce9-efb6-4302-a7d5-50090f5af848
-md"""
-#### GPU block-diagram
-
-$(RobustLocalResource("https://devblogs.nvidia.com/parallelforall/wp-content/uploads/2016/04/gp100_block_diagram-1-624x368.png", "p100.png"))
-"""
-
-# ╔═╡ 4af8eedb-5a82-4207-b91d-bcb925a5d220
-md"""
-#### Bottlenecks
-
-$(RobustLocalResource("https://s3.amazonaws.com/media-p.slid.es/uploads/779853/images/4399848/pasted-from-clipboard.png", "gpu_system.png"))
-"""
-
-# ╔═╡ 2cc61da7-f7b2-46fa-85c8-ed5cdd3e412a
-md"""
-#### Composable infrastructure
-
-##### Core
-- GPUCompiler.jl: Takes native Julia code and compiles it directly to GPUs
-- GPUArrays.jl: High-level array based common functionality
-- KerneAbstractions.jl: Vendor-agnostic kernel programming language
-- Adapt.jl: Translate complex structs across the host-device boundary
-
-##### Vendor specific
-- CUDA.jl
-- AMDGPU.jl
-- oneAPI.jl
-- Metal.jl
-
-"""
-
-# ╔═╡ b21b17f7-bc3e-4286-ad0b-3004e1bb4d78
-md"""
-#### Different layers of abstraction
-
-##### Vendor-specific
-```julia
-using CUDA
-
-function saxpy!(a,X,Y)
-	i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-	if i <= length(Y)
-		@inbounds Y[i] = a * X[i] + Y[i]
-	end
-	return nothing
-end
-
-@cuda threads=32 blocks=cld(length(Y), 32) saxpy!(a, X, Y)
-```
-
-##### KernelAbstractions
-
-```julia
-using KernelAbstractions
-using CUDA
-
-@kernel function saxpy!(a, @Const(X), Y)
-    I = @index(Global)
-    @inbounds Y[I] = a * X[I] + Y[I]
-end
-
-saxpy!(CUDABackend())(a, X, Y, ndrange=length(Y))
-```
-
-##### Array abstractions
-
-```julia
-Y .= a .* X .+ Y
-```
-
-"""
-
-# ╔═╡ 84d01e31-e216-42c8-9251-031030d8f088
-md"""
-#### How to use KernelAbstractions
-
-- Use `@kernel function mykernel(args...) end` to write a GPU-style program
-- Instantiate kernel for a backend `kernel = mykernel(backend)`
-- Backends come from Vendor specific libraries
-- `KA.allocate(backend, ...)` to obtain memory
-- Launch kernel `kernel(args..., ndrange=...)` while specifying the grid to execute over.
-"""
-
-# ╔═╡ b400807c-c2ee-4f11-bd49-6394ad73b3e8
-TwoColumn(
+# ╔═╡ 4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
+answer_box(hint(
 md"""
 ```julia
-function vadd(a, b, c)
-	for i in eachindex(c)
-		c[i] = a[i] + b[i]
+function pfib(n)
+	if n <= 1
+		return n
 	end
+	t = Threads.@spawn pfib(n-2)
+	return pfib(n-1) + fetch(t)::Int
 end
-
-
-
-a = rand(N)
-b = rand(N)
-c = similar(a)
-
-	
-vadd(a, b, c)
 ```
-""",
+"""
+))
+
+# ╔═╡ 5d888f29-0204-4388-ab81-53aefafd5092
 md"""
-```julia
-import KernelAbstractions as KA
-	
-@kernel function vadd(a, b, c)
-	i = @index(Global)
-	c[i] = a[i] + b[i]
+## Multi-threaded map
+"""
+
+# ╔═╡ 0c8cfee6-5edb-4400-b7cd-753c2975a1e4
+function tmap(fn, itr)
+    # for each i ∈ itr, spawn a task to compute fn(i)
+    tasks = map(i -> Threads.@spawn(fn(i)), itr)
+    # fetch and return all the results
+    return fetch.(tasks)
 end
 
-backend = CUDABackend()
-a = KA.allocate(backend, Float32, N)
-b = KA.allocate(backend, Float32, N)
-c = similar(a)
+# ╔═╡ b2aecd04-115e-4aef-90d9-077aa886e70e
+Ms = [rand(100,100) for i in 1:(8 * Threads.nthreads())];
 
-vadd_kernel = vadd(backend)
-vadd_kernel(a, b, c; ndrange=size(c))
-```
-""")
+# ╔═╡ 4297ac26-de6b-4041-940e-531184860d84
+begin
+	BLAS.set_num_threads(Sys.CPU_THREADS) # Fix number of BLAS threads
+	# BLAS.set_num_threads(1)
+	blas_edge = nothing
+end
 
-# ╔═╡ e3d2ed97-e8b3-450e-a38b-03f8cb4f9824
+# ╔═╡ 1fe0391a-7cee-4b9a-a775-3b78335f475c
+begin
+	blas_edge
+	serial_map_svdals_b = @benchmark map(svdvals, $Ms) samples=10 evals=3
+end
+
+# ╔═╡ cb042477-6a3e-4940-b3e6-38511936d370
+begin
+	blas_edge
+	threaded_map_svdals_b = @benchmark tmap(svdvals, $Ms) samples=10 evals=3
+end
+
+# ╔═╡ 3923ae23-1000-49ab-b5a2-c31567822e5d
+(minimum(serial_map_svdals_b.times) / minimum(threaded_map_svdals_b.times)) / Threads.nthreads() * 100 # parallel efficiency
+
+# ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
 md"""
 !!! note
-	GPU execution is asynchronous! We will discuss the details in the later GPU lecture. When benchmarking you need to synchronize the device!
-
-	```julia
-		@benchmark begin 
-			vadd_kernel(a, b, c; ndrange=size(c))
-			KA.synchronize(backend)
-		end
-	```
-	Otherwise you are only measuring the **launch** of the kernel.
+     Vary the number of threads the BLAS library uses.
+     (See the cell above with `BLAS.set_num_threads()`)
 """
-
-# ╔═╡ 38b99eb2-a6dc-4872-ab86-8f21cb4c7f59
-md"""
-#### High-level array based programming
-
-Julia and GPUArrays.jl provide support for an efficient GPU programming environment build around array abstractions and higher-order functions.
-
-- **Vocabulary of operations**: `map`, `broadcast`, `scan`, `reduce`, ... 
-  Map naturally onto GPU execution models
-- **Compiled to efficient code**: multiple dispatch, specialization
-  Write generic, reusable applications
-- BLAS (matrix-multiply, ...), and other libraries like FFT
-
-> Array operators using multiple dispatch: a design methodology for array implementations in dynamic languages 
-> 
-> (doi:10.1145/2627373.2627383)
-
-> Rapid software prototyping for heterogeneous and distributed platforms 
->
-> (doi:10.1016/j.advengsoft.2019.02.002)
-"""
-
-# ╔═╡ a10ab271-4a58-47d3-90d6-8d48745ce712
-md"""
-Array types -- **where** memory resides and **how** code is executed.
-
-|  |  |
-| --- | --- |
-|  `A = Matrix{Float64}(undef, 64, 32)`   | CPU   |
-|  `A = CuMatrix{Float64}(undef, 64, 32)`   | Nvidia GPU   |
-|  `A = ROCMatrix{Float64}(undef, 64, 32)`   | AMD GPU   |
-
-!!! info
-    Data movement is explicit.
-"""
-
-# ╔═╡ 33d2c72d-f6f1-4805-b3a6-1c6c6e79caa3
-md"""
-### What makes an application portable?
-
-1. Can I **run** it on a different compute architecture
-    1. Different CPU architectures
-    2. We live in a mult GPU vendor world
-2. Does it **compute** the same thing?
-    1. Can I develop on one platform and move to another later?
-3. Does it achieve the same **performance**?
-4. Can I take advantage of platform **specific** capabilities?
-
-> Productivity meets Performance: Julia on A64FX (doi:10.1109/CLUSTER51413.2022.00072)
-"""
-
-# ╔═╡ 1b20ca8f-81a4-4f28-8c9e-02fd3c3b986a
-md"""
-### Adapt.jl
-
-[Adapt.jl](https://github.com/JuliaGPU/Adapt.jl) is a lightweight dependency that you can use to convert complex structures from CPU to GPU.
-
-```julia
-using Adapt
-adapt(CuArray, ::Adjoint{Array})::Adjoint{CuArray}
-```
-
-```julia
-struct Model{T<:Number, AT<:AbstractArray{T}}
-   data::AT
-end
-
-Adapt.adapt_structure(to, x::Model) = Model(adapt(to, x.data))
-
-
-cpu = Model(rand(64, 64));
-using CUDA
-
-gpu = adapt(CuArray, cpu)
-Model{Float64, CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}}(...)
-```
-"""
-
-# ╔═╡ b4a9d35e-eeb2-41a4-9159-0e9b78d51ef6
-md"""
-## Multi-Node / Distributed
-"""
-
-# ╔═╡ d5a629ca-e258-426e-a5d4-2f7f22fe683c
-md"""
-Explicit communication between processes using a library like `MPI.jl`
-"""
-
-# ╔═╡ 5cdd4e72-835f-4123-91d0-a5da8bf8f365
-md"""
-```julia
-using MPI
-MPI.Init()
-
-comm = MPI.COMM_WORLD
-rank = MPI.Comm_rank(comm)
-size = MPI.Comm_size(comm)
-
-dst = mod(rank+1, size)
-src = mod(rank-1, size)
-
-N = 4
-
-send_mesg = Array{Float64}(undef, N)
-recv_mesg = Array{Float64}(undef, N)
-
-fill!(send_mesg, Float64(rank))
-
-rreq = MPI.Irecv!(recv_mesg, comm; source=src, tag=src+32)
-
-sreq = MPI.Isend(send_mesg, comm; dest=dst, tag=rank+32)
-
-stats = MPI.Waitall([rreq, sreq])
-
-MPI.Barrier(comm)
-```
-"""
-
-# ╔═╡ 77b0375d-e4eb-45c7-bb5c-daba682b25e9
-md"""
-!!! note
-    Weak-scaling is often a more interesting measurement on clusters.
-"""
-
-# ╔═╡ 893182e7-d085-4e39-bd99-1235b2cba104
-TODO("mention colab.research.google.co")
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 BenchmarkTools = "~1.6.0"
 CairoMakie = "~0.13.4"
-Hwloc = "~3.3.0"
-PlutoTeachingTools = "~0.2.15"
-PlutoUI = "~0.7.60"
-StaticArrays = "~1.9.13"
+KernelAbstractions = "~0.9.34"
+OffsetArrays = "~1.17.0"
+PlutoTeachingTools = "~0.2.11"
+PlutoUI = "~0.7.51"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -628,7 +176,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "040ede6b8269e2c2bf914b79ac51d8e4776a92cb"
+project_hash = "e62fd2e9edb9b35329874fded1a8a09b603b06eb"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -687,6 +235,24 @@ version = "1.1.2"
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
+
+[[deps.Atomix]]
+deps = ["UnsafeAtomics"]
+git-tree-sha1 = "b5bb4dc6248fde467be2a863eb8452993e74d402"
+uuid = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
+version = "1.1.1"
+
+    [deps.Atomix.extensions]
+    AtomixCUDAExt = "CUDA"
+    AtomixMetalExt = "Metal"
+    AtomixOpenCLExt = "OpenCL"
+    AtomixoneAPIExt = "oneAPI"
+
+    [deps.Atomix.weakdeps]
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+    OpenCL = "08131aa3-fb12-5dee-8b74-c09406e224a2"
+    oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
 
 [[deps.Automa]]
 deps = ["PrecompileTools", "SIMD", "TranscodingStreams"]
@@ -1090,22 +656,6 @@ git-tree-sha1 = "55c53be97790242c29031e5cd45e8ac296dadda3"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "8.5.0+0"
 
-[[deps.Hwloc]]
-deps = ["CEnum", "Hwloc_jll", "Printf"]
-git-tree-sha1 = "6a3d80f31ff87bc94ab22a7b8ec2f263f9a6a583"
-uuid = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
-version = "3.3.0"
-weakdeps = ["AbstractTrees"]
-
-    [deps.Hwloc.extensions]
-    HwlocTrees = "AbstractTrees"
-
-[[deps.Hwloc_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "f93a9ce66cd89c9ba7a4695a47fd93b4c6bc59fa"
-uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
-version = "2.12.0+0"
-
 [[deps.HypergeometricFunctions]]
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
 git-tree-sha1 = "68c173f4f449de5b438ee67ed0c9c748dc31a2ec"
@@ -1291,6 +841,22 @@ git-tree-sha1 = "c47892541d03e5dc63467f8964c9f2b415dfe718"
 uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
 version = "0.9.46"
 
+[[deps.KernelAbstractions]]
+deps = ["Adapt", "Atomix", "InteractiveUtils", "MacroTools", "PrecompileTools", "Requires", "StaticArrays", "UUIDs"]
+git-tree-sha1 = "80d268b2f4e396edc5ea004d1e0f569231c71e9e"
+uuid = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+version = "0.9.34"
+
+    [deps.KernelAbstractions.extensions]
+    EnzymeExt = "EnzymeCore"
+    LinearAlgebraExt = "LinearAlgebra"
+    SparseArraysExt = "SparseArrays"
+
+    [deps.KernelAbstractions.weakdeps]
+    EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
+    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
 git-tree-sha1 = "7d703202e65efa1369de1279c162b915e245eed1"
@@ -1449,9 +1015,9 @@ uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
 version = "3.2.2"
 
 [[deps.MIMEs]]
-git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
 uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "0.1.4"
+version = "1.1.0"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
@@ -1692,9 +1258,9 @@ version = "0.2.15"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "eba4810d5e6a01f612b948c9fa94f905b49087b0"
+git-tree-sha1 = "d3de2694b52a01ce61a036f18ea9c0f61c4a9230"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.60"
+version = "0.7.62"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -2080,6 +1646,17 @@ weakdeps = ["ConstructionBase", "InverseFunctions"]
     ConstructionBaseUnitfulExt = "ConstructionBase"
     InverseFunctionsUnitfulExt = "InverseFunctions"
 
+[[deps.UnsafeAtomics]]
+git-tree-sha1 = "b13c4edda90890e5b04ba24e20a310fbe6f249ff"
+uuid = "013be700-e6cd-48c3-b4a1-df204f14c38f"
+version = "0.3.0"
+
+    [deps.UnsafeAtomics.extensions]
+    UnsafeAtomicsLLVM = ["LLVM"]
+
+    [deps.UnsafeAtomics.weakdeps]
+    LLVM = "929cbde3-209d-540e-8aea-75f648917ca0"
+
 [[deps.WebP]]
 deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
 git-tree-sha1 = "aa1ca3c47f119fbdae8770c29820e5e6119b83f2"
@@ -2240,67 +1817,29 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═07565449-7cf6-47f2-b8f7-5a1bb2cd56ce
-# ╠═e1589ce2-e486-455c-a67e-828a54357bec
-# ╟─df284ffd-14eb-41eb-a4b8-94f4d7cee298
-# ╟─6044b1cf-97b2-428c-8d2c-d3cf078599f3
-# ╟─4af02ca9-0b62-463e-ab58-7eea703ed638
-# ╟─4689d3e7-4cc1-4ee5-9408-c0daccfd7581
-# ╟─5e3971e1-ad84-48b8-9f85-9236460d239e
-# ╟─6232b081-3344-4f1b-a32c-71811f7eccd4
-# ╠═54b850e1-12db-47d3-8933-e96a3c1bb37e
-# ╠═34a1ecf2-97ca-467c-9eea-8fbecf14b6bf
-# ╟─7bebbeed-12f7-4f5b-8ad8-43bb55e04911
-# ╟─06a7ba62-dbd8-4d83-b44c-24bcad33f425
-# ╟─97ee45b8-77a7-48b8-96ef-ad38b68cfe9e
-# ╟─744e22ce-2323-4e95-9df7-6acc6da94399
-# ╟─0f903ad0-5917-4dd8-8e6f-960d242e1c7c
-# ╠═d87bf932-1b1b-47fe-ac43-6bed182297bd
-# ╟─e8bcbdae-bed6-4708-9105-423416212977
-# ╟─f3c0e360-3f3f-4c23-938d-6843fb09399c
-# ╟─32294d52-611e-47de-b0f0-02589a6e75ce
-# ╟─558c2a17-cfe6-4d76-8e68-bf7c1f26d5da
-# ╟─1fccadd6-498f-4d10-8740-81f4e2114e03
-# ╠═6327d081-fabd-4b9d-9627-01f18a537409
-# ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
-# ╠═0b1b3a0d-ee2a-4a97-98b7-e6a40da9465e
-# ╠═51a50068-7443-466d-ba01-8e53a191a8c7
-# ╟─c8c5bf61-c6ca-495f-82f1-fbf84d29be57
-# ╠═90feafed-4d87-48c9-9d9b-44418883c5a9
-# ╠═06361851-f0bc-4f4e-8d23-f656fcc5bfb1
-# ╠═e04ec567-f8c5-4eba-a657-2dc0e882ffd5
-# ╠═79a7fc85-16e2-4da8-9818-0d460c1ed107
-# ╠═12872821-0b70-45dd-9faf-715c1cfe64c6
-# ╠═74dc14cf-e24f-4a28-8dbf-04b79b51c1d7
-# ╠═26c0ff81-aff1-40e3-958f-95b8a6c57c5d
-# ╠═83737466-fe3b-4b36-9739-249dd1ee1adf
-# ╟─23da347a-6814-4ba9-8437-d6a4056d682e
-# ╟─d0d64acb-2eb5-4bbe-aac0-05a2ef1bd97a
-# ╟─1d6e82bf-ad11-4351-b2d0-a0ac5838876d
-# ╟─bc839c48-bc2f-406c-8c17-f63bd7577e01
-# ╟─eaafb75b-4a1c-47ce-9085-38e1e7d4d712
-# ╠═16bbccec-b1c5-426d-87f9-52d6aed30113
-# ╠═64c73702-e5ac-4105-a546-81f5d5cfaaf6
-# ╠═ec60c217-cb1d-4227-8e30-cead67424572
-# ╠═a6e0179a-31e0-4644-8178-3456a4909602
-# ╟─971b0fc4-cf03-44e6-a515-fdb74a36003f
-# ╟─7d0e35dd-3222-4d7d-8b87-3ff28da984df
-# ╟─baa49acf-f012-4ccd-a60e-e8f84e067ab2
-# ╟─df27cce9-efb6-4302-a7d5-50090f5af848
-# ╟─4af8eedb-5a82-4207-b91d-bcb925a5d220
-# ╟─2cc61da7-f7b2-46fa-85c8-ed5cdd3e412a
-# ╟─b21b17f7-bc3e-4286-ad0b-3004e1bb4d78
-# ╟─84d01e31-e216-42c8-9251-031030d8f088
-# ╟─b400807c-c2ee-4f11-bd49-6394ad73b3e8
-# ╟─e3d2ed97-e8b3-450e-a38b-03f8cb4f9824
-# ╟─38b99eb2-a6dc-4872-ab86-8f21cb4c7f59
-# ╟─a10ab271-4a58-47d3-90d6-8d48745ce712
-# ╟─33d2c72d-f6f1-4805-b3a6-1c6c6e79caa3
-# ╟─1b20ca8f-81a4-4f28-8c9e-02fd3c3b986a
-# ╟─b4a9d35e-eeb2-41a4-9159-0e9b78d51ef6
-# ╟─d5a629ca-e258-426e-a5d4-2f7f22fe683c
-# ╟─5cdd4e72-835f-4123-91d0-a5da8bf8f365
-# ╟─77b0375d-e4eb-45c7-bb5c-daba682b25e9
-# ╠═893182e7-d085-4e39-bd99-1235b2cba104
+# ╟─75b9bee9-7d03-4c90-b828-43e9e946517b
+# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
+# ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
+# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
+# ╟─64e33738-e7b0-4a7a-893c-69b0b48b6215
+# ╟─2d039f15-fe74-4296-8e26-53cce9dde7c6
+# ╠═cbbfe10c-2131-42a0-8db7-06e7518508d9
+# ╠═89858748-ebe6-4d00-b09c-6cb1064e101f
+# ╠═03228a70-2298-4dcd-96e8-2be48603b860
+# ╟─031dc47b-8a1c-48a2-abe6-de88050ae1c7
+# ╟─4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
+# ╟─5d888f29-0204-4388-ab81-53aefafd5092
+# ╠═0331dc20-fa0b-4b7f-badc-a2040795f15a
+# ╠═91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+# ╠═0c8cfee6-5edb-4400-b7cd-753c2975a1e4
+# ╠═b2aecd04-115e-4aef-90d9-077aa886e70e
+# ╠═4297ac26-de6b-4041-940e-531184860d84
+# ╠═1fe0391a-7cee-4b9a-a775-3b78335f475c
+# ╠═cb042477-6a3e-4940-b3e6-38511936d370
+# ╠═3923ae23-1000-49ab-b5a2-c31567822e5d
+# ╟─c88229ac-c421-41e5-8db8-c62afdb54322
+# ╠═4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
+# ╠═51588c4c-2b03-4ff2-b64e-7fd2e3bef81c
+# ╠═f7829706-3981-45b5-bdc3-d8b21155229a
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
