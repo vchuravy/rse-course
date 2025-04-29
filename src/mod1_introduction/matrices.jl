@@ -5,9 +5,9 @@
 #> chapter = "1"
 #> section = "3"
 #> order = "3.1"
-#> title = "Performance Engineering"
-#> date = "2025-04-30"
-#> tags = ["module1", "track_performance"]
+#> title = "Matrix multiply"
+#> indepth_number = "1"
+#> tags = ["module1", "track_performance", "indepth"]
 #> layout = "layout.jlhtml"
 #> 
 #>     [[frontmatter.author]]

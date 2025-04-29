@@ -123,19 +123,30 @@ $(pluto_head)
                         active = page.url == other_page.url
                         
                         exercise_number = get(output.frontmatter, "exercise_number", nothing)
+                        indepth_number = get(output.frontmatter, "indepth_number", nothing)
                         
                         href = root_url * "/" * other_page.url
 
+                        category = if exercise_number !== nothing
+                            "exercise"
+                        elseif indepth_number !== nothing
+                            "indepth"
+                        else
+                            "lecture"
+                        end 
+
                         class = [
                             active ? "active" : nothing,
-                            exercise_number === nothing ? "lecture" : "exercise",
+                            category,
                             ("tag_$(replace(x, " "=>"_"))" for x in tags)...,
                         ]
                         
-                        if exercise_number === nothing
-                            @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">$(number)</span> $(name)</a></li>""")
-                        else
+                        if exercise_number !== nothing
                             @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">Exercise $(exercise_number):</span> $(name)</a></li>""")
+                        elseif indepth_number !== nothing
+                            @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">In-depth $(indepth_number):</span> $(name)</a></li>""")
+                        else
+                            @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">$(number)</span> $(name)</a></li>""")
                         end
                     end for other_page in collections[section_id].pages
                 ])
@@ -168,6 +179,8 @@ $(pluto_head)
            $(isempty(f("title", "")) ? nothing : @htl("""<div class="lecture-header" >
                 $(if !isempty(f("exercise_number", ""))
                 @htl("""<p class="number">Exercise $(f("exercise_number", ""))</p>""")
+                elseif !isempty(f("indepth_number", ""))
+                @htl("""<p class="number">In-depth $(f("indepth_number", ""))</p>""")
                 elseif !isempty(f("chapter", "")) && !isempty(f("section", ""))
                 @htl("""<p class="number">Section $(f("chapter", "-")).$(f("section", "-"))</p>""")
                 else
