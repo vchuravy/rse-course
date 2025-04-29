@@ -17,6 +17,18 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
+
 # ╔═╡ 25935904-4644-4ce2-83e9-d08c22b5e40d
 using PlutoUI, PlutoTeachingTools
 
@@ -26,8 +38,17 @@ using BenchmarkTools
 # ╔═╡ bef23b0e-fd7f-4fab-aec7-de0e38a5b847
 using Profile
 
+# ╔═╡ c48f8d56-a11c-4e94-b98f-b44c4516b0af
+using ProfileCanvas
+
 # ╔═╡ f08a7392-5f7e-45f8-a713-adb51eb43a7e
 using CairoMakie
+
+# ╔═╡ 820eef38-86d2-4b03-8989-0dc4d4c86929
+ChooseDisplayMode()
+
+# ╔═╡ 2aeda4bd-aa1c-46fc-8183-79f8c75e5172
+PlutoUI.TableOfContents(; depth=4)
 
 # ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
 md"""
@@ -39,10 +60,196 @@ md"""
 ## Benchmarking
 """
 
+# ╔═╡ 4f60569e-a86b-4488-ac35-1554ae2b79ea
+md"""
+!!! note
+    **Premature optimization is the root of all evil & If you don't measure you won't improve**
+"""
+
+# ╔═╡ 68ae253d-2a29-44e0-b217-98c3c1b5bc60
+md"""
+### BenchmarkTools.jl
+
+Solid package that tries to eliminate common pitfalls in performance measurment.
+
+- `@benchmark` macro that will repeatedly evaluate your code to gain enough samples
+- Caveat: You probably want to escape $ your input data
+"""
+
+# ╔═╡ c37a3eda-4ce4-4ad3-8011-4c4c6376775d
+@bind N PlutoUI.Slider(5:12)
+
+# ╔═╡ be74fa8a-21d6-4ee0-814c-bbaea5904934
+md"""
+N=$N
+"""
+
+# ╔═╡ 56f31a4a-8bea-4738-9c38-9630a67fb4e6
+data = rand(10^N);
+
+# ╔═╡ 71f5f0a0-b472-48e8-ad8f-1a2b515d81fe
+function sum(X)
+    acc = 0
+    for x in X
+        acc += x
+    end
+    acc
+end
+
+# ╔═╡ 93756400-7346-4fa0-ad5e-06591a6cd8d8
+@elapsed sum(data) # Huh! Is pluto lying to us
+
+# ╔═╡ 317f1ca5-5d8e-4820-abbf-682464866bcb
+@belapsed sum(data) samples=10 evals=3
+
+# ╔═╡ 066f84af-45ef-4ff7-9016-d4e2f95d42d1
+@benchmark sum(data) samples=10 evals=3
+
+# ╔═╡ 80ef7628-0f17-48d2-9bcf-21e3e3985455
+md"""
+!!! note
+    We will talk about the Julia compiler in detail in a future lecture. One important thing to know, that Julia performs type-inference based on the argument types, and **quality** of type-inference determines performance characteristics.
+"""
+
+# ╔═╡ 7838acb6-3786-44ad-ae40-b78d252d59a8
+md"""
+```julia
+function sum(X::Vector{Float64})
+    acc = 0::Int64
+    for x in X
+        (acc += x)::Float64
+    end
+    acc::Union{Int64, Float64}
+end
+```
+"""
+
+# ╔═╡ 08e3642e-8e06-4906-b235-1b31bdc1eb42
+with_terminal() do
+	@code_warntype sum(data)
+end
+
+# ╔═╡ 3e717bde-a8d7-41b3-a52e-694efd22ff38
+md"""
+### Sources of noise
+
+$(TODO())
+"""
+
 # ╔═╡ e8dd5d43-7a39-4f4c-9465-a25ad4dae287
 md"""
 ## Profiling
 """
+
+# ╔═╡ 14b79b92-6ff8-476f-b403-63c797d99567
+TODO("Stochastic profilers")
+
+# ╔═╡ ac46f42b-ec7d-46d3-a4ad-d5c887a93327
+md"""
+- [Profiler](https://docs.julialang.org/en/latest/manual/profile/)
+- [ProfileView.jl](https://github.com/timholy/ProfileView.jl)
+- [ProfileCanvas.jl](https://github.com/pfitzseb/ProfileCanvas.jl)
+- [PProf.jl](https://github.com/JuliaPerf/PProf.jl)
+"""
+
+# ╔═╡ 0a0bf1b1-0495-4879-b69c-2e6c4918977e
+TODO(md"""
+- Multi-threaded example
+- Exercise: BLAS function
+- Talk about calling into C
+""")
+
+# ╔═╡ 3f02c140-c408-4f0c-9d73-5348d2b4af4d
+function profile_test(n)
+    for i = 1:n
+        A = randn(100,100,20)
+        m = maximum(A)
+        Am = mapslices(sum, A; dims=2)
+        B = A[:,:,5]
+        Bsort = mapslices(sort, B; dims=1)
+        b = rand(100)
+        C = B.*b
+    end
+end
+
+# ╔═╡ 9840f078-63ff-4efc-9d45-6e0198d2624d
+@profview profile_test(1);  # run once to trigger compilation (ignore this one)
+
+# ╔═╡ 36762f71-e535-4048-ac68-ea1fc6859de1
+@profview profile_test(10)
+
+# ╔═╡ fa5243df-79a9-4e36-a14a-18d20babbd08
+md"""
+### Native profilers
+"""
+
+# ╔═╡ 898ad034-31b8-4ef5-a58e-06757a6d34cb
+md"""
+- VTunes
+- Perf
+- NSight Systems
+- Tracy
+"""
+
+# ╔═╡ 4a2faa1b-c6de-40f0-b6e9-66653532e27b
+TODO("")
+
+# ╔═╡ 978f5dfa-ad45-4982-b451-d4afbd430530
+md"""
+#### Instrumentation
+
+$(TODO("
+- TimerOutputs
+- NVTX
+- Tracy
+"))
+"""
+
+# ╔═╡ b269b4e8-8738-4abd-a4ab-7c1682252f9b
+md"""
+### Allocation profiler
+$(TODO(""))
+"""
+
+# ╔═╡ 11f8a810-830d-47cd-902e-8fe96aca1149
+md"""
+## Where does time go?
+
+### Your code
+- Arithmetic operations
+- Special functions
+- Memory accesses
+  - Memory layout
+- Type-instabilities
+- Bad algorithm choices
+- Lack of parallelism
+
+### Runtime
+- Memory allocation
+- Garbage collection (finding unused memory)
+- Waiting for the OS
+  - Network/Filesystem/...
+- Concurrency
+  - Lock conflicts
+- Function dispatch
+- Compiling code
+"""
+
+# ╔═╡ c20d320d-8bc3-4407-91ad-7b98a9956090
+md"""
+## Performance annotation in Julia
+
+- https://docs.julialang.org/en/v1/manual/performance-tips/
+- Julia does bounds checking by default `ones(10)[11]` is an error
+- `@inbounds` Turns of bounds-checking locally
+- `@fastmath` Turns of strict IEEE749 locally – be very careful this might not do what you want
+
+`@simd` and `@simd ivdep` stronger gurantuees to encourage LLVM to use SIMD operations
+
+"""
+
+# ╔═╡ d3c47968-1b79-44cc-8625-58fa5c82990a
+TODO("Example")
 
 # ╔═╡ 3979717b-c8d8-4a30-ae36-f923e702d484
 md"""
@@ -175,21 +382,23 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+ProfileCanvas = "efd6af41-a80b-495e-886c-e51b0c7d77a3"
 
 [compat]
 BenchmarkTools = "~1.6.0"
 CairoMakie = "~0.13.4"
 PlutoTeachingTools = "~0.3.1"
-PlutoUI = "~0.7.23"
+PlutoUI = "~0.7.62"
+ProfileCanvas = "~0.1.6"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "851a48ebf616632657a69581c6215ff8714c06ed"
+project_hash = "56fe57e792cc05782e15ec3ec3807a2a9b02444b"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -352,19 +561,15 @@ version = "3.29.0"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
-git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
+git-tree-sha1 = "b10d0b65641d57b8b4d5e234446582de5047050d"
 uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-version = "0.12.1"
-weakdeps = ["StyledStrings"]
-
-    [deps.ColorTypes.extensions]
-    StyledStringsExt = "StyledStrings"
+version = "0.11.5"
 
 [[deps.ColorVectorSpace]]
 deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "Requires", "Statistics", "TensorCore"]
-git-tree-sha1 = "8b3b6f87ce8f65a2b4f857528fd8d70086cd72b1"
+git-tree-sha1 = "a1f44953f2382ebb937d60dafbe2deea4bd23249"
 uuid = "c3611d14-8923-5661-9e6a-0046d554d3a4"
-version = "0.11.0"
+version = "0.10.0"
 weakdeps = ["SpecialFunctions"]
 
     [deps.ColorVectorSpace.extensions]
@@ -669,9 +874,9 @@ version = "0.3.28"
 
 [[deps.Hyperscript]]
 deps = ["Test"]
-git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
 uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.4"
+version = "0.0.5"
 
 [[deps.HypertextLiteral]]
 deps = ["Tricks"]
@@ -1007,6 +1212,11 @@ git-tree-sha1 = "4ef1c538614e3ec30cb6383b9eb0326a5c3a9763"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
 version = "3.3.0"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "1.1.0"
+
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
 git-tree-sha1 = "5de60bc6cb3899cd318d80d627560fae2e2d99ae"
@@ -1133,7 +1343,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+4"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1245,10 +1455,10 @@ uuid = "661c6b06-c737-4d37-b85c-46df65de6f69"
 version = "0.3.1"
 
 [[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "5152abbdab6488d5eec6a01029ca6697dff4ec8f"
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "d3de2694b52a01ce61a036f18ea9c0f61c4a9230"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.23"
+version = "0.7.62"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -1275,6 +1485,12 @@ version = "1.11.0"
 [[deps.Profile]]
 uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
+
+[[deps.ProfileCanvas]]
+deps = ["Base64", "JSON", "Pkg", "Profile", "REPL"]
+git-tree-sha1 = "e42571ce9a614c2fbebcaa8aab23bbf8865c624e"
+uuid = "efd6af41-a80b-495e-886c-e51b0c7d77a3"
+version = "0.1.6"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
@@ -1603,6 +1819,11 @@ git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
 uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
 version = "0.1.0"
 
+[[deps.URIs]]
+git-tree-sha1 = "cbbebadbcc76c5ca1cc4b4f3b0614b3e603b5000"
+uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
+version = "1.5.2"
+
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
 uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
@@ -1789,14 +2010,44 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─25935904-4644-4ce2-83e9-d08c22b5e40d
+# ╠═25935904-4644-4ce2-83e9-d08c22b5e40d
+# ╟─820eef38-86d2-4b03-8989-0dc4d4c86929
+# ╟─2aeda4bd-aa1c-46fc-8183-79f8c75e5172
 # ╟─5c4c21e4-1a90-11f0-2f05-47d877772576
 # ╟─4040ca9a-acbe-40fe-9a81-95996c4b64b2
+# ╟─4f60569e-a86b-4488-ac35-1554ae2b79ea
+# ╟─68ae253d-2a29-44e0-b217-98c3c1b5bc60
 # ╠═b238fccf-56a8-47a9-950f-b1bfedf3bbd8
+# ╠═c37a3eda-4ce4-4ad3-8011-4c4c6376775d
+# ╟─be74fa8a-21d6-4ee0-814c-bbaea5904934
+# ╠═56f31a4a-8bea-4738-9c38-9630a67fb4e6
+# ╠═71f5f0a0-b472-48e8-ad8f-1a2b515d81fe
+# ╠═93756400-7346-4fa0-ad5e-06591a6cd8d8
+# ╠═317f1ca5-5d8e-4820-abbf-682464866bcb
+# ╠═066f84af-45ef-4ff7-9016-d4e2f95d42d1
+# ╟─80ef7628-0f17-48d2-9bcf-21e3e3985455
+# ╟─7838acb6-3786-44ad-ae40-b78d252d59a8
+# ╠═08e3642e-8e06-4906-b235-1b31bdc1eb42
+# ╟─3e717bde-a8d7-41b3-a52e-694efd22ff38
 # ╟─e8dd5d43-7a39-4f4c-9465-a25ad4dae287
+# ╠═14b79b92-6ff8-476f-b403-63c797d99567
+# ╟─ac46f42b-ec7d-46d3-a4ad-d5c887a93327
 # ╠═bef23b0e-fd7f-4fab-aec7-de0e38a5b847
+# ╠═c48f8d56-a11c-4e94-b98f-b44c4516b0af
+# ╠═0a0bf1b1-0495-4879-b69c-2e6c4918977e
+# ╠═3f02c140-c408-4f0c-9d73-5348d2b4af4d
+# ╠═9840f078-63ff-4efc-9d45-6e0198d2624d
+# ╠═36762f71-e535-4048-ac68-ea1fc6859de1
+# ╟─fa5243df-79a9-4e36-a14a-18d20babbd08
+# ╟─898ad034-31b8-4ef5-a58e-06757a6d34cb
+# ╟─4a2faa1b-c6de-40f0-b6e9-66653532e27b
+# ╟─978f5dfa-ad45-4982-b451-d4afbd430530
+# ╟─b269b4e8-8738-4abd-a4ab-7c1682252f9b
+# ╟─11f8a810-830d-47cd-902e-8fe96aca1149
 # ╠═f08a7392-5f7e-45f8-a713-adb51eb43a7e
-# ╟─3979717b-c8d8-4a30-ae36-f923e702d484
+# ╟─c20d320d-8bc3-4407-91ad-7b98a9956090
+# ╠═d3c47968-1b79-44cc-8625-58fa5c82990a
+# ╠═3979717b-c8d8-4a30-ae36-f923e702d484
 # ╠═3f344124-fd06-453d-ad16-c9d1e62fb9bd
 # ╠═5f572c39-66af-4adf-9e16-7462422b7254
 # ╠═7fd5e1f7-3ac5-4f9e-8c6c-dc6a397bdc13
@@ -1808,8 +2059,8 @@ version = "3.6.0+0"
 # ╠═1d0f5763-e7a4-4dd5-8a12-1a229c245cb8
 # ╟─1c868eb8-988d-469a-a0d5-4e640030afdc
 # ╠═9e246b82-e6b2-4e70-9d04-29a3ad8ccc26
-# ╠═663bf708-3587-4b89-9310-6762ad6a7fc4
-# ╠═0adc1bbc-f8b0-4c27-87ed-b2cb57da64ed
+# ╟─663bf708-3587-4b89-9310-6762ad6a7fc4
+# ╟─0adc1bbc-f8b0-4c27-87ed-b2cb57da64ed
 # ╟─4bdec5da-f052-44e7-a174-d3ef9b538597
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
