@@ -2,479 +2,321 @@
 # v0.20.6
 
 #> [frontmatter]
-#> chapter = "3"
-#> section = "3"
-#> order = "10"
-#> title = "GPU Computing"
-#> tags = ["module3", "track_parallel"]
+#> order = "2.2"
+#> exercise_number = "2"
+#> title = "Exercise"
+#> tags = ["module1", "track_parallel", "exercises"]
 #> layout = "layout.jlhtml"
-#> 
-#>     [[frontmatter.author]]
-#>     name = "Valentin Churavy"
-#>     url = "https://vchuravy.dev"
+#> description = "Introduction to accelerated computing"
 
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 07565449-7cf6-47f2-b8f7-5a1bb2cd56ce
-using PlutoUI, PlutoTeachingTools
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
 
-# ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
-using CairoMakie
+# ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
+using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ 51835689-70c1-4e69-bb7b-255b2e27a66f
-using CUDA, KernelAbstractions, Atomix, BenchmarkTools
+# ╔═╡ 51588c4c-2b03-4ff2-b64e-7fd2e3bef81c
+using LinearAlgebra, Random
 
-# ╔═╡ 0048148a-f7ed-49db-89da-c64d4a94f4a2
-using GPUArrays
+# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+using BenchmarkTools
 
-# ╔═╡ 824496ff-5c4d-41b9-a341-bbfa0e2b69f3
-using LinearAlgebra
+# ╔═╡ 4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
+using KernelAbstractions
 
-# ╔═╡ df284ffd-14eb-41eb-a4b8-94f4d7cee298
-ChooseDisplayMode()
+# ╔═╡ f7829706-3981-45b5-bdc3-d8b21155229a
+begin
+	using OffsetArrays
+	using CairoMakie
+end
 
-# ╔═╡ 6044b1cf-97b2-428c-8d2c-d3cf078599f3
+# ╔═╡ 3e5c3c97-4401-41d4-a701-d9b24f9acdc6
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ 4af02ca9-0b62-463e-ab58-7eea703ed638
+# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
+ChooseDisplayMode()
+
+# ╔═╡ d4c35d94-5a04-43a3-99b4-c8e9f05a2d5e
 md"""
-# Accelerated Computing
-"""
+# Exercise: Introduction to accelerated computing
 
-# ╔═╡ 971b0fc4-cf03-44e6-a515-fdb74a36003f
-md"""
-### Accelerated
-"""
+## AXPY with KernelAbstractions
 
-# ╔═╡ 7d0e35dd-3222-4d7d-8b87-3ff28da984df
-md"""
-A GPU has many "lightweight" threads
-"""
+KernelAbstractions is a light-weight domain-specific language that enables you to write portable kernels.
 
-# ╔═╡ baa49acf-f012-4ccd-a60e-e8f84e067ab2
-md"""
-#### CPU die shot
+It allows us to target many different backend packages:
 
-$(RobustLocalResource("https://s3.amazonaws.com/media-p.slid.es/uploads/779853/images/4399827/800px-coffee_lake_die__quad_core___annotated_.png", "quad_core.png"))
-"""
-
-# ╔═╡ df27cce9-efb6-4302-a7d5-50090f5af848
-md"""
-#### GPU block-diagram
-
-$(RobustLocalResource("https://devblogs.nvidia.com/parallelforall/wp-content/uploads/2016/04/gp100_block_diagram-1-624x368.png", "p100.png"))
-"""
-
-# ╔═╡ 4af8eedb-5a82-4207-b91d-bcb925a5d220
-md"""
-#### Bottlenecks
-
-$(RobustLocalResource("https://s3.amazonaws.com/media-p.slid.es/uploads/779853/images/4399848/pasted-from-clipboard.png", "gpu_system.png"))
-"""
-
-# ╔═╡ 2cc61da7-f7b2-46fa-85c8-ed5cdd3e412a
-md"""
-#### Composable infrastructure
-
-##### Core
-- GPUCompiler.jl: Takes native Julia code and compiles it directly to GPUs
-- GPUArrays.jl: High-level array based common functionality
-- KerneAbstractions.jl: Vendor-agnostic kernel programming language
-- Adapt.jl: Translate complex structs across the host-device boundary
-
-##### Vendor specific
 - CUDA.jl
-- AMDGPU.jl
-- oneAPI.jl
 - Metal.jl
+- OneAPI.jl
+- AMDGPU.jl
 
+And it provides a fallback implementation for CPU
 """
 
-# ╔═╡ b21b17f7-bc3e-4286-ad0b-3004e1bb4d78
+# ╔═╡ 8c26083e-8931-4362-970c-4741e0b89b89
+begin
+	import CUDA
+	import Metal
+	# Work around <https://github.com/JuliaGPU/oneAPI.jl/issues/445>.
+	ENV["SYCL_PI_LEVEL_ZERO_BATCH_SIZE"] = "1"
+	import oneAPI
+	
+	# **sigh** Currently crashes inside Pluto
+	# import AMDGPU
+end;
+
+# ╔═╡ c5d51b19-b627-47f0-915c-d114f0c6e4fd
 md"""
-#### Different layers of abstraction
+Choose your own backend:
+"""
 
-##### Vendor-specific
-```julia
-using CUDA
+# ╔═╡ 20fbd4f0-893c-45e2-9f86-d8e933477151
+let
+    available_backends = KernelAbstractions.Backend[CPU()]
+    CI = get(ENV, "GITHUB_ACTIONS", "false") == "true"
+	# Always shows all backend when rendering the notebook on GitHub Actions,
+	# notebooks will be static anyway.
+	if CUDA.functional() || CI
+		push!(available_backends, CUDA.CUDABackend())
+	end
+	if oneAPI.functional() || CI
+		push!(available_backends, oneAPI.oneAPIBackend())
+	end
+	if Metal.functional() || CI
+		push!(available_backends, Metal.MetalBackend())
+	end
+	# if AMDGPU.functional() || CI
+	# 	push!(available_backends, AMDGPU.ROCBackend())
+	# end
+	@bind backend Select(available_backends)
+end
 
-function saxpy!(a,X,Y)
-	i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-	if i <= length(Y)
-		@inbounds Y[i] = a * X[i] + Y[i]
+# ╔═╡ 9b30a955-5d30-42d7-86c9-a4cc52e370d4
+md"""
+The AXPY kernel is defined as
+
+$Y = Y + a*X$
+
+!!! note
+    Vary the `M` below. 
+"""
+
+# ╔═╡ b9c0df0e-efd9-4616-9ece-18584fef3828
+M = 1024
+
+# ╔═╡ 4b5c9ffe-05c2-4c34-9e27-e5e88e2bbe04
+function axpy_serial!(Y, a, X)
+	for i in eachindex(Y, X)
+		# TODO: Implement
 	end
 	return nothing
 end
 
-@cuda threads=32 blocks=cld(length(Y), 32) saxpy!(a, X, Y)
-```
+# ╔═╡ 4cc58f84-0c69-41bf-ade6-2c0da03895ae
+let
+	Y = randn(Float32, M)
+	X = randn(Float32, M)
+	a = randn(Float32)
 
-##### KernelAbstractions
+	reference = Y .+ a .* X
+	axpy_serial!(Y, a, X)
 
-```julia
-using KernelAbstractions
-using CUDA
-
-@kernel function saxpy!(a, @Const(X), Y)
-    I = @index(Global)
-    @inbounds Y[I] = a * X[I] + Y[I]
-end
-
-saxpy!(CUDABackend())(a, X, Y, ndrange=length(Y))
-```
-
-##### Array abstractions
-
-```julia
-Y .= a .* X .+ Y
-```
-
-"""
-
-# ╔═╡ 84d01e31-e216-42c8-9251-031030d8f088
-md"""
-#### How to use KernelAbstractions
-
-- Use `@kernel function mykernel(args...) end` to write a GPU-style program
-- Instantiate kernel for a backend `kernel = mykernel(backend)`
-- Backends come from Vendor specific libraries
-- `KA.allocate(backend, ...)` to obtain memory
-- Launch kernel `kernel(args..., ndrange=...)` while specifying the grid to execute over.
-"""
-
-# ╔═╡ b400807c-c2ee-4f11-bd49-6394ad73b3e8
-TwoColumn(
-md"""
-```julia
-function vadd(a, b, c)
-	for i in eachindex(c)
-		c[i] = a[i] + b[i]
+	if reference == Y
+		correct()
+	else
+		keep_working(md"Your solution and the reference solution disagree!")
 	end
 end
 
-
-
-a = rand(N)
-b = rand(N)
-c = similar(a)
-
-	
-vadd(a, b, c)
-```
-""",
-md"""
+# ╔═╡ 9637a3b3-ac0a-4ba0-a964-8be35bbdae88
+answer_box(hint(md"""
 ```julia
-import KernelAbstractions as KA
-	
-@kernel function vadd(a, b, c)
+function axpy_serial!(Y, a, X)
+	for i in eachindex(Y, X)
+		Y[i] += a*X[i]
+	end
+	return nothing
+end
+```
+"""))
+
+# ╔═╡ e645c640-84b6-43d7-bf0a-a1823b693bfc
+@kernel function axpy_kernel!(Y, a, X)
+	# implement me!
+end
+
+# ╔═╡ 956a0315-a772-48cb-af83-1fb8d660b985
+# Creating a wrapper kernel for launching with error checks
+function axpy_ka!(Y, a, X)
+    if length(Y) != length(X)
+		error("Arrays disagree in length")
+        return nothing
+    end
+    backend = KernelAbstractions.get_backend(Y)
+    kernel! = axpy_kernel!(backend)
+    kernel!(Y, a, X, ndrange = size(Y))
+	KernelAbstractions.synchronize(backend)
+    return
+end
+
+# ╔═╡ c4ef9a23-bcec-4290-a146-a0c9d5c3f183
+let
+	Y = randn!(allocate(backend, Float32, M))
+	X = randn!(allocate(backend, Float32, M))
+	a = randn(Float32)
+
+	reference = Y .+ a .* X
+	axpy_ka!(Y, a, X)
+
+	if reference == Y
+		correct()
+	else
+		keep_working(md"Your solution and the reference solution disagree!")
+	end
+end
+
+# ╔═╡ fb8de770-fa00-4642-8eee-3ceac9b7e2ff
+answer_box(hint(md"""
+```julia
+function axpy_kernel!(Y, a, X)
 	i = @index(Global)
-	c[i] = a[i] + b[i]
+	Y[i] += a*X[i]
+end
+```
+"""))
+
+# ╔═╡ fc859cea-a41a-4d96-bf86-5a23bca19589
+question_box(md"Benchmark the KernelAbstraction implementation against a high-level array implementation at different problem sizes")
+
+# ╔═╡ 1c76d376-ef91-4410-a981-d8a6dea3033f
+md"""
+### Diffusion kernel
+"""
+
+# ╔═╡ 0b20861c-995c-4890-81b9-98b8aca5095a
+begin
+	a  = 0.01
+	dx = 0.01  # x-grid spacing
+	dy = 0.01  # y-grid spacing
 end
 
-backend = CUDABackend()
-a = KA.allocate(backend, Float32, N)
-b = KA.allocate(backend, Float32, N)
-c = similar(a)
+# ╔═╡ 0ad45abb-0d9f-4e8d-b097-b0b42ba024f7
+dt = dx^2 * dy^2 / (2.0 * a * (dx^2 + dy^2)) # Largest stable time step
 
-vadd_kernel = vadd(backend)
-vadd_kernel(a, b, c; ndrange=size(c))
-```
-""")
+# ╔═╡ 83042a1e-f964-483d-b316-a486cfabd7e0
+N = 64
 
-# ╔═╡ e3d2ed97-e8b3-450e-a38b-03f8cb4f9824
+# ╔═╡ d2d925a0-8fd5-4345-8ee2-fa4dc4a75407
 md"""
+Implement a kernel that solves the 2D Diffusion Equation.
+
+$\frac{\partial U}{\partial t} = a * (\frac{\partial^2 U}{\partial x^2} + \frac{\partial^2 U}{\partial y^2})$
+
+Using a finite-difference approximation:
+
+$dU = a * dt * (\frac{U[i+1, j] - 2U[i,j] + U[i-1,j]}{dx^2} + \frac{U[i, j+1] - 2U[i,j] + U[i,j-1]}{dy^2} )$
+
 !!! note
-	GPU execution is asynchronous! We will discuss the details in the later GPU lecture. When benchmarking you need to synchronize the device!
-
-	```julia
-		@benchmark begin 
-			vadd_kernel(a, b, c; ndrange=size(c))
-			KA.synchronize(backend)
-		end
-	```
-	Otherwise you are only measuring the **launch** of the kernel.
+	The code below implements the harness using OffsetArrays and wrap around boundary conditions to make your life easier.
 """
 
-# ╔═╡ 38b99eb2-a6dc-4872-ab86-8f21cb4c7f59
-md"""
-#### High-level array based programming
+# ╔═╡ 9eb166fa-360e-4a5d-a2ac-9113c2f264b3
+@kernel function diffuse(dU, @Const(U), a, dt, dx, dy)
+	# implement me
+end
 
-Julia and GPUArrays.jl provide support for an efficient GPU programming environment build around array abstractions and higher-order functions.
+# ╔═╡ aa2d455e-c9fc-4a7b-b50e-77709481c2a7
+function diffuse!(U, a, dt, dx, dy)
+    dU = zero(U)
+	diffuse(get_backend(U))(dU, U, a, dt, dx, dy; ndrange=(N,N))
+	U .+= dU
+	
+    # update boundary condition (wrap around)
+    U[0, :]   .= U[N, :]
+    U[N+1, :] .= U[1, :]
+    U[:, 0]   .= U[:, N]
+    U[:, N+1] .= U[:, 0]
+    U
+end
 
-- **Vocabulary of operations**: `map`, `broadcast`, `scan`, `reduce`, ... 
-  Map naturally onto GPU execution models
-- **Compiled to efficient code**: multiple dispatch, specialization
-  Write generic, reusable applications
-- BLAS (matrix-multiply, ...), and other libraries like FFT
-
-> Array operators using multiple dispatch: a design methodology for array implementations in dynamic languages 
-> 
-> (doi:10.1145/2627373.2627383)
-
-> Rapid software prototyping for heterogeneous and distributed platforms 
->
-> (doi:10.1016/j.advengsoft.2019.02.002)
-"""
-
-# ╔═╡ a10ab271-4a58-47d3-90d6-8d48745ce712
-md"""
-Array types -- **where** memory resides and **how** code is executed.
-
-|  |  |
-| --- | --- |
-|  `A = Matrix{Float64}(undef, 64, 32)`   | CPU   |
-|  `A = CuMatrix{Float64}(undef, 64, 32)`   | Nvidia GPU   |
-|  `A = ROCMatrix{Float64}(undef, 64, 32)`   | AMD GPU   |
-
-!!! info
-    Data movement is explicit.
-"""
-
-# ╔═╡ 33d2c72d-f6f1-4805-b3a6-1c6c6e79caa3
-md"""
-### What makes an application portable?
-
-1. Can I **run** it on a different compute architecture
-    1. Different CPU architectures
-    2. We live in a mult GPU vendor world
-2. Does it **compute** the same thing?
-    1. Can I develop on one platform and move to another later?
-3. Does it achieve the same **performance**?
-4. Can I take advantage of platform **specific** capabilities?
-
-> Productivity meets Performance: Julia on A64FX (doi:10.1109/CLUSTER51413.2022.00072)
-"""
-
-# ╔═╡ 1b20ca8f-81a4-4f28-8c9e-02fd3c3b986a
-md"""
-### Adapt.jl
-
-[Adapt.jl](https://github.com/JuliaGPU/Adapt.jl) is a lightweight dependency that you can use to convert complex structures from CPU to GPU.
-
+# ╔═╡ f912ee44-15ed-469f-b417-cf7d8d87146e
+answer_box(hint(md"""
 ```julia
-using Adapt
-adapt(CuArray, ::Adjoint{Array})::Adjoint{CuArray}
-```
-
-```julia
-struct Model{T<:Number, AT<:AbstractArray{T}}
-   data::AT
-end
-
-Adapt.adapt_structure(to, x::Model) = Model(adapt(to, x.data))
-
-
-cpu = Model(rand(64, 64));
-using CUDA
-
-gpu = adapt(CuArray, cpu)
-Model{Float64, CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}}(...)
-```
-"""
-
-# ╔═╡ 1a7bb9d3-936b-4717-b299-e1eccad05065
-md"""
-```
-f(A::MyMatrix)  = λ ->  1 + mapreduce((v) -> v^2 / (v - λ)  , +, A.v)
-f′(A::MyMatrix) = λ ->      mapreduce((v) -> v^2 / (v - λ)^2, +, A.v)
-
-function LinearAlgebra.eigmax(A::MyMatrix; tol = eps(2.0), debug = false)
-    x0 = maximum(A.v) + maximum(A.v)^2
-    δ = f(A)(x0)/f′(A)(x0)
-    while abs(δ) > x0 * tol               
-        x0 -= δ
-        δ = f(A)(x0)/f′(A)(x0) 
-        debug && println("x = $x0, δ = $δ") # Debugging
-    end
-    x0
+@kernel function diffuse(dU, @Const(U), a, dt, dx, dy)
+	i, j = @index(Global, NTuple)
+	out[i, j] = a * dt * (
+		(U[i + 1, j] - 2 * U[i, j] + U[i - 1, j]) / dx^2 +
+		(U[i, j + 1] - 2 * U[i, j] + U[i, j - 1]) / dy^2
+	)
 end
 ```
-"""
+"""))
 
-# ╔═╡ 463c5052-0f47-4abb-9dac-6496c27f2807
-@kernel function naive_sum(val, data)
-	I = @index(Global)
-	x = data[I]
-	val[1] += x
-end
-
-# ╔═╡ 6f163a44-768b-46cb-8c7b-8bae3936bb0d
-data = CUDA.ones(Int, 1024^2)
-
-# ╔═╡ 7a51372d-2dc3-48bb-9b11-3e6c74f0b276
-sum(data)
-
-# ╔═╡ 3f79859d-67bf-41ec-b8d3-d2f97d4e6da5
+# ╔═╡ 2a986721-f513-488d-970e-4797f0de135f
 let
-	x = CuArray([0])
-	naive_sum(CUDABackend())(x, data, ndrange=length(data))
-	Array(x)[1]
-end
-
-# ╔═╡ 475af402-ada0-452c-a465-be9f67c4f7dc
-@kernel function naive_atomic_sum(val, data)
-	I = @index(Global)
-	x = data[I]
-	Atomix.@atomic val[1] += x
-end
-
-# ╔═╡ aeb48a4a-31bc-429a-b336-fc4d542603e3
-let
-	x = CuArray([0])
-	naive_atomic_sum(CUDABackend())(x, data, ndrange=length(data))
-	Array(x)[1]
-end
-
-# ╔═╡ 1e3be001-f38a-4174-8a46-fb49f385df52
-
-
-# ╔═╡ a572675c-f860-4530-a5d6-c4e9238ac082
-let
-	x = CuArray([0])
-	@benchmark CUDA.@sync naive_atomic_sum(CUDABackend())($x, data, ndrange=length(data))
-end
-
-# ╔═╡ 3c6d2d48-e150-4d91-bc2d-e52ff59f074d
-@benchmark CUDA.@sync sum(data)
-
-# ╔═╡ 1eb84449-0f88-4375-84d7-c5129593e663
-CUDA.@profile sum(data)
-
-# ╔═╡ 7497fced-70f6-47ea-8bdc-cfdc8907b7d6
-@kernel function naive_shmem_sum(val, data::AbstractArray{T}) where T
-	I = @index(Global)
-	i = @index(Local)
-	N = @uniform prod(@groupsize())
-	tile = @localmem T (N,)
-	tile[i] = data[I]
-	@synchronize
-	if i == 1
-		acc = tile[1]
-		for i in 2:N
-			acc += tile[i]
-		end	
-		Atomix.@atomic val[1] += acc
+	xs = 0:(N+1)
+	ys = 0:(N+1)
+	domain = OffsetArray(
+		KernelAbstractions.zeros(backend, Float32, N+2, N+2),
+		xs, ys)
+	# TODO: Split out into initalize function
+	parent(domain)[16:32, 16:32] .= 5
+	
+	fig, ax, hm = heatmap(xs, ys, Array(parent(domain)))
+	
+	Makie.Record(fig, 1:250) do i
+	    diffuse!(domain, a, dt, dx, dy)  # update data
+	    autolimits!(ax) # update limits
 	end
 end
-
-# ╔═╡ 49c1e005-ac01-4be1-8535-10d070a3beb7
-let
-	x = CuArray([0])
-	naive_shmem_sum(CUDABackend(), 64)(x, data, ndrange=length(data))
-	Array(x)[1]
-end
-
-# ╔═╡ c035a400-d137-41ee-b257-6d6aebcaf85d
-let
-	x = CuArray([0])
-	@benchmark CUDA.@sync naive_shmem_sum(CUDABackend(), 64)($x, data, ndrange=length(data))
-end
-
-# ╔═╡ 018ba447-aa6d-401e-8966-2b535a6cd488
-@kernel function naive_shmem_mapsum(val, data::AbstractArray{T}, f::F) where {T, F}
-	I = @index(Global)
-	i = @index(Local)
-	N = @uniform prod(@groupsize())
-	tile = @localmem T (N,)
-	tile[i] = f(data[I])
-	@synchronize
-	if i == 1
-		acc = tile[1]
-		for i in 2:N
-			acc += tile[i]
-		end	
-		Atomix.@atomic val[1] += acc
-	end
-end
-
-# ╔═╡ bd15bebe-ee6f-4959-99a3-9a676b1515bc
-function my_mapsum(f, data)
-	x = similar(data, 1)
-	naive_shmem_mapsum(get_backend(data), 64)(x, data, f, ndrange=length(data))
-	GPUArrays.@allowscalar x[1]
-end
-
-# ╔═╡ 163a4d63-c249-43d5-9196-1c4c103c8de0
-my_mapsum(data) do x
-	x^2
-end
-
-# ╔═╡ 68928b3f-59ff-4183-84f3-2512e0a6e9d7
-sum(data.^2)
-
-# ╔═╡ abe28a86-ed78-4b60-831b-8fd39f774ffc
-struct MyMatrix{A}
-	v::A
-end
-
-# ╔═╡ 26eb4664-5769-484d-92ca-5102ddc77e7b
-f(A::MyMatrix)  = λ ->  1 + my_mapsum((v) -> v^2 / (v - λ), A.v)
-
-# ╔═╡ db9362dc-f50d-4ae8-88c8-8e1be999eeeb
-f′(A::MyMatrix) = λ ->      my_mapsum((v) -> v^2 / (v - λ)^2, A.v)
-
-# ╔═╡ 2ced775b-4bbf-4e23-b390-7438fabbd62e
-function LinearAlgebra.eigmax(A::MyMatrix; tol = eps(2.0), debug = false)
-    x0 = maximum(A.v) + maximum(A.v)^2
-    δ = f(A)(x0)/f′(A)(x0)
-    while abs(δ) > x0 * tol               
-        x0 -= δ
-        δ = f(A)(x0)/f′(A)(x0) 
-        debug && println("x = $x0, δ = $δ") # Debugging
-    end
-    x0
-end
-
-# ╔═╡ 1ef5e72d-8648-405e-90af-7c0b774c28ba
-X = randn(1024)
-
-# ╔═╡ a7e0c2eb-1f31-4a18-abd2-a9f0aab02664
-eigmax(diagm(X) + X*X')
-
-# ╔═╡ f0eb238f-753e-4007-8077-1c7e61cd4723
-eigmax(MyMatrix(X))
-
-# ╔═╡ 4777bb70-1824-4c84-876b-48beb7d04688
-eigmax(MyMatrix(CuArray(X)))
-
-# ╔═╡ 26f458e5-5388-4698-be91-c1c2ad702c0d
-# CUDA.@profile eigmax(MyMatrix(CuArray(X)))
-
-# ╔═╡ b6fc9302-5998-4dac-bf6a-b4e808de6c17
-
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
 
 [compat]
-Atomix = "~1.1.1"
 BenchmarkTools = "~1.6.0"
 CUDA = "~5.7.3"
 CairoMakie = "~0.13.4"
-GPUArrays = "~11.2.2"
 KernelAbstractions = "~0.9.34"
-PlutoTeachingTools = "~0.2.15"
-PlutoUI = "~0.7.60"
+Metal = "~1.5.1"
+OffsetArrays = "~1.17.0"
+PlutoTeachingTools = "~0.2.11"
+PlutoUI = "~0.7.51"
+oneAPI = "~2.0.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "802deb1f01042ccd5ffe54f262b2fc5f94fb5d38"
+project_hash = "1d148b38730be5abdeb0b86eed5e24ca3e2dc7fe"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -674,6 +516,12 @@ deps = ["InteractiveUtils", "UUIDs"]
 git-tree-sha1 = "062c5e1a5bf6ada13db96a4ae4749a4c2234f521"
 uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
 version = "1.3.9"
+
+[[deps.CodecBzip2]]
+deps = ["Bzip2_jll", "TranscodingStreams"]
+git-tree-sha1 = "84990fa864b7f2b4901901ca12736e45ee79068c"
+uuid = "523fee87-0ab8-5b00-afb7-3ecf72e48cfd"
+version = "0.8.5"
 
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON"]
@@ -964,10 +812,10 @@ uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
 version = "0.2.0"
 
 [[deps.GPUCompiler]]
-deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "TimerOutputs", "UUIDs"]
-git-tree-sha1 = "b08c164134dd0dbc76ff54e45e016cf7f30e16a4"
+deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
+git-tree-sha1 = "43c2e60efa2badefe7a32a50b586b4ac1b8b8249"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "1.3.2"
+version = "1.4.0"
 
 [[deps.GPUToolbox]]
 git-tree-sha1 = "15d8b0f5a6dca9bf8c02eeaf6687660dafa638d0"
@@ -1042,6 +890,12 @@ version = "8.5.0+0"
 git-tree-sha1 = "2eaa69a7cab70a52b9687c8bf950a5a93ec895ae"
 uuid = "076d061b-32b6-4027-95e0-9a2c6f6d7e74"
 version = "0.2.0"
+
+[[deps.Hwloc_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "f93a9ce66cd89c9ba7a4695a47fd93b4c6bc59fa"
+uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
+version = "2.12.0+0"
 
 [[deps.HypergeometricFunctions]]
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
@@ -1288,13 +1142,19 @@ version = "4.0.1+0"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Unicode"]
-git-tree-sha1 = "5fcfea6df2ff3e4da708a40c969c3812162346df"
+git-tree-sha1 = "f0e861832695dbb70e710606a7d18b7f81acec92"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "9.2.0"
+version = "9.3.1"
 weakdeps = ["BFloat16s"]
 
     [deps.LLVM.extensions]
     BFloat16sExt = "BFloat16s"
+
+[[deps.LLVMDowngrader_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML", "Zlib_jll"]
+git-tree-sha1 = "c77c0540b96d29139dbbf5c7ef454fb45d7d32b4"
+uuid = "f52de702-fb25-5922-94ba-81dd59b07444"
+version = "0.6.0+0"
 
 [[deps.LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
@@ -1375,6 +1235,12 @@ deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
 version = "1.11.0+1"
 
+[[deps.LibTracyClient_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "d2bc4e1034b2d43076b50f0e34ea094c2cb0a717"
+uuid = "ad6e5548-8b26-5c9f-8ef3-ef0ad883f3a5"
+version = "0.9.1+6"
+
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 version = "1.11.0"
@@ -1447,9 +1313,9 @@ uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
 version = "3.2.2"
 
 [[deps.MIMEs]]
-git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
 uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "0.1.4"
+version = "1.1.0"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
@@ -1495,6 +1361,17 @@ deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+0"
 
+[[deps.Metal]]
+deps = ["Adapt", "CEnum", "CodecBzip2", "ExprTools", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "LLVMDowngrader_jll", "LinearAlgebra", "ObjectiveC", "PrecompileTools", "Preferences", "Printf", "Random", "SHA", "StaticArrays", "UUIDs"]
+git-tree-sha1 = "0e6ce7889fb5202709e543853669aa5c3f89ee7a"
+uuid = "dde4c033-4e86-420c-a63e-0dd931031962"
+version = "1.5.1"
+weakdeps = ["BFloat16s", "SpecialFunctions"]
+
+    [deps.Metal.extensions]
+    BFloat16sExt = "BFloat16s"
+    SpecialFunctionsExt = "SpecialFunctions"
+
 [[deps.Missings]]
 deps = ["DataAPI"]
 git-tree-sha1 = "ec4f7fbeab05d7747bdf98eb74d130a2a2ed298d"
@@ -1514,6 +1391,12 @@ version = "0.3.4"
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 version = "2023.12.12"
+
+[[deps.NEO_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML", "gmmlib_jll", "libigc_jll", "oneAPI_Level_Zero_Headers_jll"]
+git-tree-sha1 = "f1abd28502d049c09b24dadb247ab6931263e1da"
+uuid = "700fe977-ac61-5f37-bbc8-c6c4b2b6a9fd"
+version = "24.26.30049+0"
 
 [[deps.NVTX]]
 deps = ["Colors", "JuliaNVTXCallbacks_jll", "Libdl", "NVTX_jll"]
@@ -1542,6 +1425,12 @@ version = "1.1.1"
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
+
+[[deps.ObjectiveC]]
+deps = ["CEnum", "Libdl", "Preferences"]
+git-tree-sha1 = "c813346258bab0eb2ddc56b8083615eb3ebc4785"
+uuid = "e86c9b32-1129-44ac-8ea0-90d5bb39ded9"
+version = "3.4.1"
 
 [[deps.Observables]]
 git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
@@ -1574,6 +1463,12 @@ deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 version = "0.3.27+1"
 
+[[deps.OpenCL_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "4980a4b2679f1b9cdd65a21ccb57d1a89c0d68b9"
+uuid = "6cb37087-e8b6-5417-8430-1f242f1e46e4"
+version = "2024.10.24+1"
+
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
 git-tree-sha1 = "97db9e07fe2091882c765380ef58ec553074e9c7"
@@ -1589,7 +1484,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.5+0"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1702,9 +1597,9 @@ version = "0.2.15"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "eba4810d5e6a01f612b948c9fa94f905b49087b0"
+git-tree-sha1 = "d3de2694b52a01ce61a036f18ea9c0f61c4a9230"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.60"
+version = "0.7.62"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -1863,6 +1758,24 @@ deps = ["PrecompileTools"]
 git-tree-sha1 = "fea870727142270bdf7624ad675901a1ee3b4c87"
 uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
 version = "3.7.1"
+
+[[deps.SPIRVIntrinsics]]
+deps = ["ExprTools", "LLVM", "SpecialFunctions"]
+git-tree-sha1 = "51a0ab797ab9db5d90977ac8b030a6ab8bf98a5c"
+uuid = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
+version = "0.2.0"
+
+[[deps.SPIRV_LLVM_Translator_unified_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
+git-tree-sha1 = "16ee1efef28f1e83f61dbedab24c0c912f6cb1b8"
+uuid = "85f0d8ed-5b39-5caa-b1ae-7472de402361"
+version = "0.7.1+0"
+
+[[deps.SPIRV_Tools_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "840444e154db04043db7d007f3cdc1e7fa6f06bf"
+uuid = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
+version = "2025.1.0+1"
 
 [[deps.ScopedValues]]
 deps = ["HashArrayMappedTries", "Logging"]
@@ -2079,17 +1992,17 @@ git-tree-sha1 = "f21231b166166bebc73b99cea236071eb047525b"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
 version = "0.11.3"
 
-[[deps.TimerOutputs]]
-deps = ["ExprTools", "Printf"]
-git-tree-sha1 = "f57facfd1be61c42321765d3551b3df50f7e09f6"
-uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
-version = "0.5.28"
+[[deps.Tracy]]
+deps = ["ExprTools", "LibTracyClient_jll", "Libdl"]
+git-tree-sha1 = "16439d004690d4086da35528f0c6b4d7006d6dae"
+uuid = "e689c965-62c8-4b79-b2c5-8359227902fd"
+version = "0.1.4"
 
-    [deps.TimerOutputs.extensions]
-    FlameGraphsExt = "FlameGraphs"
+    [deps.Tracy.extensions]
+    TracyProfilerExt = "TracyProfiler_jll"
 
-    [deps.TimerOutputs.weakdeps]
-    FlameGraphs = "08572546-2f56-4bcf-ba4e-bab62c3a3f89"
+    [deps.Tracy.weakdeps]
+    TracyProfiler_jll = "0c351ed6-8a68-550e-8b79-de6f926da83c"
 
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
@@ -2229,6 +2142,12 @@ git-tree-sha1 = "6498e3581023f8e530f34760d18f75a69e3a4ea8"
 uuid = "1e29f10c-031c-5a83-9565-69cddfc27673"
 version = "1.3.0+0"
 
+[[deps.gmmlib_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "734991d711846600137bf191ad4d88029b2b7f16"
+uuid = "09858cae-167c-5acb-9302-fddc6874d481"
+version = "22.3.20+0"
+
 [[deps.isoband_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "51b5eeb3f98367157a7a12a1fb0aa5328946c03c"
@@ -2257,6 +2176,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "8a22cf860a7d27e4f3498a0fe0811a7957badb38"
 uuid = "f638f0a6-7fb0-5443-88ba-1cc74229b280"
 version = "2.0.3+0"
+
+[[deps.libigc_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
+git-tree-sha1 = "a12b43190e01bd38318063c4bd470adcef401f19"
+uuid = "94295238-5935-5bd7-bb0f-b00942e9bdd5"
+version = "1.0.17193+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
@@ -2287,6 +2212,30 @@ deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
 version = "1.59.0+0"
 
+[[deps.oneAPI]]
+deps = ["Adapt", "CEnum", "ExprTools", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "Libdl", "LinearAlgebra", "NEO_jll", "Preferences", "Printf", "Random", "SPIRVIntrinsics", "SPIRV_LLVM_Translator_unified_jll", "SPIRV_Tools_jll", "SparseArrays", "SpecialFunctions", "StaticArrays", "oneAPI_Level_Zero_Headers_jll", "oneAPI_Level_Zero_Loader_jll", "oneAPI_Support_jll"]
+git-tree-sha1 = "66698df0dc75c6f8ec96f5e66f4c9ac21345bfe7"
+uuid = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
+version = "2.0.1"
+
+[[deps.oneAPI_Level_Zero_Headers_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "d0d85b04fdcf7a8bda76dac76e687e1670251a98"
+uuid = "f4bc562b-d309-54f8-9efb-476e56f0410d"
+version = "1.9.2+1"
+
+[[deps.oneAPI_Level_Zero_Loader_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "oneAPI_Level_Zero_Headers_jll"]
+git-tree-sha1 = "2f8568951b4f7629b69f1181469220298510e917"
+uuid = "13eca655-d68d-5b81-8367-6d99d727ab01"
+version = "1.17.6+0"
+
+[[deps.oneAPI_Support_jll]]
+deps = ["Artifacts", "Hwloc_jll", "JLLWrappers", "Libdl", "OpenCL_jll", "Pkg", "oneAPI_Level_Zero_Loader_jll"]
+git-tree-sha1 = "9f3fa2ed9c9e6688f45f11f45eaf0390117bf5cb"
+uuid = "b049733a-a71d-5ed3-8eba-7d323ac00b36"
+version = "0.7.0+0"
+
 [[deps.oneTBB_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "d5a767a3bb77135a99e433afe0eb14cd7f6914c3"
@@ -2312,55 +2261,35 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═07565449-7cf6-47f2-b8f7-5a1bb2cd56ce
-# ╠═e1589ce2-e486-455c-a67e-828a54357bec
-# ╟─df284ffd-14eb-41eb-a4b8-94f4d7cee298
-# ╟─6044b1cf-97b2-428c-8d2c-d3cf078599f3
-# ╟─4af02ca9-0b62-463e-ab58-7eea703ed638
-# ╟─971b0fc4-cf03-44e6-a515-fdb74a36003f
-# ╟─7d0e35dd-3222-4d7d-8b87-3ff28da984df
-# ╟─baa49acf-f012-4ccd-a60e-e8f84e067ab2
-# ╟─df27cce9-efb6-4302-a7d5-50090f5af848
-# ╟─4af8eedb-5a82-4207-b91d-bcb925a5d220
-# ╟─2cc61da7-f7b2-46fa-85c8-ed5cdd3e412a
-# ╟─b21b17f7-bc3e-4286-ad0b-3004e1bb4d78
-# ╟─84d01e31-e216-42c8-9251-031030d8f088
-# ╟─b400807c-c2ee-4f11-bd49-6394ad73b3e8
-# ╟─e3d2ed97-e8b3-450e-a38b-03f8cb4f9824
-# ╟─38b99eb2-a6dc-4872-ab86-8f21cb4c7f59
-# ╟─a10ab271-4a58-47d3-90d6-8d48745ce712
-# ╟─33d2c72d-f6f1-4805-b3a6-1c6c6e79caa3
-# ╟─1b20ca8f-81a4-4f28-8c9e-02fd3c3b986a
-# ╠═51835689-70c1-4e69-bb7b-255b2e27a66f
-# ╟─1a7bb9d3-936b-4717-b299-e1eccad05065
-# ╠═463c5052-0f47-4abb-9dac-6496c27f2807
-# ╠═6f163a44-768b-46cb-8c7b-8bae3936bb0d
-# ╠═7a51372d-2dc3-48bb-9b11-3e6c74f0b276
-# ╠═3f79859d-67bf-41ec-b8d3-d2f97d4e6da5
-# ╠═475af402-ada0-452c-a465-be9f67c4f7dc
-# ╠═aeb48a4a-31bc-429a-b336-fc4d542603e3
-# ╠═1e3be001-f38a-4174-8a46-fb49f385df52
-# ╠═a572675c-f860-4530-a5d6-c4e9238ac082
-# ╠═3c6d2d48-e150-4d91-bc2d-e52ff59f074d
-# ╠═1eb84449-0f88-4375-84d7-c5129593e663
-# ╠═7497fced-70f6-47ea-8bdc-cfdc8907b7d6
-# ╠═49c1e005-ac01-4be1-8535-10d070a3beb7
-# ╠═c035a400-d137-41ee-b257-6d6aebcaf85d
-# ╠═018ba447-aa6d-401e-8966-2b535a6cd488
-# ╠═0048148a-f7ed-49db-89da-c64d4a94f4a2
-# ╠═bd15bebe-ee6f-4959-99a3-9a676b1515bc
-# ╠═163a4d63-c249-43d5-9196-1c4c103c8de0
-# ╠═68928b3f-59ff-4183-84f3-2512e0a6e9d7
-# ╠═abe28a86-ed78-4b60-831b-8fd39f774ffc
-# ╠═26eb4664-5769-484d-92ca-5102ddc77e7b
-# ╠═db9362dc-f50d-4ae8-88c8-8e1be999eeeb
-# ╠═824496ff-5c4d-41b9-a341-bbfa0e2b69f3
-# ╠═2ced775b-4bbf-4e23-b390-7438fabbd62e
-# ╠═1ef5e72d-8648-405e-90af-7c0b774c28ba
-# ╠═a7e0c2eb-1f31-4a18-abd2-a9f0aab02664
-# ╠═f0eb238f-753e-4007-8077-1c7e61cd4723
-# ╠═4777bb70-1824-4c84-876b-48beb7d04688
-# ╠═26f458e5-5388-4698-be91-c1c2ad702c0d
-# ╠═b6fc9302-5998-4dac-bf6a-b4e808de6c17
+# ╟─75b9bee9-7d03-4c90-b828-43e9e946517b
+# ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
+# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
+# ╟─d4c35d94-5a04-43a3-99b4-c8e9f05a2d5e
+# ╠═51588c4c-2b03-4ff2-b64e-7fd2e3bef81c
+# ╠═91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+# ╠═4c81b3fa-7502-4dd3-8b05-6cd8c58c115d
+# ╠═8c26083e-8931-4362-970c-4741e0b89b89
+# ╟─c5d51b19-b627-47f0-915c-d114f0c6e4fd
+# ╠═20fbd4f0-893c-45e2-9f86-d8e933477151
+# ╟─9b30a955-5d30-42d7-86c9-a4cc52e370d4
+# ╠═b9c0df0e-efd9-4616-9ece-18584fef3828
+# ╠═4b5c9ffe-05c2-4c34-9e27-e5e88e2bbe04
+# ╟─4cc58f84-0c69-41bf-ade6-2c0da03895ae
+# ╟─9637a3b3-ac0a-4ba0-a964-8be35bbdae88
+# ╠═e645c640-84b6-43d7-bf0a-a1823b693bfc
+# ╠═956a0315-a772-48cb-af83-1fb8d660b985
+# ╟─c4ef9a23-bcec-4290-a146-a0c9d5c3f183
+# ╟─fb8de770-fa00-4642-8eee-3ceac9b7e2ff
+# ╠═fc859cea-a41a-4d96-bf86-5a23bca19589
+# ╟─1c76d376-ef91-4410-a981-d8a6dea3033f
+# ╠═f7829706-3981-45b5-bdc3-d8b21155229a
+# ╠═0b20861c-995c-4890-81b9-98b8aca5095a
+# ╠═0ad45abb-0d9f-4e8d-b097-b0b42ba024f7
+# ╠═83042a1e-f964-483d-b316-a486cfabd7e0
+# ╟─d2d925a0-8fd5-4345-8ee2-fa4dc4a75407
+# ╠═9eb166fa-360e-4a5d-a2ac-9113c2f264b3
+# ╠═aa2d455e-c9fc-4a7b-b50e-77709481c2a7
+# ╟─f912ee44-15ed-469f-b417-cf7d8d87146e
+# ╠═2a986721-f513-488d-970e-4797f0de135f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

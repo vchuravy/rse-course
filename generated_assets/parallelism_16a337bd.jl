@@ -183,11 +183,8 @@ with_terminal() do
 	Hwloc.topology()
 end
 
-# ╔═╡ b71bd928-96da-4020-b7dc-ce493f5244e6
-HW
-
 # ╔═╡ 51a50068-7443-466d-ba01-8e53a191a8c7
-# TODO: Add HT/SMT
+TODO("Explain Hyper-threading")
 
 # ╔═╡ c8c5bf61-c6ca-495f-82f1-fbf84d29be57
 md"""
@@ -601,6 +598,9 @@ md"""
 !!! note
     Weak-scaling is often a more interesting measurement on clusters.
 """
+
+# ╔═╡ 893182e7-d085-4e39-bd99-1235b2cba104
+TODO("mention colab.research.google.co")
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2264,7 +2264,6 @@ version = "3.6.0+0"
 # ╠═6327d081-fabd-4b9d-9627-01f18a537409
 # ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
 # ╠═0b1b3a0d-ee2a-4a97-98b7-e6a40da9465e
-# ╠═b71bd928-96da-4020-b7dc-ce493f5244e6
 # ╠═51a50068-7443-466d-ba01-8e53a191a8c7
 # ╟─c8c5bf61-c6ca-495f-82f1-fbf84d29be57
 # ╠═90feafed-4d87-48c9-9d9b-44418883c5a9
@@ -2302,5 +2301,6 @@ version = "3.6.0+0"
 # ╟─d5a629ca-e258-426e-a5d4-2f7f22fe683c
 # ╟─5cdd4e72-835f-4123-91d0-a5da8bf8f365
 # ╟─77b0375d-e4eb-45c7-bb5c-daba682b25e9
+# ╠═893182e7-d085-4e39-bd99-1235b2cba104
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
