@@ -56,6 +56,8 @@ end)
 
 <script data-goatcounter="https://computationalthinking-stats.plutojl.org/count" async src="//computationalthinking-stats.plutojl.org/count.js"></script>
 
+<script defer data-domain="vchuravy.dev" src="https://plausible.io/js/script.hash.js"></script>
+
 $(pluto_head)
 
 </head>
