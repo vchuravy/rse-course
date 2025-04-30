@@ -41,8 +41,17 @@ using Profile
 # ╔═╡ c48f8d56-a11c-4e94-b98f-b44c4516b0af
 using ProfileCanvas
 
+# ╔═╡ 9a083aa8-d7df-479a-9b3c-6d83812d7930
+using TimerOutputs
+
+# ╔═╡ 2902eb1a-442e-4a75-a6bd-3fb498c5ddf6
+using Base.Threads: @threads
+
 # ╔═╡ f08a7392-5f7e-45f8-a713-adb51eb43a7e
 using CairoMakie
+
+# ╔═╡ 644724b7-5104-460d-ace9-93432e41fe2e
+using About
 
 # ╔═╡ 820eef38-86d2-4b03-8989-0dc4d4c86929
 ChooseDisplayMode()
@@ -54,6 +63,39 @@ PlutoUI.TableOfContents(; depth=4)
 md"""
 # Performance Engineering
 """
+
+# ╔═╡ f3108f38-2bb4-4af7-b864-1805bb3cbef5
+md"""
+#### Goals:
+
+1. Understanding the performance characteristics of your program
+    - What is the hot-path
+    - Where is time being spent
+2. Define metrics
+    - Benchmarks allow us to understand "is a change good"
+3. How does my program get executed?
+    - Language of choice?
+    - Compilation
+    - Hardware architecture
+"""
+
+# ╔═╡ f11fb041-4587-4dc2-b201-5a5b27a32dff
+TwoColumn(
+md"""
+**Benchmarking**
+- Focusing on the "hot-loop"
+- Allows for comparision
+  - Different algorithms
+  - Different hardware
+""",
+md"""
+**Profiling**
+- Analyse where time is being spent
+- Many tools with different trade-offs
+- Different perspectives
+  - Language profiler
+  - System profiler
+""")
 
 # ╔═╡ 4040ca9a-acbe-40fe-9a81-95996c4b64b2
 md"""
@@ -129,11 +171,108 @@ with_terminal() do
 	@code_warntype sum(data)
 end
 
+# ╔═╡ 948f8590-9a26-4b26-998d-ac0c8f5c50f4
+md"""
+### Caveats of micro-benchmarking
+
+BenchmarkTools tries to approximate a function execution a top-level.
+It thus measures the cost of accessing global variables.
+
+Use the interpolation syntax `$` to avoid that cost for very cheap functions.
+"""
+
+# ╔═╡ 492c4348-0b0d-4e52-a4c9-d80283f7bc98
+begin
+	a = 3.0
+	b = 4.0
+end
+
+# ╔═╡ dde9da1d-a6b1-4ca9-b8d4-f9a164b089cb
+@benchmark sin(a) + b
+
+# ╔═╡ 7c31dec3-dcf8-4366-96c8-98bd9d426faf
+@benchmark sin($a) + b
+
+# ╔═╡ 8a01f348-9e96-448f-97b3-b193c5f7a36a
+@benchmark sin($a) + $b
+
+# ╔═╡ 0115a2f6-ae33-45e3-bebf-924f7c3e8e05
+md"""
+!!! warning
+	Did we get to fast?
+"""
+
+# ╔═╡ 3eb69d4f-5d7b-4b08-b274-f51f7c33970a
+code_typed() do
+	sin(3.0) + 4.0
+end |> only
+
+# ╔═╡ f953aace-06b6-4101-924c-3218140fc09a
+md"""
+Julia can constant-fold expressions.
+"""
+
+# ╔═╡ 1255bdf3-a32f-45e9-b589-2da4883d775b
+@benchmark sin($Ref(a)[]) + $Ref(b)[]
+
+# ╔═╡ 5c8c666a-8a8b-4f37-8bde-3a29b75c9c43
+md"""
+!!! warning
+	Be careful with benchmarks whose time doesn't change with an increase in complexity! Likely that the compiler got clever and turned it into a constant time expression or constant folded it.
+"""
+
+# ╔═╡ 68d0783c-6651-4432-bdbc-3be4d3f6ea65
+function count(N)
+    acc = 0
+    for i in 1:N
+        acc += 1
+    end
+    return acc
+end
+
+# ╔═╡ 89b11df3-7a2f-463f-954a-f7f6c137af8d
+@benchmark count(10)
+
+# ╔═╡ 6db6a364-60af-4afc-bdcf-3f2f29e5aaa7
+@benchmark count(1000000)
+
+# ╔═╡ 8ac7e33b-2279-4b3b-9c44-9cc7bdb4d256
+md"""
+!!! warning
+    How would you benchmark `sort!`?
+"""
+
+# ╔═╡ e03e9d1c-0d1c-4bbc-848e-0fd81ddd5e8a
+let
+	v = rand(Int, 1024)
+	@benchmark sort!($v)
+end
+
+# ╔═╡ 8ef05b61-e2ce-4b9f-a42c-f7f2dc664852
+md"""
+`sort!` is mutating its input. Therefore we need to set `evals=1` and provide a `setup` to re-initialize the data everytime
+"""
+
+# ╔═╡ 9790f509-046b-4714-bfba-b77019c806ae
+@benchmark sort!(v) setup=(v = rand(Int, 1024)) evals=1
+
 # ╔═╡ 3e717bde-a8d7-41b3-a52e-694efd22ff38
 md"""
 ### Sources of noise
 
-$(TODO())
+Computers are noisy systems. The operating system manages resources and distribute them to programs.
+
+1. Heat
+    - The temperature of your processor influences the frequency it is targetting
+    - When benchmarking a function may be faster in the beginning and slower afterwards
+2. Other programs
+    - The OS is splitting the CPU time into slices
+    - So a program may be descheduled 
+3. Input-Output (IO)
+    - Disk/Network access is variable
+    - The OS will also put you to sleep, when waiting for data
+4. The CPU
+    - CPU are "learning"/"predicitive" systems. See https://discourse.julialang.org/t/psa-microbenchmarks-remember-branch-history/17436
 """
 
 # ╔═╡ e8dd5d43-7a39-4f4c-9465-a25ad4dae287
@@ -142,7 +281,15 @@ md"""
 """
 
 # ╔═╡ 14b79b92-6ff8-476f-b403-63c797d99567
-TODO("Stochastic profilers")
+md"""
+Most profilers we will use are **stochastic** profilers. They sample the running program at a fixed interval. Julia uses a default of `0.001s` and it also uses a fixed size buffer. See `Profile.init`.
+
+!!! note
+    Sampling artifacts can occur when profiling multi-threaded applications. During a sample the thread we are sampling from is paused. If the thread is in a critical section this may introduce artifacts. 
+"""
+
+# ╔═╡ 7e51fbab-eea5-4d05-82fd-44d37e91e9b7
+Profile.init()
 
 # ╔═╡ ac46f42b-ec7d-46d3-a4ad-d5c887a93327
 md"""
@@ -248,23 +395,70 @@ md"""
 md"""
 ### Instrumentation
 
-$(TODO("
-- TimerOutputs
-- NVTX
-- Tracy
-"))
+It can be hard to correlate profiles with our programs, instrumentation makes it easier to define semantically important portions.
+
+- [TimerOutputs](https://github.com/KristofferC/TimerOutputs.jl)
+- [NVTX](https://github.com/JuliaGPU/NVTX.jl)
+- [Tracy](https://github.com/topolarity/Tracy.jl)
+- [IntelITT.jl](https://github.com/JuliaPerf/IntelITT.j)
+
 """
+
+# ╔═╡ 876c2320-c6bf-4a71-9c17-d16bd4868b7e
+const to = TimerOutput();
+
+# ╔═╡ d5e28e66-b609-44c0-8fc1-7a15d2034be2
+@timeit to function prefix_threads!(⊕, y::AbstractVector)
+	l = length(y)
+	k = ceil(Int, log2(l))
+	# do reduce phase
+	@timeit to "reduce" for j = 1:k
+		@threads for i = 2^j:2^j:min(l, 2^k)
+			@inbounds y[i] = y[i - 2^(j - 1)] ⊕ y[i]
+		end
+	end
+	# do expand phase
+	@timeit to "expand" for j = (k - 1):-1:1
+		@threads for i = 3*2^(j - 1):2^j:min(l, 2^k)
+			@inbounds y[i] = y[i - 2^(j - 1)] ⊕ y[i]
+		end
+	end
+	return y
+end
+
+# ╔═╡ 60093202-d8fd-4e78-b76f-2bc69775eacb
+let
+	TimerOutputs.reset_timer!(to)
+	for i in 1:10
+		A = fill(1, 500_000)
+		prefix_threads!(+, A)
+	end
+	to
+end
 
 # ╔═╡ b269b4e8-8738-4abd-a4ab-7c1682252f9b
 md"""
 ### Allocation profiler
-$(TODO(""))
+
+The allocation profiler will collect backtraces at allocation sites with a default `sample_rate=0.0001` (So about 1/10_000 allocations).
+
+[PProf.jl](https://github.com/JuliaPerf/PProf.jl) also has a callgraph view instead of just the "icile" view.
 """
+
+# ╔═╡ f15244e7-8b92-4972-8af0-ea689a83f700
+@profview_allocs profile_test(10)
+
+# ╔═╡ 69e35f64-1429-413e-8e11-8b785251ddcd
+@profview_allocs profile_test(10) sample_rate=1.0
 
 # ╔═╡ 11f8a810-830d-47cd-902e-8fe96aca1149
 md"""
 ## Where does time go?
+"""
 
+# ╔═╡ f84dd0b3-fef4-4f52-b9d6-e09197e8d49a
+TwoColumn(
+md"""
 ### Your code
 - Arithmetic operations
 - Special functions
@@ -273,6 +467,8 @@ md"""
 - Type-instabilities
 - Bad algorithm choices
 - Lack of parallelism
+""",
+md"""
 
 ### Runtime
 - Memory allocation
@@ -283,7 +479,8 @@ md"""
   - Lock conflicts
 - Function dispatch
 - Compiling code
-"""
+	"""
+)
 
 # ╔═╡ c20d320d-8bc3-4407-91ad-7b98a9956090
 md"""
@@ -293,13 +490,39 @@ md"""
 - Julia does bounds checking by default `ones(10)[11]` is an error
 - `@inbounds` Turns of bounds-checking locally
 - `@fastmath` Turns of strict IEEE749 locally – be very careful this might not do what you want
-
-`@simd` and `@simd ivdep` stronger gurantuees to encourage LLVM to use SIMD operations
+- `@simd` and `@simd ivdep` provide stronger gurantuees to encourage LLVM to use SIMD operations
 
 """
 
+# ╔═╡ aad3dddf-c6b1-4c60-94fd-b7a31861aa7c
+function my_sum(X)
+	acc = zero(eltype(X))
+	for x in X
+		acc += x
+	end
+	return acc
+end
+
+# ╔═╡ a57c204a-e329-4ad9-a3d7-a88b3020efbd
+@benchmark my_sum(w) setup=(w=rand(2048))
+
+# ╔═╡ 90585941-f47d-4e48-b2e4-ebe402cbd29c
+function my_sum2(X)
+	acc = zero(eltype(X))
+	@simd for x in X
+		acc += x
+	end
+	return acc
+end
+
+# ╔═╡ 0b65c669-1f2b-4bc2-8f7b-d30a1b19a1db
+@benchmark my_sum2(w) setup=(w=rand(2048))
+
 # ╔═╡ d3c47968-1b79-44cc-8625-58fa5c82990a
-TODO("Example")
+md"""
+!!! note
+	`@simd` allows for re-ordering of reduction operations.
+"""
 
 # ╔═╡ 3979717b-c8d8-4a30-ae36-f923e702d484
 md"""
@@ -415,31 +638,133 @@ md"""
 ## Memory layout of Objects
 """
 
-# ╔═╡ 0adc1bbc-f8b0-4c27-87ed-b2cb57da64ed
+# ╔═╡ 99ceea1c-cfc3-413e-bd7e-199f0dd37f74
 md"""
-- immutable vs mutable
-- storage in arrays
+Julia has two types of struct types.
+
+1. Immutable
+2. Mutable
+
+**Immutable** datatypes have fields that can't be mutated and they do not have *object-identity*. Think numbers, and similar objects.
+
+**Mutable** datatypes can be updated in place and they posses object-identity.
 """
 
-# ╔═╡ 4bdec5da-f052-44e7-a174-d3ef9b538597
-TODO("")
+# ╔═╡ f26973b0-f952-46b8-89fc-3e3ec53c7d7a
+struct MyImmutable
+	a::Float64
+end
+
+# ╔═╡ 3585b48e-2a72-43a3-a66e-dfa539a3f473
+mutable struct MyMutable
+	a::Float64
+end
+
+# ╔═╡ 82ecf1cb-88d1-47ab-a70b-3472f5450dc8
+let
+	x = MyImmutable(1.0)
+	y = MyImmutable(1.0)
+
+	x === y
+end
+
+# ╔═╡ 41ada7f5-4d9c-4611-9cba-cc761847e082
+let
+	x = MyMutable(1.0)
+	y = MyMutable(1.0)
+
+	x === y
+end
+
+# ╔═╡ 111edbf4-218a-4f69-a42a-ed1ee5291d74
+with_terminal() do
+	about(Float64(ℯ))
+end
+
+# ╔═╡ a63c2727-5620-4d96-a2c2-1c156d361dc9
+with_terminal() do
+	about(1.0 + 0.0im)
+end
+
+# ╔═╡ 7b7e6228-0e38-4c3f-807c-1444cfd23968
+with_terminal() do
+	about(MyImmutable)
+end
+
+# ╔═╡ 5abf32f0-bc53-4369-b537-023ed6f4c83b
+with_terminal() do
+	about(MyMutable)
+end
+
+# ╔═╡ be00f1de-8eef-457c-a300-36f4010fc2b7
+begin
+	x1 = fill(MyImmutable(0.0), 10)
+	x1[1] = MyImmutable(1.0)
+	x1
+end
+
+# ╔═╡ d6bb2f8e-8f69-4001-92fa-dbd321785799
+begin
+	x2 = fill(MyMutable(0.0), 10)
+	x2[1].a = 1.0
+	x2
+end
+
+# ╔═╡ 176a75bd-f0c5-4e68-8045-7319333d4052
+md"""
+!!! warning
+	`fill` with a mutable object will lead to aliasing.
+"""
+
+# ╔═╡ a0819e29-a1c1-4bd5-8ca8-a087946b0247
+begin
+	x3 = [MyMutable(0.0) for _ in 1:10]
+	x3[1].a = 1.0
+	x3
+end
+
+# ╔═╡ 2acabb56-87fe-4242-a497-c1d43e3ecdfb
+with_terminal() do
+	about([1.0, 2.0])
+end
+
+# ╔═╡ b8ba3334-b2b4-45b3-b9f3-7470502f803b
+with_terminal() do
+	about([1.0+0.0im, 2.0-1.0im])
+end
+
+# ╔═╡ 9b7a0beb-852f-410d-8dab-f133911485db
+with_terminal() do
+	about([MyMutable(0.0), MyMutable(1.0)])
+end
+
+# ╔═╡ 8e5ad5e5-915c-494f-8026-8e7db6fe3fb6
+md"""
+!!! info
+    Mutable objects are stored in fields and arrays as references (pointers). 
+    Immutable objects may be stored **inline**. 
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+About = "69d22d85-9f48-4c46-bbbe-7ad8341ff72a"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 ProfileCanvas = "efd6af41-a80b-495e-886c-e51b0c7d77a3"
+TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
+About = "~1.0.2"
 BenchmarkTools = "~1.6.0"
 CairoMakie = "~0.13.4"
 PlutoTeachingTools = "~0.3.1"
 PlutoUI = "~0.7.62"
 ProfileCanvas = "~0.1.6"
+TimerOutputs = "~0.5.28"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -448,7 +773,17 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "56fe57e792cc05782e15ec3ec3807a2a9b02444b"
+project_hash = "2b6ef41a932dd9a108560064e099bbdbfb70a56e"
+
+[[deps.About]]
+deps = ["InteractiveUtils", "JuliaSyntaxHighlighting", "PrecompileTools", "StyledStrings"]
+git-tree-sha1 = "334ce4642db7014f44af9c285f3d7e620339e301"
+uuid = "69d22d85-9f48-4c46-bbbe-7ad8341ff72a"
+version = "1.0.2"
+weakdeps = ["Pkg"]
+
+    [deps.About.extensions]
+    PkgExt = "Pkg"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -742,6 +1077,11 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "d55dffd9ae73ff72f1c0482454dcf2ec6c6c4a63"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.6.5+0"
+
+[[deps.ExprTools]]
+git-tree-sha1 = "27415f162e6028e81c72b82ef756bf321213b6ec"
+uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
+version = "0.1.10"
 
 [[deps.Extents]]
 git-tree-sha1 = "063512a13dbe9c40d999c439268539aa552d1ae6"
@@ -1104,6 +1444,17 @@ deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
 git-tree-sha1 = "969c20ff7711de1a2b7e121b24865354a486c034"
 uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
 version = "0.10.1"
+
+[[deps.JuliaSyntax]]
+git-tree-sha1 = "937da4713526b96ac9a178e2035019d3b78ead4a"
+uuid = "70703baa-626e-46a2-a12c-08ffd08c73b4"
+version = "0.4.10"
+
+[[deps.JuliaSyntaxHighlighting]]
+deps = ["JuliaSyntax", "StyledStrings"]
+git-tree-sha1 = "19ecee1ea81c60156486a92b062e443b6bba60b7"
+uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
+version = "0.1.0"
 
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
@@ -1854,6 +2205,18 @@ git-tree-sha1 = "f21231b166166bebc73b99cea236071eb047525b"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
 version = "0.11.3"
 
+[[deps.TimerOutputs]]
+deps = ["ExprTools", "Printf"]
+git-tree-sha1 = "f57facfd1be61c42321765d3551b3df50f7e09f6"
+uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
+version = "0.5.28"
+
+    [deps.TimerOutputs.extensions]
+    FlameGraphsExt = "FlameGraphs"
+
+    [deps.TimerOutputs.weakdeps]
+    FlameGraphs = "08572546-2f56-4bcf-ba4e-bab62c3a3f89"
+
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
@@ -2064,6 +2427,8 @@ version = "3.6.0+0"
 # ╟─820eef38-86d2-4b03-8989-0dc4d4c86929
 # ╟─2aeda4bd-aa1c-46fc-8183-79f8c75e5172
 # ╟─5c4c21e4-1a90-11f0-2f05-47d877772576
+# ╟─f3108f38-2bb4-4af7-b864-1805bb3cbef5
+# ╟─f11fb041-4587-4dc2-b201-5a5b27a32dff
 # ╟─4040ca9a-acbe-40fe-9a81-95996c4b64b2
 # ╟─4f60569e-a86b-4488-ac35-1554ae2b79ea
 # ╟─68ae253d-2a29-44e0-b217-98c3c1b5bc60
@@ -2078,9 +2443,27 @@ version = "3.6.0+0"
 # ╟─80ef7628-0f17-48d2-9bcf-21e3e3985455
 # ╟─7838acb6-3786-44ad-ae40-b78d252d59a8
 # ╠═08e3642e-8e06-4906-b235-1b31bdc1eb42
+# ╟─948f8590-9a26-4b26-998d-ac0c8f5c50f4
+# ╠═492c4348-0b0d-4e52-a4c9-d80283f7bc98
+# ╠═dde9da1d-a6b1-4ca9-b8d4-f9a164b089cb
+# ╠═7c31dec3-dcf8-4366-96c8-98bd9d426faf
+# ╠═8a01f348-9e96-448f-97b3-b193c5f7a36a
+# ╟─0115a2f6-ae33-45e3-bebf-924f7c3e8e05
+# ╠═3eb69d4f-5d7b-4b08-b274-f51f7c33970a
+# ╟─f953aace-06b6-4101-924c-3218140fc09a
+# ╠═1255bdf3-a32f-45e9-b589-2da4883d775b
+# ╟─5c8c666a-8a8b-4f37-8bde-3a29b75c9c43
+# ╠═68d0783c-6651-4432-bdbc-3be4d3f6ea65
+# ╠═89b11df3-7a2f-463f-954a-f7f6c137af8d
+# ╠═6db6a364-60af-4afc-bdcf-3f2f29e5aaa7
+# ╟─8ac7e33b-2279-4b3b-9c44-9cc7bdb4d256
+# ╠═e03e9d1c-0d1c-4bbc-848e-0fd81ddd5e8a
+# ╟─8ef05b61-e2ce-4b9f-a42c-f7f2dc664852
+# ╠═9790f509-046b-4714-bfba-b77019c806ae
 # ╟─3e717bde-a8d7-41b3-a52e-694efd22ff38
 # ╟─e8dd5d43-7a39-4f4c-9465-a25ad4dae287
-# ╠═14b79b92-6ff8-476f-b403-63c797d99567
+# ╟─14b79b92-6ff8-476f-b403-63c797d99567
+# ╠═7e51fbab-eea5-4d05-82fd-44d37e91e9b7
 # ╟─ac46f42b-ec7d-46d3-a4ad-d5c887a93327
 # ╠═bef23b0e-fd7f-4fab-aec7-de0e38a5b847
 # ╠═c48f8d56-a11c-4e94-b98f-b44c4516b0af
@@ -2099,13 +2482,25 @@ version = "3.6.0+0"
 # ╟─fa5243df-79a9-4e36-a14a-18d20babbd08
 # ╟─faf4b6b2-e191-4af1-9527-c8cb3e9f6e71
 # ╟─898ad034-31b8-4ef5-a58e-06757a6d34cb
-# ╠═978f5dfa-ad45-4982-b451-d4afbd430530
-# ╟─b269b4e8-8738-4abd-a4ab-7c1682252f9b
+# ╟─978f5dfa-ad45-4982-b451-d4afbd430530
+# ╠═9a083aa8-d7df-479a-9b3c-6d83812d7930
+# ╠═2902eb1a-442e-4a75-a6bd-3fb498c5ddf6
+# ╠═876c2320-c6bf-4a71-9c17-d16bd4868b7e
+# ╠═d5e28e66-b609-44c0-8fc1-7a15d2034be2
+# ╟─60093202-d8fd-4e78-b76f-2bc69775eacb
+# ╠═b269b4e8-8738-4abd-a4ab-7c1682252f9b
+# ╟─f15244e7-8b92-4972-8af0-ea689a83f700
+# ╠═69e35f64-1429-413e-8e11-8b785251ddcd
 # ╟─11f8a810-830d-47cd-902e-8fe96aca1149
-# ╠═f08a7392-5f7e-45f8-a713-adb51eb43a7e
+# ╟─f84dd0b3-fef4-4f52-b9d6-e09197e8d49a
 # ╟─c20d320d-8bc3-4407-91ad-7b98a9956090
-# ╠═d3c47968-1b79-44cc-8625-58fa5c82990a
-# ╠═3979717b-c8d8-4a30-ae36-f923e702d484
+# ╠═aad3dddf-c6b1-4c60-94fd-b7a31861aa7c
+# ╠═a57c204a-e329-4ad9-a3d7-a88b3020efbd
+# ╠═90585941-f47d-4e48-b2e4-ebe402cbd29c
+# ╠═0b65c669-1f2b-4bc2-8f7b-d30a1b19a1db
+# ╟─d3c47968-1b79-44cc-8625-58fa5c82990a
+# ╠═f08a7392-5f7e-45f8-a713-adb51eb43a7e
+# ╟─3979717b-c8d8-4a30-ae36-f923e702d484
 # ╠═3f344124-fd06-453d-ad16-c9d1e62fb9bd
 # ╠═5f572c39-66af-4adf-9e16-7462422b7254
 # ╠═7fd5e1f7-3ac5-4f9e-8c6c-dc6a397bdc13
@@ -2118,7 +2513,23 @@ version = "3.6.0+0"
 # ╟─1c868eb8-988d-469a-a0d5-4e640030afdc
 # ╠═9e246b82-e6b2-4e70-9d04-29a3ad8ccc26
 # ╟─663bf708-3587-4b89-9310-6762ad6a7fc4
-# ╟─0adc1bbc-f8b0-4c27-87ed-b2cb57da64ed
-# ╟─4bdec5da-f052-44e7-a174-d3ef9b538597
+# ╠═644724b7-5104-460d-ace9-93432e41fe2e
+# ╟─99ceea1c-cfc3-413e-bd7e-199f0dd37f74
+# ╠═f26973b0-f952-46b8-89fc-3e3ec53c7d7a
+# ╠═3585b48e-2a72-43a3-a66e-dfa539a3f473
+# ╠═82ecf1cb-88d1-47ab-a70b-3472f5450dc8
+# ╠═41ada7f5-4d9c-4611-9cba-cc761847e082
+# ╠═111edbf4-218a-4f69-a42a-ed1ee5291d74
+# ╠═a63c2727-5620-4d96-a2c2-1c156d361dc9
+# ╠═7b7e6228-0e38-4c3f-807c-1444cfd23968
+# ╠═5abf32f0-bc53-4369-b537-023ed6f4c83b
+# ╠═be00f1de-8eef-457c-a300-36f4010fc2b7
+# ╠═d6bb2f8e-8f69-4001-92fa-dbd321785799
+# ╟─176a75bd-f0c5-4e68-8045-7319333d4052
+# ╠═a0819e29-a1c1-4bd5-8ca8-a087946b0247
+# ╠═2acabb56-87fe-4242-a497-c1d43e3ecdfb
+# ╠═b8ba3334-b2b4-45b3-b9f3-7470502f803b
+# ╠═9b7a0beb-852f-410d-8dab-f133911485db
+# ╟─8e5ad5e5-915c-494f-8026-8e7db6fe3fb6
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
