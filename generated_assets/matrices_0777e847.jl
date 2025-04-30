@@ -6,9 +6,9 @@
 #> section = "3"
 #> order = "3.1"
 #> title = "Matrix multiply"
-#> indepth_number = "1"
 #> tags = ["module1", "track_performance", "indepth"]
 #> layout = "layout.jlhtml"
+#> indepth_number = "1"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"

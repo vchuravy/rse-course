@@ -54,10 +54,55 @@ end
 # ╔═╡ ed14feba-cbed-4bdc-a343-985e6655f5f5
 @benchmark bar()
 
-# ╔═╡ 33ef979b-9ff6-4ecb-afc4-af72d9678388
+# ╔═╡ d2057241-fda7-4565-bffe-4b927ee7e265
+md"""
+I see that `bar` is almost three times as fast as `baz!` The reason is that `bar` is type stable while `baz` is not: the compiler can tell that `bar` will always return a `Float64`, whereas `baz` could return a `Float64`, an `Int`, or a `Rational`. When the compiler can tell what the types of outputs from a function, or variables declared within a function are without running the code, it can do much better.
+"""
 
+# ╔═╡ 33ef979b-9ff6-4ecb-afc4-af72d9678388
+Base.return_types(baz)
+
+# ╔═╡ a061ee77-7e86-4040-9899-678e870e7ef8
+Base.return_types(bar)
 
 # ╔═╡ 77ce1801-fca6-49bc-b79f-fb5b68884ac1
+md"""
+### Exercise 1
+
+The following definition for `my_sum` is not type stable.
+
+```julia
+function my_sum(A)
+    output = 0
+    for x in A
+        output += x
+    end
+    return output
+end
+```
+
+Copy and execute the above code into a new cell. Benchmark it using A = rand(10^3). Then write a new function called `my_sum2` with the same function body as `my_sum`. Update `my_sum2` to make it type stable, and benchmark it for a randomly populated array with 10^3 entries.
+
+How much does type stability impact performance? If you'd like, try this same exercise for multiple sizes of `A` to see if this changes your answer!
+"""
+
+# ╔═╡ cf7f150b-7869-4ae0-aeec-8987ba4949db
+md"""
+### Exercise 2
+
+Make the following code type stable. You'll know your efforts are paying off when you see a performance boost! ​
+
+```julia
+# Calculate the square root of `x` with Newton's method.
+function my_sqrt(x)
+    output = 1
+    for i in 1:1000
+        output = .5 * (output + x/output)
+    end
+    output
+end
+```
+"""
 
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -210,7 +255,10 @@ version = "5.11.0+0"
 # ╠═cc38d8fd-fdaa-4391-b68b-fab20d63d20c
 # ╠═da76d161-644a-4be2-b379-741799540cfe
 # ╠═ed14feba-cbed-4bdc-a343-985e6655f5f5
+# ╟─d2057241-fda7-4565-bffe-4b927ee7e265
 # ╠═33ef979b-9ff6-4ecb-afc4-af72d9678388
-# ╠═77ce1801-fca6-49bc-b79f-fb5b68884ac1
+# ╠═a061ee77-7e86-4040-9899-678e870e7ef8
+# ╟─77ce1801-fca6-49bc-b79f-fb5b68884ac1
+# ╟─cf7f150b-7869-4ae0-aeec-8987ba4949db
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
