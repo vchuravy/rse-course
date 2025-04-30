@@ -97,13 +97,6 @@ begin
 	@profview profile_map(map, 10) C = true
 end
 
-# ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
-md"""
-!!! note
-     Vary the number of threads the BLAS library uses.
-     (See the cell above with `BLAS.set_num_threads()`)
-"""
-
 # ╔═╡ 188cb94b-2851-4176-83e0-90e2414fcc06
 begin
 	blas_edge
@@ -126,6 +119,13 @@ When `BLAS.set_num_threads(Sys.CPU_THREADS)` we see a function called `exec_blas
 2. What happends when `BLAS.set_num_threads(1)`
 """
 )
+
+# ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
+md"""
+!!! note
+     Vary the number of threads the BLAS library uses.
+     (See the cell above with `BLAS.set_num_threads()`)
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
