@@ -1,6 +1,14 @@
 ### A Pluto.jl notebook ###
 # v0.20.6
 
+#> [frontmatter]
+#> order = "3.2"
+#> exercise_number = "3"
+#> title = "Type-stability"
+#> tags = ["module1", "track_parallel", "exercises"]
+#> layout = "layout.jlhtml"
+#> description = "sample exercise"
+
 using Markdown
 using InteractiveUtils
 
