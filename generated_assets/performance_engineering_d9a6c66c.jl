@@ -152,12 +152,15 @@ md"""
 - [PProf.jl](https://github.com/JuliaPerf/PProf.jl)
 """
 
-# ╔═╡ 0a0bf1b1-0495-4879-b69c-2e6c4918977e
-TODO(md"""
-- Multi-threaded example
-- Exercise: BLAS function
-- Talk about calling into C
-""")
+# ╔═╡ ad5f2707-572a-4245-ba52-078c67f1b17f
+md"""
+The Julia profiler focuses on the execution of Julia code. This leads to two limitations:
+
+1. By default it does not show time spent in C functions
+2. It does not measure time spent on "external" threads
+  - BLAS threads
+  - GC worker threads
+"""
 
 # ╔═╡ 3f02c140-c408-4f0c-9d73-5348d2b4af4d
 function profile_test(n)
@@ -178,25 +181,72 @@ end
 # ╔═╡ 36762f71-e535-4048-ac68-ea1fc6859de1
 @profview profile_test(10)
 
+# ╔═╡ 9b28e25b-493a-4e74-bc44-e996f639b8d1
+md"""
+!!! note
+    The profiler shows all Julia worker-threads. The time spent in `task_done_hook` is a worker thread idiling.
+"""
+
+# ╔═╡ 43abf4bc-d98d-4162-9cb5-2f531ffb7fb4
+function pfib(n::Int)
+    if n <= 1
+        return n
+    end
+    t = Threads.@spawn pfib(n-2)
+    return pfib(n-1) + fetch(t)::Int
+end
+
+# ╔═╡ 74ae8f13-c09d-4e51-ba56-e5b230e13f1f
+function profile_pfib(n, k)
+    for i = 1:n
+        pfib(k)
+    end
+end
+
+# ╔═╡ acd1a03d-1114-44e3-a970-3f418539d2db
+@profview profile_pfib(1, 4);
+
+# ╔═╡ 84973c7a-2d17-49c3-b627-a804dcefd35b
+@profview profile_pfib(10, 16)
+
+# ╔═╡ 03fed1dd-004c-4fba-8ce3-7625f1c25820
+md"""
+To gain insight into runtime behavior we can turn on C-frames
+"""
+
+# ╔═╡ 9d058445-37e5-4201-b7f2-c658125bc126
+@profview profile_pfib(10, 16) C=true
+
+# ╔═╡ 5bdf8023-ce43-44e2-beff-229ff6455d84
+md"""
+Runtime functions you might see:
+
+- `jl_gc_*_alloc`: Memory allocations
+- `jl_gc_collect`: Garbage collection
+- `jl_safepoint_wait_gc`: Garbage collection waiting for all threads to reach it.
+"""
+
 # ╔═╡ fa5243df-79a9-4e36-a14a-18d20babbd08
 md"""
 ### Native profilers
 """
 
-# ╔═╡ 898ad034-31b8-4ef5-a58e-06757a6d34cb
+# ╔═╡ faf4b6b2-e191-4af1-9527-c8cb3e9f6e71
 md"""
-- VTunes
-- Perf
-- NSight Systems
-- Tracy
+System profilers allow you to gain even more insight into how your program is performing, but come with usability down-sides.
 """
 
-# ╔═╡ 4a2faa1b-c6de-40f0-b6e9-66653532e27b
-TODO("")
+# ╔═╡ 898ad034-31b8-4ef5-a58e-06757a6d34cb
+md"""
+- [VTune](https://github.com/JuliaPerf/IntelITT.jl?tab=readme-ov-file#running-julia-under-vtune)
+- [Perf](https://docs.julialang.org/en/v1/manual/profile/#External-Profiling)
+- [NSight Systems](https://cuda.juliagpu.org/stable/development/profiling/#External-profilers)
+  - `CUDA.jl` has it's own inbuilt `@profile`
+"""
 
 # ╔═╡ 978f5dfa-ad45-4982-b451-d4afbd430530
 md"""
-#### Instrumentation
+### Instrumentation
 
 $(TODO("
 - TimerOutputs
@@ -396,7 +446,7 @@ ProfileCanvas = "~0.1.6"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "56fe57e792cc05782e15ec3ec3807a2a9b02444b"
 
@@ -1343,7 +1393,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.5+0"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2034,14 +2084,22 @@ version = "3.6.0+0"
 # ╟─ac46f42b-ec7d-46d3-a4ad-d5c887a93327
 # ╠═bef23b0e-fd7f-4fab-aec7-de0e38a5b847
 # ╠═c48f8d56-a11c-4e94-b98f-b44c4516b0af
-# ╠═0a0bf1b1-0495-4879-b69c-2e6c4918977e
+# ╟─ad5f2707-572a-4245-ba52-078c67f1b17f
 # ╠═3f02c140-c408-4f0c-9d73-5348d2b4af4d
 # ╠═9840f078-63ff-4efc-9d45-6e0198d2624d
 # ╠═36762f71-e535-4048-ac68-ea1fc6859de1
+# ╟─9b28e25b-493a-4e74-bc44-e996f639b8d1
+# ╠═43abf4bc-d98d-4162-9cb5-2f531ffb7fb4
+# ╠═74ae8f13-c09d-4e51-ba56-e5b230e13f1f
+# ╠═acd1a03d-1114-44e3-a970-3f418539d2db
+# ╠═84973c7a-2d17-49c3-b627-a804dcefd35b
+# ╟─03fed1dd-004c-4fba-8ce3-7625f1c25820
+# ╠═9d058445-37e5-4201-b7f2-c658125bc126
+# ╟─5bdf8023-ce43-44e2-beff-229ff6455d84
 # ╟─fa5243df-79a9-4e36-a14a-18d20babbd08
+# ╟─faf4b6b2-e191-4af1-9527-c8cb3e9f6e71
 # ╟─898ad034-31b8-4ef5-a58e-06757a6d34cb
-# ╟─4a2faa1b-c6de-40f0-b6e9-66653532e27b
-# ╟─978f5dfa-ad45-4982-b451-d4afbd430530
+# ╠═978f5dfa-ad45-4982-b451-d4afbd430530
 # ╟─b269b4e8-8738-4abd-a4ab-7c1682252f9b
 # ╟─11f8a810-830d-47cd-902e-8fe96aca1149
 # ╠═f08a7392-5f7e-45f8-a713-adb51eb43a7e
