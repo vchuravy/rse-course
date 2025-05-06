@@ -2,705 +2,142 @@
 # v0.20.6
 
 #> [frontmatter]
-#> chapter = "1"
-#> section = "4"
-#> order = "4"
-#> title = "Automatic Differentiation"
-#> date = "2025-04-16"
-#> tags = ["module1", "track_ad"]
+#> order = "4.1"
+#> exercise_number = "6"
+#> title = "Profiling"
+#> tags = ["module1", "track_ad", "exercises"]
 #> layout = "layout.jlhtml"
-#> 
-#>     [[frontmatter.author]]
-#>     name = "Valentin Churavy"
-#>     url = "https://vchuravy.dev"
+#> description = "sample exercise"
 
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    #! format: off
-    return quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-    #! format: on
-end
+# ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
+using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ 5eeae36d-988a-4906-ac80-4de96b1969bd
+# ╔═╡ ba4e41a6-c3e4-40f5-aae0-afd49744ca0d
+using CairoMakie
+
+# ╔═╡ bd7ddb00-a392-43d2-8637-55c9660db022
+using ForwardDiff
+
+# ╔═╡ 743c24db-7997-42c9-8d09-392186d7b175
+using Optim
+
+# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
+ChooseDisplayMode()
+
+# ╔═╡ 3e5c3c97-4401-41d4-a701-d9b24f9acdc6
+PlutoUI.TableOfContents(; depth=4)
+
+# ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
+md"""
+# Exercise: Optimization
+"""
+
+# ╔═╡ 55ccce7c-0d5b-44d0-8288-4124fadd7544
+md"""
+
+## Rosenbrock function
+
+$f(x,y) = (1-x)^2 + 100(y-x^2)$
+
+```julia
+rosenbrock(x, y) = (1 - x) ^ 2 + 100 * (y - x ^ 2) ^ 2
+```
+"""
+
+# ╔═╡ 7c2bab99-da3a-49eb-9c64-3c81188e2abe
+rosenbrock(x, y) = (1 - x) ^ 2 + 100 * (y - x ^ 2) ^ 2;
+
+# ╔═╡ 79a94548-d34f-4404-90e5-cbe3d383180b
 begin
-	using PlutoUI, PlutoTeachingTools
-	using PlutoUI:Slider
+	xs = -6:0.04:6
+	ys = -2:0.04:5
+	zs = [log10(rosenbrock(x, y)) for x in xs, y in ys]
+end;
+
+# ╔═╡ 444b279f-1fe0-4dbf-8ea9-d350a042e675
+surface(xs, ys, zs, axis=(type=Axis3,))
+
+# ╔═╡ 22520dc4-5ab0-4ccc-af82-cc0169e856b9
+contourf(xs, ys, zs)
+
+# ╔═╡ 30a37005-b385-478e-bc04-b28941b520b1
+let
+	f(x) = rosenbrock(x...)
+	sol = optimize(f, [0.0, 0.0])
+	@show Optim.minimizer(sol)
+	sol
 end
 
-# ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
-begin
-	using CairoMakie
-	set_theme!(theme_latexfonts();
-			   fontsize = 16,
-			   Lines = (linewidth = 2,),
-			   markersize = 16)
-end
+# ╔═╡ 9d16dd65-adc0-4fa8-8528-3f3fbdfa6b8e
+∂f_∂x(f, x, y) = ForwardDiff.derivative(x->f(x, y), x)
 
-# ╔═╡ 424db547-b82b-45ae-a8ac-044de1ed6a0c
-using DoubleFloats
+# ╔═╡ 9c7cd1a7-9f1e-423a-b588-31cb77fdebba
+∂f_∂y(f, x, y) = ForwardDiff.derivative(y->f(x, y), y)
 
-# ╔═╡ 708757e8-f115-42d4-a100-9a132d91cd0f
-using BenchmarkTools
+# ╔═╡ 8199ebd3-f5a9-4b4f-9bd7-0c8a5c943688
+contourf(xs, ys, ((x,y)->∂f_∂x(rosenbrock, x, y)[1]).(xs, ys'))
 
-# ╔═╡ 676a0fe1-25c7-4df2-847e-afaaaa0fdf58
-using Symbolics
+# ╔═╡ ba244fcb-32c0-4e44-bc74-326c628b335c
+contourf(xs, ys, ((x,y)->∂f_∂y(rosenbrock, x, y)).(xs, ys'))
 
-# ╔═╡ 668493d8-bf95-4561-9a3a-2e7f7a987682
-md"""
-# Introduction to AD
-
-with material from Hendrick Ranocha and Alan Edelman
-"""
-
-# ╔═╡ c4308c97-cf04-47f8-a65a-e230b6736791
-md"""
-## Question:
-
-Given an "observed" evaluation of `f` can we "learn" the values of `a`, `b`, `c`, `d`?
-"""
-
-# ╔═╡ 608b15d4-9ab3-405d-b574-167788f0c842
-md"""
-We could try some random values!
-"""
-
-# ╔═╡ 834f9474-8f11-4bda-818e-ed3dd505f444
-coeffs_guess = rand(-2.0:0.1:2.0, 4)
-
-# ╔═╡ a7f02fa7-8dac-424e-92d9-cc0f8ed85b93
-md"""
-So how do we improve our guess systematically?
-"""
-
-# ╔═╡ 13cc6418-0738-41ab-b881-14d0593be79c
-md"""
-Wouldn't it be nice if we could automatically calculate the direction of improvement? When we vary a variable?
-"""
-
-# ╔═╡ 38b2f947-736b-4b05-9e38-51dc7e99b1db
-md"""
-=> Derivatives
-"""
-
-# ╔═╡ 63a62a52-d138-4fae-9c1f-c7dbebb94f45
-md"""
-## Finite differences
-
-There are several ways to compute a function and its derivative on a computer.
-If you use a computer algebra system (CAS), you can compute derivatives analytically,
-e.g., using [Wolfram Alpha](https://www.wolframalpha.com).
-
-Another option you should have seen in the introduction to numerical analysis are finite differences. Since the derivative is defined as
-
-$$f'(x) = \lim_{h \to 0} \frac{f(x + h) - f(x)}{h},$$
-
-it makes sense to use the forward difference
-
-$$\frac{f(x + h) - f(x)}{h} \approx f'(x)$$
-
-and approximate the limit by taking a small $h > 0$. However, this leads to round-off
-error since we typically represent real numbers via *floating point numbers with fixed precision*.
-"""
-
-# ╔═╡ a037e8aa-1b41-4146-814f-af3c6ff38be4
-eps(1.0)
-
-# ╔═╡ 5acc8ada-625a-4a8b-a790-a2b57a4ed189
-eps(1.0f0)
-
-# ╔═╡ 4fbd8caf-04a5-46f0-8c73-a2db450bd172
-eps(1.234e5)
-
-# ╔═╡ 2d1d9e00-f022-4aa1-a64a-9331833f327d
-md"""
-Thus, there will be two regimes:
-- if $h$ is too big, the error of the limit approximation dominates
-- if $h$ is too small, the floating point error dominates
-
-We illustrate this for different functions $f$ at $x = 1$. We use different types of floating point numbers and compute the error of the
-finite difference approximation.
-"""
-
-# ╔═╡ 799fd006-6e40-47cd-98c6-62222e8c74eb
-@bind FloatType Select([Float32, Float64, Double64]; default = Float64)
-
-# ╔═╡ 3150ee27-4907-4a83-9969-b1ed75bf6378
-md"""
-Next, we use the central difference
-
-$$\frac{f(x + h) - f(x - h)}{2 h} \approx f'(x).$$
-"""
-
-# ╔═╡ 89d5bd8a-a9e4-4a1a-9e71-206db516a50f
-md"""
-## Forward-mode AD for scalars
-
-There is a well-know proverb
-
-> Differentiation is mechanics, integration is art
-
-Luckily, we are just interested in differentiation for now. Thus, all we need to do
-is to implement the basic rules of calculus like the product rule and the chain rule.
-Before doing that, let's consider an example.
-"""
-
-# ╔═╡ ac9403df-12f2-436f-bfbd-553e9de1ab2e
-md"""We can compute the derivative by hand using the chain rule."""
-
-# ╔═╡ 611ecf77-940d-4c1f-92e3-4249c2d720ef
-md"We can think of the function as a kind of *computational graph* obtained by dividing it into steps."
-
-# ╔═╡ 5e99b4d7-5c7a-473a-aace-6e0ea16ec1bf
-md"To compute the derivative, we have to apply the chain rule multiple times."
-
-# ╔═╡ 082e9259-8e64-4ffa-8ed7-5c9bdbad0a0c
-md"""
-We would like to automate this! To do so, we introduce so-called [dual numbers](https://en.wikipedia.org/wiki/Dual_number). They carry both a `value` and derivative (called `deriv`, the ε part above). Formally, a dual number can be written as
-
-$$x + \varepsilon y, \qquad x, y \in \mathbb{R},$$
-
-quite similar to a complex number
-
-$$z = x + \mathrm{i} y, \qquad x, y \in \mathbb{R}.$$
-
-However, the new basis element $\varepsilon$ satisfies
-
-$$\varepsilon^2 = 0$$
-
-instead of $\mathrm{i}^2 = -1$. Thus, the dual number have the algebraic structure of an *algebra* instead of a field like the complex numbers $\mathbb{C}$.
-
-In our applications, the $\varepsilon$ part contains the derivative. Indeed, the rule $\varepsilon^2 = 0$ yields
-
-$$(a + \varepsilon b) (c + \varepsilon d) = a c + \varepsilon (a d + b c),$$
-
-which is just the product rule of calculus. You can code this as follows.
-"""
-
-# ╔═╡ b4214f5e-e675-46cb-89aa-1a51b49c141c
-begin
-	struct Dual{T <: Real} <: Number
-		value::T
-		deriv::T
+# ╔═╡ 10c39e63-bc7e-4169-9187-2bcdd07fb96d
+let
+	f(x) = rosenbrock(x[1], x[2])
+	function g!(dx, x)
+		dx[1] = ∂f_∂x(rosenbrock, x[1], x[2])
+		dx[2] = ∂f_∂y(rosenbrock, x[1], x[2])
+		nothing
 	end
-	Dual(x::Real, y::Real) = Dual(promote(x, y)...)
+	sol = optimize(f, g!, [0.0, 0.0])
+	@show Optim.minimizer(sol)
+	sol
 end
 
-# ╔═╡ cb5d2cb3-4b88-41d9-9dcf-729275ef6865
-const ϵ = Dual(0.0, 1.0)
+# ╔═╡ 29842c8e-9d95-4736-98b5-9f089e17f7f7
 
-# ╔═╡ 803c58be-95da-4bba-940e-9a69a16ad6e5
-md"Now, we can create such dual numbers."
-
-# ╔═╡ 2fa6bd76-7539-4857-9829-6212689c1d3a
-Dual(5, 2.0)
-
-# ╔═╡ 8b9cd1a8-f33d-4ca2-9b4a-6f7684a52b7f
-md"Next, we need to implement the required interface methods for numbers."
-
-# ╔═╡ 98a72e2a-7c21-4a31-8c1e-21f4efa7e4ee
-Base.:+(x::Dual, y::Dual) = Dual(x.value + y.value,
-								 x.deriv + y.deriv)
-
-# ╔═╡ 097ae01c-d0a3-4e8f-a63d-74593829b462
-5 + ϵ
-
-# ╔═╡ 19c0f6ea-3128-45ce-a198-644f4be7d9f0
-Dual(1, 2) + Dual(2.0, 3)
-
-# ╔═╡ 0bd274cb-e359-4a18-ae75-bb91ae101391
-Base.:-(x::Dual, y::Dual) = Dual(x.value - y.value,
-								 x.deriv - y.deriv)
-
-# ╔═╡ eea941bf-0be0-4002-a07e-4ee5d95645dd
-nextfloat(1.0) - 1.0
-
-# ╔═╡ 492d49ba-94aa-4c30-894b-4e59ed98402a
-(nextfloat(1.234e5) - 1.234e5)
-
-# ╔═╡ ae46c18f-3e2e-4f92-8a96-ed786215b51f
-Dual(1, 2) - Dual(2.0, 3)
-
-# ╔═╡ ce102254-9c7b-48b4-aee2-3acc16bb31ba
-Base.:*(x::Dual, y::Dual) = Dual(x.value * y.value,
-								 x.value * y.deriv + x.deriv * y.value)
-
-# ╔═╡ 7a5bccfa-fce1-4bd8-8531-048ecb1c6a21
-xs = 0.0:0.01:2π
-
-# ╔═╡ 05629dd9-7777-46c8-9851-5b39ce2829df
-Dual(1, 2) * Dual(2.0, 3)
-
-# ╔═╡ 4006fed7-9a7d-4eee-bb75-ed7b5472d6d1
-Base.:/(x::Dual, y::Dual) = Dual(x.value / y.value,
-								 (x.deriv * y.value - x.value * y.deriv) / y.value^2)
-
-# ╔═╡ 3c4079a7-a627-464a-9309-f0f5320d368b
-function multi_slider(names, values, title="")
-	return PlutoUI.combine() do Child
-		inputs = [
-			md""" $(name): $(
-				Child(name, Slider(vals; show_value=true, default=(first(vals)+last(vals))/2))
-			)"""
-			
-			for (name, vals) in zip(names, values)
-		]
-		
-		md"""
-		#### $title
-		$(inputs)
-		"""
-	end
-end
-
-# ╔═╡ 4b079423-6c68-4ea0-a51d-b2b3bbfbb0f6
-@bind coeffs multi_slider(
-	("a", "b", "c", "d"), 
-	(-1.0:0.1:2.0,
-	 -1.0:0.1:2.0,
-	 -1.0:0.1:2.0,
-	 -1.0:0.1:2.0,))
-
-# ╔═╡ 14db561f-54c3-41d4-8078-531facb65038
-# Mean squared error
-function mse(ŷ, y)
-	sum((ŷ .- y).^2) / length(y)
-end
-
-# ╔═╡ f0ed7963-e935-41cc-9820-94db0c3cd042
-Dual(1, 2) / Dual(2.0, 3)
-
-# ╔═╡ 20873272-f1a1-472d-bf05-c96e2f948f02
-md"We also need to tell Julia how to convert and promote our dual numbers."
-
-# ╔═╡ 71ec1afe-a7c7-41c8-a05b-32287658c2f5
-Base.convert(::Type{Dual{T}}, x::Real) where {T <: Real} = Dual(x, zero(T))
-
-# ╔═╡ ebd73caf-5be3-4b75-a240-031d4a3aa64b
-Base.promote_rule(::Type{Dual{T}}, ::Type{<:Real}) where {T <: Real} = Dual{T}
-
-# ╔═╡ 67182362-cf07-463f-9583-00451633bd93
-Dual(1, 2) + 3.0
-
-# ╔═╡ 67f88aac-14e4-423c-9a7b-35275a01a309
-md"Next, we need to implement the well-know derivatives of special functions."
-
-# ╔═╡ 81a8a7b4-47dc-4e20-a26f-adf6f36d12d9
-Base.cos(x::Dual) = Dual(cos(x.value), -sin(x.value) * x.deriv)
-
-# ╔═╡ 10553f26-b660-4889-b0a7-71d68dbc105c
-Base.sin(x::Dual) = Dual(sin(x.value), cos(x.value) * x.deriv)
-
-# ╔═╡ ecf84d2e-46f6-4dd1-a5de-a5f65b1d281f
-function f(x, a, b, c, d)
-	return sin(a*x)*b + cos(c*x)*d
-end
-
-# ╔═╡ e86b88d2-baa7-4d41-9539-fb298ba5c123
-ys = f.(xs, 0.3, -1.2, 0.5, 0.7)
-
-# ╔═╡ b2cdecef-d2d5-4514-a6cd-d3d453ed9099
-lines(xs, ys)
-
-# ╔═╡ f73540da-cf91-4463-9adf-b0e5b98e7b79
-ys_guess = f.(xs, coeffs_guess...)
-
-# ╔═╡ 367385c4-65b0-4a4a-aaf1-2cfcd8015b20
-mse(ys, ys_guess)
-
-# ╔═╡ b75017e8-bcfd-42fd-8870-9777c2f230e3
-let
-	fig = Figure()
-	ax = Axis(fig[1,1], title="MSE = $(mse(ys, ys_guess))")
-	lines!(ax, xs, ys)
-	lines!(ax, xs, ys_guess)
-	fig
-end
-
-# ╔═╡ 6a63cae0-fcd7-4258-a82f-3f752b37225c
-let
-	neighborhood = -0.3:0.1:0.3
-
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	for offset in neighborhood
-		_ys =  f.(xs, coeffs_guess[1]+offset, coeffs_guess[2:end]...)
-		lines!(ax, xs, _ys, label="Offset a+$(offset), MSE= $(mse(ys, _ys))" )
-	end
-	axislegend(ax)
-	fig
-end
-
-# ╔═╡ a4e57d7a-7232-4189-85ff-8a25a3cb82da
-let
-	fig = Figure()
-	ax = Axis(fig[1,1])
-
-	lines!(ax, xs, sin, label="sin")
-	lines!(ax, xs, cos, label="cos")
-	lines!(ax, xs, f.(xs, coeffs...), label = "f")
-
-	axislegend(ax)
-	fig
-end
-
-# ╔═╡ 42af19cc-c2b9-4736-9d07-8376c8b6cf09
-sin(Dual(π, 1.0))
-
-# ╔═╡ 89be32ff-786e-4794-9aa7-9246dc488a8c
-cos(Dual(π, 1.0))
-
-# ╔═╡ 65dd6dd4-db1d-4e6d-b29c-9dd759567af5
-Base.log(x::Dual) = Dual(log(x.value), x.deriv / x.value)
-
-# ╔═╡ a42cc7a3-5e79-4cc9-afce-38e1db38d485
-log(Dual(1.0, 1))
-
-# ╔═╡ 34d68aa2-42de-480c-8e1b-ce7dfdd1e538
-Base.exp(x::Dual) = Dual(exp(x.value), exp(x.value) * x.deriv)
-
-# ╔═╡ 400c2d07-00f1-404f-b360-572671c467b5
-@bind f_diff Select([
-	sin => "f(x) = sin(x)",
-	cos => "f(x) = cos(x)",
-	exp => "f(x) = exp(x)",
-	(x -> sin(100 * x)) => "f(x) = sin(100 x)",
-	(x -> sin(x / 100)) => "f(x) = sin(x / 100)",
-])
-
-# ╔═╡ 7122f82d-32b8-46c3-9299-6f7e31b7fd55
-g(x) = log(x^2 + exp(sin(x)))
-
-# ╔═╡ 68d42e2d-10cd-474d-a8c8-681f13bb027c
-let x = 1.0, h = sqrt(eps())
-	(g(x + h) - g(x)) / h
-end
-
-# ╔═╡ bc07318f-abb3-4791-9044-3609c05aebb3
-g′(x) = 1 / (x^2 + exp(sin(x))) * (2 * x + exp(sin(x)) * cos(x))
-
-# ╔═╡ 44cc65e6-f622-4601-8f4f-c31b89ce00fe
-(g(1.0), g′(1.0))
-
-# ╔═╡ 27220cbf-40ee-4e00-882c-d3a16f048cb0
-function g_graph(x)
-	c1 = x^2
-	c2 = sin(x)
-	c3 = exp(c2)
-	c4 = c1 + c3
-	c5 = log(c4)
-	return c5
-end
-
-# ╔═╡ 2993b2be-69d1-4d35-81af-73fcd33e1465
-g(1.0) ≈ g_graph(1.0)
-
-# ╔═╡ 4e610480-f0d1-420d-a273-08ee98a5438c
-function g_graph_derivative(x)
-	c1 = x^2
-	c1_ε = 2 * x
-	
-	c2 = sin(x)
-	c2_ε = cos(x)
-	
-	c3 = exp(c2)
-	c3_ε = exp(c2) * c2_ε
-	
-	c4 = c1 + c3
-	c4_ε = c1_ε + c3_ε
-	
-	c5 = log(c4)
-	c5_ε = c4_ε / c4
-	return c5, c5_ε
-end
-
-# ╔═╡ 96c8d882-2970-4497-8638-19c7d34ab492
-g_graph_derivative(1.0)
-
-# ╔═╡ 027dcf07-5dbf-4bfe-bab3-9e8ad3279e3a
-exp(Dual(1.0, 1))
-
-# ╔═╡ d0ebe0d0-c370-4a9d-ace8-1146da614fda
-Base.abs(x::Dual) = Dual(abs(x.value), sign(x.value))
-
-# ╔═╡ 18901d86-b709-4f71-a439-237c7cb06ce9
-md"Finally, we can differentiate the function `f` we started with!"
-
-# ╔═╡ 0bb66e77-09a6-43ff-ae28-8085eb03e8d7
-let
-	g_dual = g(Dual(1.0, 1.0))
-	(g_dual.value, g_dual.deriv) .- (g(1.0), g′(1.0))
-end
-
-# ╔═╡ 5fcf2dbf-7efe-4581-a347-0769c9638a0b
-let
-	g_dual = g(Dual(1.0, 1.0))
-	(g_dual.value, g_dual.deriv) .- g_graph_derivative(1.0)
-end
-
-# ╔═╡ 3dd5c095-1a23-45b3-bdb2-a487b2c4004c
-md"This works since the compiler basically performs the transformation `f` $\to$ `f_graph_derivative` for us. We can see this by looking at one stage of the Julia compilation process as follows."
-
-# ╔═╡ f2d0825f-d27d-4869-bb6e-6a88eade3345
-@code_typed g(Dual(1.0, 1.0))
-
-# ╔═╡ d3018536-1f68-430f-a71d-89754b2dd620
-@code_typed g_graph_derivative(1.0)
-
-# ╔═╡ 51a97752-ac9b-441a-a654-65a82ec6057c
-md"Since the compiler can see all the different steps, it can generate very efficient code."
-
-# ╔═╡ 1fdcaee7-3f27-4d97-bace-1a022babaff9
-@benchmark g_graph_derivative($(Ref(1.0))[])
-
-# ╔═╡ 9faa9a57-4e7e-4145-a0d5-921f7809721d
-@benchmark g(Dual($(Ref(1.0))[], 1.0))
-
-# ╔═╡ 7317e24b-4461-4a6e-b580-94efd6cb12d4
-md"Now, we have a versatile tool to compute derivatives of functions depending on a single variable."
-
-# ╔═╡ 552d2403-41a8-4f56-938a-61e6ced75d85
-derivative(f, x::Real) = f(Dual(x, one(x))).deriv
-
-# ╔═╡ 69e2683a-caf4-48b0-a71a-b73f24bdab83
-md"We can also get the derivative as a function itself."
-
-# ╔═╡ 6f903e30-2c85-4ae1-a4cc-591934f1e012
-derivative(f) = x -> derivative(f, x)
-
-# ╔═╡ 051b752d-b0aa-4e05-bfc4-5d671e17e6c8
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; 
-			  xlabel = L"Step size $h$", 
-			  ylabel = "Error of the forward differences",
-			  xscale = log10, yscale = log10)
-	
-	f = f_diff
-	x = one(FloatType)
-	f′x = derivative(f, Float64(x))
-	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
-	fd_error(h) = max(abs((f(x + h) - f(x)) / h - f′x), eps(x) / 100)
-	lines!(ax, h, fd_error.(h); label = "")
-	
-	h_def = sqrt(eps(x))
-	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
-	text!(ax, "sqrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
-	
-	fig
-end
-
-# ╔═╡ 518443a4-47d6-4009-bc1b-6272b46a168a
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; 
-			  xlabel = L"Step size $h$", 
-			  ylabel = "Error of the central differences",
-			  xscale = log10, yscale = log10)
-	
-	f = f_diff
-	x = one(FloatType)
-	(f′x,) = derivative(f, Float64(x))
-	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
-	fd_error(h) = max(abs((f(x + h) - f(x - h)) / (2 * h) - f′x), eps(x) / 100)
-	lines!(ax, h, fd_error.(h); label = "")
-	
-	h_def = cbrt(eps(x))
-	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
-	text!(ax, "cbrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
-	
-	fig
-end
-
-
-# ╔═╡ de74c171-b9e2-4a7e-9550-124508e0dfaa
-derivative(g, 1.0)
-
-# ╔═╡ ff552723-12ba-4b9f-92ab-d5ade47b8203
-derivative(x -> 3 * x^2 + 4 * x + 5, 2)
-
-# ╔═╡ 2e0c073d-0ad9-4e31-b791-27ac747a8f40
-derivative(3) do x
-	sin(x) * log(x)
-end
-
-# ╔═╡ ad924e1f-ef4c-433e-a259-120c9ef0c2d9
-let dg = derivative(g)
-	x = range(0.1, 10.0, length = 10)
-	dg.(x) - g′.(x)
-end
-
-# ╔═╡ 12186fb3-a520-446b-aaf0-6a8e131ac508
-let
-	fig = Figure()
-	ax = Axis(fig[1,1])
-
-	lines!(ax, xs, f_diff, label="f")
-	lines!(ax, xs, derivative(f_diff), label="f′")
-	axislegend(ax)
-	fig
-end
-
-# ╔═╡ 55c17860-f5d9-4fda-ad3e-b16b075af06c
-md"""
-!!! note
-    Use [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) or [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) instead of using our local implementation here.
-"""
-
-# ╔═╡ 74bf8e0b-5018-422d-8536-a5a03053acd0
-md"""
-## Popping up the stack
-"""
-
-# ╔═╡ dda152e7-a72a-4d71-b01d-c04f5b46de3a
-df_a(x, a, b, c, d) = f(x, Dual(a, one(a)), b, c, d)
-
-# ╔═╡ 432f3155-d4ff-4a92-bf2b-a28cb055f54f
-df_b(x, a, b, c, d) = f(x, a, Dual(b, one(b)), c, d)
-
-# ╔═╡ 747957c4-9908-42d7-a8a1-a94712019912
-df_c(x, a, b, c, d) = f(x, a, b, Dual(c, one(c)), d)
-
-# ╔═╡ bf2c3298-ded1-40ad-8dc6-5cf6b03029db
-df_d(x, a, b, c, d) = f(x, a, b, c, Dual(d, one(d)))
-
-# ╔═╡ 1835ca94-0c73-4dfd-bf7b-c227bf9a7375
-mse(ys, df_a.(xs, coeffs_guess...))
-
-# ╔═╡ 5770d63e-a957-4044-b60d-4d91c6760288
-mse(ys, df_b.(xs, coeffs_guess...))
-
-# ╔═╡ 385a9c94-d180-4e85-8255-fa8970d8153e
-mse(ys, df_c.(xs, coeffs_guess...))
-
-# ╔═╡ 5efd9e58-8677-4b22-af70-492a2beca00a
-mse(ys, df_d.(xs, coeffs_guess...))
-
-# ╔═╡ 8d45c6b6-b0fd-42d2-b265-d90a23b42eac
-md"""
-We can also write this in vector form
-"""
-
-# ╔═╡ ee7cc11a-f127-425a-89a9-dfd31cae7e3e
-const one_hot_vectors = [
-	[Dual(0.0, 1.0), 0.0, 0.0, 0.0],
-	[0.0 ,Dual(0.0, 1.0), 0.0, 0.0],
-	[0.0, 0.0, Dual(0.0, 1.0), 0.0],
-	[0.0, 0.0, 0.0, Dual(0.0, 1.0)]
-]
-
-# ╔═╡ 25a37065-a181-431d-a973-b0a07701f564
-df(loss, ys, xs, coeffs) = map(v->loss(ys, f.(xs, v...)).deriv, map(v->v.+coeffs, one_hot_vectors))
-
-# ╔═╡ 8223c585-24b7-4938-a1fb-08749e8909e0
-df(mse, xs, ys, [coeffs_guess...])
-
-# ╔═╡ 4649dadd-75bb-4ca9-a65a-281f05dfce44
-md"""
-!!! note
-	The need for 4 function evaluation since we have 4 function arguments.
-	
-"""
-
-# ╔═╡ f9ad118c-65c2-439a-9254-9d025245aa98
-begin
-	learning_rate = 0.01
-	steps = 1000
-	plot_every = 100
-end
-
-# ╔═╡ b4dcb6d9-99a4-43da-bd3e-8af749c48290
-let
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	coeffs = rand(4)
-	errs = Float64[]
-	for i in 1:steps
-		_ys = f.(xs, coeffs...)
-		err = mse(ys, _ys)
-		push!(errs, err)
-		if mod1(i, plot_every) == 1
-			lines!(xs, _ys, label="Epoch $i")
-		end
-		
-		dcoeffs = df(mse, ys, xs, coeffs)
-		coeffs .-= learning_rate .* dcoeffs
-	end
-	_ys = f.(xs, coeffs...)
-	err = mse(ys, _ys)
-	lines!(xs, _ys, label="Epoch $(steps+1)")
-
-	lines!(xs, ys, label="Goal")
-	
-	axislegend(ax)
-
-	ax2 = Axis(fig[2,1])
-	lines!(ax2, errs)
-	fig
-end	
-
-# ╔═╡ 9b27954f-9b51-4e53-88b1-a952974b82cd
-md"""
-## Other ideas
-- Symbolic AD
-
-"""
-
-# ╔═╡ 5a2ef8d9-ad4d-4010-b2ef-bf96547323a8
-function taylor(x, N)
-	sum = 0 * x
-	for i in 1:N
-		sum += x^i/i
-	end
-	return sum
-end
-
-# ╔═╡ 55d86753-487c-4ecd-b49e-db7ca619cf4b
-begin
-	@variables v_x
-	ex = taylor(v_x, 8)
-end
-
-# ╔═╡ 727cde04-07f8-4a66-b84c-41bf82db5d73
-d_ex = Symbolics.derivative(ex, v_x)
-
-# ╔═╡ e70a0acd-0a58-461a-82f3-7c19d8141bf5
-substitute(d_ex, v_x=>0.5)
-
-# ╔═╡ 2d97055a-3ba6-403a-b54a-68aa6082e5d8
-d_taylor(0.5)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-BenchmarkTools = "~1.6.0"
 CairoMakie = "~0.13.4"
-DoubleFloats = "~1.4.3"
-PlutoTeachingTools = "~0.3.1"
-PlutoUI = "~0.7.62"
+ForwardDiff = "~0.10.38"
+Optim = "~1.10.0"
+PlutoTeachingTools = "~0.2.11"
+PlutoUI = "~0.7.51"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "a3c0ebcd2c65f6173530902f92b58435e7cc6029"
+project_hash = "55940ee9bb458846e8bfa70cae3f7218548dd611"
+
+[[deps.ADTypes]]
+git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
+uuid = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+version = "1.14.0"
+
+    [deps.ADTypes.extensions]
+    ADTypesChainRulesCoreExt = "ChainRulesCore"
+    ADTypesConstructionBaseExt = "ConstructionBase"
+    ADTypesEnzymeCoreExt = "EnzymeCore"
+
+    [deps.ADTypes.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+    EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -756,6 +193,38 @@ version = "0.4.2"
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 version = "1.1.2"
 
+[[deps.ArrayInterface]]
+deps = ["Adapt", "LinearAlgebra"]
+git-tree-sha1 = "017fcb757f8e921fb44ee063a7aafe5f89b86dd1"
+uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
+version = "7.18.0"
+
+    [deps.ArrayInterface.extensions]
+    ArrayInterfaceBandedMatricesExt = "BandedMatrices"
+    ArrayInterfaceBlockBandedMatricesExt = "BlockBandedMatrices"
+    ArrayInterfaceCUDAExt = "CUDA"
+    ArrayInterfaceCUDSSExt = "CUDSS"
+    ArrayInterfaceChainRulesCoreExt = "ChainRulesCore"
+    ArrayInterfaceChainRulesExt = "ChainRules"
+    ArrayInterfaceGPUArraysCoreExt = "GPUArraysCore"
+    ArrayInterfaceReverseDiffExt = "ReverseDiff"
+    ArrayInterfaceSparseArraysExt = "SparseArrays"
+    ArrayInterfaceStaticArraysCoreExt = "StaticArraysCore"
+    ArrayInterfaceTrackerExt = "Tracker"
+
+    [deps.ArrayInterface.weakdeps]
+    BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
+    BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+    CUDSS = "45b445bb-4962-46a0-9369-b4df9d0f772e"
+    ChainRules = "082447d4-558c-5d27-93f4-14fc19e9eca2"
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
+    ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+    StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
+    Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
+
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
@@ -781,12 +250,6 @@ version = "0.4.7"
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
-
-[[deps.BenchmarkTools]]
-deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "e38fbc49a620f5d0b660d7f543db1009fe0f8336"
-uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.6.0"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -883,6 +346,12 @@ git-tree-sha1 = "64e15186f0aa277e174aa81798f7eb8598e0157e"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.13.0"
 
+[[deps.CommonSubexpressions]]
+deps = ["MacroTools"]
+git-tree-sha1 = "cda2cfaebb4be89c9084adaca7dd7333369715c5"
+uuid = "bbf7d656-a473-5ed7-a52c-81e309532950"
+version = "0.3.1"
+
 [[deps.Compat]]
 deps = ["TOML", "UUIDs"]
 git-tree-sha1 = "8ae8d32e09f0dcf42a36b90d4e17f5dd2e4c4215"
@@ -941,6 +410,68 @@ git-tree-sha1 = "5620ff4ee0084a6ab7097a27ba0c19290200b037"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
 version = "1.6.4"
 
+[[deps.DiffResults]]
+deps = ["StaticArraysCore"]
+git-tree-sha1 = "782dd5f4561f5d267313f23853baaaa4c52ea621"
+uuid = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
+version = "1.1.0"
+
+[[deps.DiffRules]]
+deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
+git-tree-sha1 = "23163d55f885173722d1e4cf0f6110cdbaf7e272"
+uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
+version = "1.15.1"
+
+[[deps.DifferentiationInterface]]
+deps = ["ADTypes", "LinearAlgebra"]
+git-tree-sha1 = "aa87a743e3778d35a950b76fbd2ae64f810a2bb3"
+uuid = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
+version = "0.6.52"
+
+    [deps.DifferentiationInterface.extensions]
+    DifferentiationInterfaceChainRulesCoreExt = "ChainRulesCore"
+    DifferentiationInterfaceDiffractorExt = "Diffractor"
+    DifferentiationInterfaceEnzymeExt = ["EnzymeCore", "Enzyme"]
+    DifferentiationInterfaceFastDifferentiationExt = "FastDifferentiation"
+    DifferentiationInterfaceFiniteDiffExt = "FiniteDiff"
+    DifferentiationInterfaceFiniteDifferencesExt = "FiniteDifferences"
+    DifferentiationInterfaceForwardDiffExt = ["ForwardDiff", "DiffResults"]
+    DifferentiationInterfaceGPUArraysCoreExt = "GPUArraysCore"
+    DifferentiationInterfaceGTPSAExt = "GTPSA"
+    DifferentiationInterfaceMooncakeExt = "Mooncake"
+    DifferentiationInterfacePolyesterForwardDiffExt = ["PolyesterForwardDiff", "ForwardDiff", "DiffResults"]
+    DifferentiationInterfaceReverseDiffExt = ["ReverseDiff", "DiffResults"]
+    DifferentiationInterfaceSparseArraysExt = "SparseArrays"
+    DifferentiationInterfaceSparseConnectivityTracerExt = "SparseConnectivityTracer"
+    DifferentiationInterfaceSparseMatrixColoringsExt = "SparseMatrixColorings"
+    DifferentiationInterfaceStaticArraysExt = "StaticArrays"
+    DifferentiationInterfaceSymbolicsExt = "Symbolics"
+    DifferentiationInterfaceTrackerExt = "Tracker"
+    DifferentiationInterfaceZygoteExt = ["Zygote", "ForwardDiff"]
+
+    [deps.DifferentiationInterface.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
+    Diffractor = "9f5e2b26-1114-432f-b630-d3fe2085c51c"
+    Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+    EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
+    FastDifferentiation = "eb9bf01b-bf85-4b60-bf87-ee5de06c00be"
+    FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
+    FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
+    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+    GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
+    GTPSA = "b27dd330-f138-47c5-815b-40db9dd9b6e8"
+    Mooncake = "da2b9cff-9c12-43a0-ae48-6db2b0edb7d6"
+    PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
+    ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+    SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
+    SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
+    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+    Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+    Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
+    Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
@@ -966,12 +497,6 @@ version = "0.25.119"
 git-tree-sha1 = "e7b7e6f178525d17c720ab9c081e4ef04429f860"
 uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 version = "0.9.4"
-
-[[deps.DoubleFloats]]
-deps = ["GenericLinearAlgebra", "LinearAlgebra", "Polynomials", "Printf", "Quadmath", "Random", "Requires", "SpecialFunctions"]
-git-tree-sha1 = "1ee9bc92a6b862a5ad556c52a3037249209bec1a"
-uuid = "497a8b3b-efae-58df-a0af-a86822472b78"
-version = "1.4.3"
 
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
@@ -1069,6 +594,24 @@ weakdeps = ["PDMats", "SparseArrays", "Statistics"]
     FillArraysSparseArraysExt = "SparseArrays"
     FillArraysStatisticsExt = "Statistics"
 
+[[deps.FiniteDiff]]
+deps = ["ArrayInterface", "LinearAlgebra", "Setfield"]
+git-tree-sha1 = "f089ab1f834470c525562030c8cfde4025d5e915"
+uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
+version = "2.27.0"
+
+    [deps.FiniteDiff.extensions]
+    FiniteDiffBandedMatricesExt = "BandedMatrices"
+    FiniteDiffBlockBandedMatricesExt = "BlockBandedMatrices"
+    FiniteDiffSparseArraysExt = "SparseArrays"
+    FiniteDiffStaticArraysExt = "StaticArrays"
+
+    [deps.FiniteDiff.weakdeps]
+    BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
+    BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
+    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
 [[deps.FixedPointNumbers]]
 deps = ["Statistics"]
 git-tree-sha1 = "05882d6995ae5c12bb5f36dd2ed3f61c98cbb172"
@@ -1085,6 +628,16 @@ version = "2.16.0+0"
 git-tree-sha1 = "9c68794ef81b08086aeb32eeaf33531668d5f5fc"
 uuid = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
 version = "1.3.7"
+
+[[deps.ForwardDiff]]
+deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions"]
+git-tree-sha1 = "a2df1b776752e3f344e5116c06d75a10436ab853"
+uuid = "f6369f11-7733-5829-9624-2563aa707210"
+version = "0.10.38"
+weakdeps = ["StaticArrays"]
+
+    [deps.ForwardDiff.extensions]
+    ForwardDiffStaticArraysExt = "StaticArrays"
 
 [[deps.FreeType]]
 deps = ["CEnum", "FreeType2_jll"]
@@ -1114,12 +667,6 @@ version = "1.0.17+0"
 deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 version = "1.11.0"
-
-[[deps.GenericLinearAlgebra]]
-deps = ["LinearAlgebra", "Printf", "Random", "libblastrampoline_jll"]
-git-tree-sha1 = "ad599869948d79efd63a030c970e2c6e21fecf4a"
-uuid = "14197337-ba66-59df-a3e3-ca00e7dcff7a"
-version = "0.3.17"
 
 [[deps.GeoFormatTypes]]
 git-tree-sha1 = "8e233d5167e63d708d41f87597433f59a0f213fe"
@@ -1302,12 +849,16 @@ version = "0.22.34"
 git-tree-sha1 = "5fbb102dcb8b1a858111ae81d56682376130517d"
 uuid = "8197267c-284f-5f27-9208-e0e47529a953"
 version = "0.7.11"
-weakdeps = ["Random", "RecipesBase", "Statistics"]
 
     [deps.IntervalSets.extensions]
     IntervalSetsRandomExt = "Random"
     IntervalSetsRecipesBaseExt = "RecipesBase"
     IntervalSetsStatisticsExt = "Statistics"
+
+    [deps.IntervalSets.weakdeps]
+    Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+    Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[deps.InverseFunctions]]
 git-tree-sha1 = "a779299d77cd080bf77b97535acecd73e1c5e5cb"
@@ -1366,9 +917,9 @@ version = "3.1.1+0"
 
 [[deps.JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
-git-tree-sha1 = "ad08bbc177bc329888d21a94b37beb6aa919273a"
+git-tree-sha1 = "c47892541d03e5dc63467f8964c9f2b415dfe718"
 uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
-version = "0.10.2"
+version = "0.9.46"
 
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
@@ -1496,6 +1047,12 @@ git-tree-sha1 = "321ccef73a96ba828cd51f2ab5b9f917fa73945a"
 uuid = "38a345b3-de98-5d2b-a5d3-14cd9215e700"
 version = "2.41.0+0"
 
+[[deps.LineSearches]]
+deps = ["LinearAlgebra", "NLSolversBase", "NaNMath", "Parameters", "Printf"]
+git-tree-sha1 = "e4c3be53733db1051cc15ecf573b1042b3a712a1"
+uuid = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
+version = "7.3.0"
+
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -1523,9 +1080,9 @@ version = "1.11.0"
 
 [[deps.LoweredCodeUtils]]
 deps = ["JuliaInterpreter"]
-git-tree-sha1 = "4ef1c538614e3ec30cb6383b9eb0326a5c3a9763"
+git-tree-sha1 = "39240b5f66956acfa462d7fe12efe08e26d6d70d"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "3.3.0"
+version = "3.2.2"
 
 [[deps.MIMEs]]
 git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
@@ -1596,6 +1153,12 @@ version = "0.3.4"
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 version = "2023.12.12"
 
+[[deps.NLSolversBase]]
+deps = ["ADTypes", "DifferentiationInterface", "Distributed", "FiniteDiff", "ForwardDiff"]
+git-tree-sha1 = "b14c7be6046e7d48e9063a0053f95ee0fc954176"
+uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
+version = "7.9.1"
+
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
 git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
@@ -1658,7 +1221,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+4"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1671,6 +1234,18 @@ deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "1346c9208249809840c91b26703912dff463d335"
 uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.6+0"
+
+[[deps.Optim]]
+deps = ["Compat", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "Parameters", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
+git-tree-sha1 = "ab7edad78cdef22099f43c54ef77ac63c2c9cc64"
+uuid = "429524aa-4258-5aef-a3af-852621145aeb"
+version = "1.10.0"
+
+    [deps.Optim.extensions]
+    OptimMOIExt = "MathOptInterface"
+
+    [deps.Optim.weakdeps]
+    MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1718,11 +1293,17 @@ git-tree-sha1 = "3b31172c032a1def20c98dae3f2cdc9d10e3b561"
 uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
 version = "1.56.1+0"
 
+[[deps.Parameters]]
+deps = ["OrderedCollections", "UnPack"]
+git-tree-sha1 = "34c0e9ad262e5f7fc75b10a9952ca7692cfc5fbe"
+uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+version = "0.12.3"
+
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
-git-tree-sha1 = "7d2f8f21da5db6a806faf7b9b292296da42b2810"
+git-tree-sha1 = "44f6c1f38f77cafef9450ff93946c53bd9ca16ff"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.8.3"
+version = "2.8.2"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
@@ -1764,10 +1345,10 @@ uuid = "0ff47ea0-7a50-410d-8455-4348d5de0420"
 version = "0.1.6"
 
 [[deps.PlutoTeachingTools]]
-deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoLinks", "PlutoUI"]
-git-tree-sha1 = "8252b5de1f81dc103eb0293523ddf917695adea1"
+deps = ["Downloads", "HypertextLiteral", "LaTeXStrings", "Latexify", "Markdown", "PlutoLinks", "PlutoUI", "Random"]
+git-tree-sha1 = "5d9ab1a4faf25a62bb9d07ef0003396ac258ef1c"
 uuid = "661c6b06-c737-4d37-b85c-46df65de6f69"
-version = "0.3.1"
+version = "0.2.15"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
@@ -1780,23 +1361,11 @@ git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
 uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
 version = "0.1.2"
 
-[[deps.Polynomials]]
-deps = ["LinearAlgebra", "OrderedCollections", "RecipesBase", "Requires", "Setfield", "SparseArrays"]
-git-tree-sha1 = "555c272d20fc80a2658587fb9bbda60067b93b7c"
-uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
-version = "4.0.19"
-
-    [deps.Polynomials.extensions]
-    PolynomialsChainRulesCoreExt = "ChainRulesCore"
-    PolynomialsFFTWExt = "FFTW"
-    PolynomialsMakieCoreExt = "MakieCore"
-    PolynomialsMutableArithmeticsExt = "MutableArithmetics"
-
-    [deps.Polynomials.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-    MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
-    MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
+[[deps.PositiveFactorizations]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "17275485f373e6673f7e7f97051f703ed5b15b20"
+uuid = "85a6dd25-e78a-55b7-8502-1745935b8125"
+version = "0.2.4"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -1813,10 +1382,6 @@ version = "1.4.3"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-version = "1.11.0"
-
-[[deps.Profile]]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.ProgressMeter]]
@@ -1848,12 +1413,6 @@ version = "2.11.2"
     [deps.QuadGK.weakdeps]
     Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 
-[[deps.Quadmath]]
-deps = ["Compat", "Printf", "Random", "Requires"]
-git-tree-sha1 = "6bc924717c495f24de85867aa94da4de0e6cd1a1"
-uuid = "be4d8f0f-7fa4-5f49-b795-2f01399ab2dd"
-version = "0.5.13"
-
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "StyledStrings", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
@@ -1879,12 +1438,6 @@ weakdeps = ["FixedPointNumbers"]
     [deps.Ratios.extensions]
     RatiosFixedPointNumbersExt = "FixedPointNumbers"
 
-[[deps.RecipesBase]]
-deps = ["PrecompileTools"]
-git-tree-sha1 = "5c3d09cc4f31f5fc6af001c250bf1278733100ff"
-uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-version = "1.3.4"
-
 [[deps.Reexport]]
 git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
@@ -1904,9 +1457,9 @@ version = "1.3.1"
 
 [[deps.Revise]]
 deps = ["CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
-git-tree-sha1 = "cedc9f9013f7beabd8a9c6d2e22c0ca7c5c2a8ed"
+git-tree-sha1 = "4e58145c98094ab2405b8fca034e21bde6c06c1c"
 uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.7.6"
+version = "3.7.5"
 weakdeps = ["Distributed"]
 
     [deps.Revise.extensions]
@@ -2174,6 +1727,11 @@ deps = ["Random", "SHA"]
 uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 version = "1.11.0"
 
+[[deps.UnPack]]
+git-tree-sha1 = "387c1f73762231e86e0c9c5443ce3b4a0a9a0c2b"
+uuid = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+version = "1.0.2"
+
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 version = "1.11.0"
@@ -2355,123 +1913,24 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─668493d8-bf95-4561-9a3a-2e7f7a987682
-# ╠═5eeae36d-988a-4906-ac80-4de96b1969bd
-# ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
-# ╠═ecf84d2e-46f6-4dd1-a5de-a5f65b1d281f
-# ╠═7a5bccfa-fce1-4bd8-8531-048ecb1c6a21
-# ╟─3c4079a7-a627-464a-9309-f0f5320d368b
-# ╟─4b079423-6c68-4ea0-a51d-b2b3bbfbb0f6
-# ╟─a4e57d7a-7232-4189-85ff-8a25a3cb82da
-# ╟─c4308c97-cf04-47f8-a65a-e230b6736791
-# ╟─e86b88d2-baa7-4d41-9539-fb298ba5c123
-# ╠═b2cdecef-d2d5-4514-a6cd-d3d453ed9099
-# ╟─608b15d4-9ab3-405d-b574-167788f0c842
-# ╠═834f9474-8f11-4bda-818e-ed3dd505f444
-# ╠═f73540da-cf91-4463-9adf-b0e5b98e7b79
-# ╠═14db561f-54c3-41d4-8078-531facb65038
-# ╠═367385c4-65b0-4a4a-aaf1-2cfcd8015b20
-# ╟─b75017e8-bcfd-42fd-8870-9777c2f230e3
-# ╟─a7f02fa7-8dac-424e-92d9-cc0f8ed85b93
-# ╟─6a63cae0-fcd7-4258-a82f-3f752b37225c
-# ╟─13cc6418-0738-41ab-b881-14d0593be79c
-# ╟─38b2f947-736b-4b05-9e38-51dc7e99b1db
-# ╟─63a62a52-d138-4fae-9c1f-c7dbebb94f45
-# ╠═eea941bf-0be0-4002-a07e-4ee5d95645dd
-# ╠═a037e8aa-1b41-4146-814f-af3c6ff38be4
-# ╠═5acc8ada-625a-4a8b-a790-a2b57a4ed189
-# ╠═492d49ba-94aa-4c30-894b-4e59ed98402a
-# ╠═4fbd8caf-04a5-46f0-8c73-a2db450bd172
-# ╟─2d1d9e00-f022-4aa1-a64a-9331833f327d
-# ╠═424db547-b82b-45ae-a8ac-044de1ed6a0c
-# ╟─400c2d07-00f1-404f-b360-572671c467b5
-# ╟─799fd006-6e40-47cd-98c6-62222e8c74eb
-# ╟─051b752d-b0aa-4e05-bfc4-5d671e17e6c8
-# ╟─3150ee27-4907-4a83-9969-b1ed75bf6378
-# ╟─518443a4-47d6-4009-bc1b-6272b46a168a
-# ╟─89d5bd8a-a9e4-4a1a-9e71-206db516a50f
-# ╠═7122f82d-32b8-46c3-9299-6f7e31b7fd55
-# ╟─ac9403df-12f2-436f-bfbd-553e9de1ab2e
-# ╠═bc07318f-abb3-4791-9044-3609c05aebb3
-# ╟─611ecf77-940d-4c1f-92e3-4249c2d720ef
-# ╠═27220cbf-40ee-4e00-882c-d3a16f048cb0
-# ╠═2993b2be-69d1-4d35-81af-73fcd33e1465
-# ╟─5e99b4d7-5c7a-473a-aace-6e0ea16ec1bf
-# ╠═4e610480-f0d1-420d-a273-08ee98a5438c
-# ╠═96c8d882-2970-4497-8638-19c7d34ab492
-# ╠═44cc65e6-f622-4601-8f4f-c31b89ce00fe
-# ╠═68d42e2d-10cd-474d-a8c8-681f13bb027c
-# ╟─082e9259-8e64-4ffa-8ed7-5c9bdbad0a0c
-# ╠═b4214f5e-e675-46cb-89aa-1a51b49c141c
-# ╟─cb5d2cb3-4b88-41d9-9dcf-729275ef6865
-# ╟─803c58be-95da-4bba-940e-9a69a16ad6e5
-# ╠═2fa6bd76-7539-4857-9829-6212689c1d3a
-# ╠═097ae01c-d0a3-4e8f-a63d-74593829b462
-# ╟─8b9cd1a8-f33d-4ca2-9b4a-6f7684a52b7f
-# ╠═98a72e2a-7c21-4a31-8c1e-21f4efa7e4ee
-# ╠═19c0f6ea-3128-45ce-a198-644f4be7d9f0
-# ╠═0bd274cb-e359-4a18-ae75-bb91ae101391
-# ╠═ae46c18f-3e2e-4f92-8a96-ed786215b51f
-# ╠═ce102254-9c7b-48b4-aee2-3acc16bb31ba
-# ╠═05629dd9-7777-46c8-9851-5b39ce2829df
-# ╠═4006fed7-9a7d-4eee-bb75-ed7b5472d6d1
-# ╠═f0ed7963-e935-41cc-9820-94db0c3cd042
-# ╟─20873272-f1a1-472d-bf05-c96e2f948f02
-# ╠═71ec1afe-a7c7-41c8-a05b-32287658c2f5
-# ╠═ebd73caf-5be3-4b75-a240-031d4a3aa64b
-# ╠═67182362-cf07-463f-9583-00451633bd93
-# ╟─67f88aac-14e4-423c-9a7b-35275a01a309
-# ╠═10553f26-b660-4889-b0a7-71d68dbc105c
-# ╠═42af19cc-c2b9-4736-9d07-8376c8b6cf09
-# ╠═81a8a7b4-47dc-4e20-a26f-adf6f36d12d9
-# ╠═89be32ff-786e-4794-9aa7-9246dc488a8c
-# ╠═65dd6dd4-db1d-4e6d-b29c-9dd759567af5
-# ╠═a42cc7a3-5e79-4cc9-afce-38e1db38d485
-# ╠═34d68aa2-42de-480c-8e1b-ce7dfdd1e538
-# ╠═027dcf07-5dbf-4bfe-bab3-9e8ad3279e3a
-# ╠═d0ebe0d0-c370-4a9d-ace8-1146da614fda
-# ╟─18901d86-b709-4f71-a439-237c7cb06ce9
-# ╠═0bb66e77-09a6-43ff-ae28-8085eb03e8d7
-# ╠═5fcf2dbf-7efe-4581-a347-0769c9638a0b
-# ╟─3dd5c095-1a23-45b3-bdb2-a487b2c4004c
-# ╠═f2d0825f-d27d-4869-bb6e-6a88eade3345
-# ╠═d3018536-1f68-430f-a71d-89754b2dd620
-# ╟─51a97752-ac9b-441a-a654-65a82ec6057c
-# ╠═708757e8-f115-42d4-a100-9a132d91cd0f
-# ╠═1fdcaee7-3f27-4d97-bace-1a022babaff9
-# ╠═9faa9a57-4e7e-4145-a0d5-921f7809721d
-# ╟─7317e24b-4461-4a6e-b580-94efd6cb12d4
-# ╠═552d2403-41a8-4f56-938a-61e6ced75d85
-# ╠═de74c171-b9e2-4a7e-9550-124508e0dfaa
-# ╠═ff552723-12ba-4b9f-92ab-d5ade47b8203
-# ╠═2e0c073d-0ad9-4e31-b791-27ac747a8f40
-# ╟─69e2683a-caf4-48b0-a71a-b73f24bdab83
-# ╠═6f903e30-2c85-4ae1-a4cc-591934f1e012
-# ╠═ad924e1f-ef4c-433e-a259-120c9ef0c2d9
-# ╟─12186fb3-a520-446b-aaf0-6a8e131ac508
-# ╟─55c17860-f5d9-4fda-ad3e-b16b075af06c
-# ╟─74bf8e0b-5018-422d-8536-a5a03053acd0
-# ╠═dda152e7-a72a-4d71-b01d-c04f5b46de3a
-# ╠═432f3155-d4ff-4a92-bf2b-a28cb055f54f
-# ╠═747957c4-9908-42d7-a8a1-a94712019912
-# ╠═bf2c3298-ded1-40ad-8dc6-5cf6b03029db
-# ╠═1835ca94-0c73-4dfd-bf7b-c227bf9a7375
-# ╠═5770d63e-a957-4044-b60d-4d91c6760288
-# ╠═385a9c94-d180-4e85-8255-fa8970d8153e
-# ╠═5efd9e58-8677-4b22-af70-492a2beca00a
-# ╟─8d45c6b6-b0fd-42d2-b265-d90a23b42eac
-# ╠═ee7cc11a-f127-425a-89a9-dfd31cae7e3e
-# ╠═25a37065-a181-431d-a973-b0a07701f564
-# ╠═8223c585-24b7-4938-a1fb-08749e8909e0
-# ╟─4649dadd-75bb-4ca9-a65a-281f05dfce44
-# ╠═f9ad118c-65c2-439a-9254-9d025245aa98
-# ╠═b4dcb6d9-99a4-43da-bd3e-8af749c48290
-# ╠═9b27954f-9b51-4e53-88b1-a952974b82cd
-# ╠═676a0fe1-25c7-4df2-847e-afaaaa0fdf58
-# ╠═5a2ef8d9-ad4d-4010-b2ef-bf96547323a8
-# ╠═55d86753-487c-4ecd-b49e-db7ca619cf4b
-# ╠═727cde04-07f8-4a66-b84c-41bf82db5d73
-# ╠═e70a0acd-0a58-461a-82f3-7c19d8141bf5
-# ╠═2d97055a-3ba6-403a-b54a-68aa6082e5d8
+# ╟─75b9bee9-7d03-4c90-b828-43e9e946517b
+# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
+# ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
+# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
+# ╠═ba4e41a6-c3e4-40f5-aae0-afd49744ca0d
+# ╠═bd7ddb00-a392-43d2-8637-55c9660db022
+# ╠═55ccce7c-0d5b-44d0-8288-4124fadd7544
+# ╟─7c2bab99-da3a-49eb-9c64-3c81188e2abe
+# ╠═79a94548-d34f-4404-90e5-cbe3d383180b
+# ╠═444b279f-1fe0-4dbf-8ea9-d350a042e675
+# ╠═22520dc4-5ab0-4ccc-af82-cc0169e856b9
+# ╠═743c24db-7997-42c9-8d09-392186d7b175
+# ╠═30a37005-b385-478e-bc04-b28941b520b1
+# ╠═9d16dd65-adc0-4fa8-8528-3f3fbdfa6b8e
+# ╠═9c7cd1a7-9f1e-423a-b588-31cb77fdebba
+# ╠═8199ebd3-f5a9-4b4f-9bd7-0c8a5c943688
+# ╠═ba244fcb-32c0-4e44-bc74-326c628b335c
+# ╠═10c39e63-bc7e-4169-9187-2bcdd07fb96d
+# ╠═29842c8e-9d95-4736-98b5-9f089e17f7f7
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
