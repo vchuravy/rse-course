@@ -50,6 +50,9 @@ using DoubleFloats
 # ╔═╡ 708757e8-f115-42d4-a100-9a132d91cd0f
 using BenchmarkTools
 
+# ╔═╡ 676a0fe1-25c7-4df2-847e-afaaaa0fdf58
+using Symbolics
+
 # ╔═╡ 668493d8-bf95-4561-9a3a-2e7f7a987682
 md"""
 # Introduction to AD
@@ -644,7 +647,35 @@ let
 end	
 
 # ╔═╡ 9b27954f-9b51-4e53-88b1-a952974b82cd
+md"""
+## Other ideas
+- Symbolic AD
 
+"""
+
+# ╔═╡ 5a2ef8d9-ad4d-4010-b2ef-bf96547323a8
+function taylor(x, N)
+	sum = 0 * x
+	for i in 1:N
+		sum += x^i/i
+	end
+	return sum
+end
+
+# ╔═╡ 55d86753-487c-4ecd-b49e-db7ca619cf4b
+begin
+	@variables v_x
+	ex = taylor(v_x, 8)
+end
+
+# ╔═╡ 727cde04-07f8-4a66-b84c-41bf82db5d73
+d_ex = Symbolics.derivative(ex, v_x)
+
+# ╔═╡ e70a0acd-0a58-461a-82f3-7c19d8141bf5
+substitute(d_ex, v_x=>0.5)
+
+# ╔═╡ 2d97055a-3ba6-403a-b54a-68aa6082e5d8
+d_taylor(0.5)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2436,5 +2467,11 @@ version = "3.6.0+0"
 # ╠═f9ad118c-65c2-439a-9254-9d025245aa98
 # ╠═b4dcb6d9-99a4-43da-bd3e-8af749c48290
 # ╠═9b27954f-9b51-4e53-88b1-a952974b82cd
+# ╠═676a0fe1-25c7-4df2-847e-afaaaa0fdf58
+# ╠═5a2ef8d9-ad4d-4010-b2ef-bf96547323a8
+# ╠═55d86753-487c-4ecd-b49e-db7ca619cf4b
+# ╠═727cde04-07f8-4a66-b84c-41bf82db5d73
+# ╠═e70a0acd-0a58-461a-82f3-7c19d8141bf5
+# ╠═2d97055a-3ba6-403a-b54a-68aa6082e5d8
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
