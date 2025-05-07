@@ -32,7 +32,8 @@ end
 # ╔═╡ 5eeae36d-988a-4906-ac80-4de96b1969bd
 begin
 	using PlutoUI, PlutoTeachingTools
-	using PlutoUI:Slider
+	using PlutoUI: Slider
+	PlutoUI.TableOfContents(; depth=4)
 end
 
 # ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
@@ -50,22 +51,68 @@ using DoubleFloats
 # ╔═╡ 708757e8-f115-42d4-a100-9a132d91cd0f
 using BenchmarkTools
 
-# ╔═╡ 676a0fe1-25c7-4df2-847e-afaaaa0fdf58
-using Symbolics
+# ╔═╡ 3a267f1f-1936-4cab-81cc-d42d59169d26
+ChooseDisplayMode()
 
 # ╔═╡ 668493d8-bf95-4561-9a3a-2e7f7a987682
 md"""
 # Introduction to AD
 
-with material from Hendrick Ranocha and Alan Edelman
+with material from Hendrick Ranocha, Adrian Hill, and Alan Edelman
 """
 
-# ╔═╡ c4308c97-cf04-47f8-a65a-e230b6736791
+# ╔═╡ 0c125359-6dcf-49af-887d-e24dbd11ef48
+md"""## What is a derivative?
+From your calculus classes, you might recall that a function $f: \mathbb{R} \rightarrow \mathbb{R}$
+is differentiable at $\tilde{x}$ if there is a number $f'(\tilde{x})$ such that
+
+$\lim_{h \rightarrow 0} \frac{f(\tilde{x} + h) - f(\tilde{x})}{h}
+= f'(\tilde{x}) \quad .$
+
+This number $f'(\tilde{x})$ is called the derivative of $f$ at $\tilde{x}$.
+
+Let's visualize this on a simple scalar function:
+"""
+
+# ╔═╡ 38b821ed-91a9-414e-9575-eb43e8068956
+@bind x̂ Slider(-5:0.2:5, default=-1.5, show_value=true)
+
+# ╔═╡ 779370fe-7513-4f4e-8517-d3328337ac42
 md"""
-## Question:
+## Partial derivatives
 
-Given an "observed" evaluation of `f` can we "learn" the values of `a`, `b`, `c`, `d`?
+For a multi-variable function like `f(x, y)` we define $\frac{\partial}{\partial x}f$ as the rate of change in the $x$ direction, and likewise $\frac{\partial}{\partial y}f$ as the rate of change in the $y$ direction.
 """
+
+# ╔═╡ cf7662c3-6ad6-4cc8-b73b-42b1bb738f37
+@bind x̂₁ Slider(-5:0.2:5, default=-1.5, show_value=true)
+
+# ╔═╡ 47da91d3-8a69-4aa5-a49f-55f9c4f585f9
+@bind ŷ₁ Slider(-5:0.2:5, default=-1.5, show_value=true)
+
+# ╔═╡ ddbbc711-bd5b-4d20-962b-7d103e0f31b4
+md"""
+## Motivating example
+
+In many areas of science we encounter models with unkown parameters:
+
+- Curve fitting
+- Machine learning
+
+$f(x; p) = \cdots$
+
+We are often interested in learning these parameters given a training dataset or real-world observation.
+
+Below we study a model that is the combination of a `sin` and `cos` function with four parameters.
+
+"""
+
+# ╔═╡ 74c8acf3-0c7b-4555-a795-0c712546d5b4
+question_box(
+md"""
+Given an "observed" evaluation of `m` can we "learn" the values of `a`, `b`, `c`, `d`?
+"""
+)
 
 # ╔═╡ 608b15d4-9ab3-405d-b574-167788f0c842
 md"""
@@ -75,20 +122,43 @@ We could try some random values!
 # ╔═╡ 834f9474-8f11-4bda-818e-ed3dd505f444
 coeffs_guess = rand(-2.0:0.1:2.0, 4)
 
+# ╔═╡ 3950039e-5d9d-4a00-b511-3f0a583d8309
+md"""
+We need to define a "loss" a function that measures how far away we are from our solution. The Mean-Squared-Error is a common choice.
+"""
+
 # ╔═╡ a7f02fa7-8dac-424e-92d9-cc0f8ed85b93
 md"""
 So how do we improve our guess systematically?
 """
 
-# ╔═╡ 13cc6418-0738-41ab-b881-14d0593be79c
+# ╔═╡ 5429e788-a5ed-434b-a140-379f73b5cfc5
+tip(
 md"""
-Wouldn't it be nice if we could automatically calculate the direction of improvement? When we vary a variable?
-"""
+We want to change a parameter, such that we are improving.
+Randomly trying certainly would get us "somewhere"
 
-# ╔═╡ 38b2f947-736b-4b05-9e38-51dc7e99b1db
-md"""
-=> Derivatives
+- Monte-carlo methods
+- Evolutionary algorithms
+
+But what we are after is the "rate of change" in the error given for a parameter
+(or all parameters).
 """
+)
+
+# ╔═╡ f918e5a2-d1b4-4c7d-93fa-a50dcd0d8fa5
+tip(
+md"""
+Today we are focusing on "forward-mode" automatic differentiation. This means that we conceptualize calculating derivatives by applying an infinitesimal perturbation to an argument of a function.
+
+As we will see for a multi-variable problem like ours this means we need to calculate the partial-derivative for each parameter "seperatly".
+
+In machine-learning one often encounters "reverse-mode" automatic differentiation,
+which conceptually applies a perturbation to the "return value" of a function.
+
+We will revisit this in the Lecture: "Automatic Differentiation and Machine Learning"
+"""
+)
 
 # ╔═╡ 63a62a52-d138-4fae-9c1f-c7dbebb94f45
 md"""
@@ -193,9 +263,6 @@ begin
 	Dual(x::Real, y::Real) = Dual(promote(x, y)...)
 end
 
-# ╔═╡ cb5d2cb3-4b88-41d9-9dcf-729275ef6865
-const ϵ = Dual(0.0, 1.0)
-
 # ╔═╡ 803c58be-95da-4bba-940e-9a69a16ad6e5
 md"Now, we can create such dual numbers."
 
@@ -208,9 +275,6 @@ md"Next, we need to implement the required interface methods for numbers."
 # ╔═╡ 98a72e2a-7c21-4a31-8c1e-21f4efa7e4ee
 Base.:+(x::Dual, y::Dual) = Dual(x.value + y.value,
 								 x.deriv + y.deriv)
-
-# ╔═╡ 097ae01c-d0a3-4e8f-a63d-74593829b462
-5 + ϵ
 
 # ╔═╡ 19c0f6ea-3128-45ce-a198-644f4be7d9f0
 Dual(1, 2) + Dual(2.0, 3)
@@ -243,7 +307,7 @@ Base.:/(x::Dual, y::Dual) = Dual(x.value / y.value,
 								 (x.deriv * y.value - x.value * y.deriv) / y.value^2)
 
 # ╔═╡ 3c4079a7-a627-464a-9309-f0f5320d368b
-function multi_slider(names, values, title="")
+function multi_slider(names, values)
 	return PlutoUI.combine() do Child
 		inputs = [
 			md""" $(name): $(
@@ -254,7 +318,6 @@ function multi_slider(names, values, title="")
 		]
 		
 		md"""
-		#### $title
 		$(inputs)
 		"""
 	end
@@ -298,19 +361,25 @@ Base.cos(x::Dual) = Dual(cos(x.value), -sin(x.value) * x.deriv)
 # ╔═╡ 10553f26-b660-4889-b0a7-71d68dbc105c
 Base.sin(x::Dual) = Dual(sin(x.value), cos(x.value) * x.deriv)
 
+# ╔═╡ 280d83db-080d-4b22-8fc0-a175c8690b4a
+f(x) = x^2 - 5 * sin(x) - 10 # you can change this function!
+
+# ╔═╡ 866b8869-47ec-4040-a7ef-a0831370b277
+f2(x, y) = x^2 - y^3 - 5 * sin(x) + 5 * cos(y * x) - 20 # you can change this function!
+
 # ╔═╡ ecf84d2e-46f6-4dd1-a5de-a5f65b1d281f
-function f(x, a, b, c, d)
+function m(x, a, b, c, d)
 	return sin(a*x)*b + cos(c*x)*d
 end
 
 # ╔═╡ e86b88d2-baa7-4d41-9539-fb298ba5c123
-ys = f.(xs, 0.3, -1.2, 0.5, 0.7)
+ys = m.(xs, 0.3, -1.2, 0.5, 0.7)
 
 # ╔═╡ b2cdecef-d2d5-4514-a6cd-d3d453ed9099
 lines(xs, ys)
 
 # ╔═╡ f73540da-cf91-4463-9adf-b0e5b98e7b79
-ys_guess = f.(xs, coeffs_guess...)
+ys_guess = m.(xs, coeffs_guess...)
 
 # ╔═╡ 367385c4-65b0-4a4a-aaf1-2cfcd8015b20
 mse(ys, ys_guess)
@@ -331,7 +400,7 @@ let
 	fig = Figure()
 	ax = Axis(fig[1,1])
 	for offset in neighborhood
-		_ys =  f.(xs, coeffs_guess[1]+offset, coeffs_guess[2:end]...)
+		_ys = m.(xs, coeffs_guess[1]+offset, coeffs_guess[2:end]...)
 		lines!(ax, xs, _ys, label="Offset a+$(offset), MSE= $(mse(ys, _ys))" )
 	end
 	axislegend(ax)
@@ -345,7 +414,7 @@ let
 
 	lines!(ax, xs, sin, label="sin")
 	lines!(ax, xs, cos, label="cos")
-	lines!(ax, xs, f.(xs, coeffs...), label = "f")
+	lines!(ax, xs, m.(xs, coeffs...), label = "model")
 
 	axislegend(ax)
 	fig
@@ -475,6 +544,101 @@ md"We can also get the derivative as a function itself."
 # ╔═╡ 6f903e30-2c85-4ae1-a4cc-591934f1e012
 derivative(f) = x -> derivative(f, x)
 
+# ╔═╡ 9a0fe51f-b1df-46e7-8577-02d8cb4136f5
+let
+	fig = Figure()
+	ax = Axis(fig[1,1], xlabel=L"x")
+
+    # Plot function
+    xs = range(-5, 5, 50)
+	ymin, ymax = extrema(f.(xs))
+
+	ylims!(ax, ymin-5, ymax+5)
+	lines!(ax, xs, f, label=L"Function $f(x)$")
+
+    # Obtain the function f′
+    f′ = derivative(f)
+
+    # Plot f′(x)
+    lines!(ax, xs, f′; label=L"Derivative $f′(x)$")
+
+    # # Plot 1st order Taylor series approximation
+    taylor_approx(x) = f(x̂) + f′(x̂)*(x-x̂) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
+    lines!(ax, xs, taylor_approx; label=L"Taylor approx. around $\tilde{x}$")
+
+    # # Show point of linearization
+    vlines!(ax, [x̂]; color=:grey, linestyle=:dash, label=L"\tilde{x}")
+	axislegend(ax, position=:ct)
+	fig
+end
+
+# ╔═╡ e5193d1e-8613-4cc4-80a0-a08597c720a5
+let
+	fig = Figure()
+	ax = Axis3(fig[1,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="f(x,y)")
+	ax4 = Axis3(fig[2,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="Taylor approx. around x̂=$x̂₁, ŷ=$ŷ₁")
+
+	ax2 = Axis(fig[1, 2], title="Partial deriv. in x at ŷ=$ŷ₁", xlabel=L"x")
+	ax3 = Axis(fig[2, 2], title="Partial deriv. in y at x̂", xlabel=L"y")
+
+    # Plot function
+    xs = range(-5, 5, 50)
+	ys = range(-5, 5, 50)
+	zmin, zmax = extrema(f2.(xs, ys'))
+
+	zlims!(ax, zmin-5, zmax+5)
+	surface!(ax, xs, ys, f2)
+	# lines!(ax, xs, f, label=L"Function $f(x)$")
+
+    # Obtain the partial derivative functions f′
+ 	f_x′ = derivative(x->f2(x, ŷ₁))
+	f_y′ = derivative(y->f2(x̂₁, y))
+
+
+    # Plot partial f′(x)
+    lines!(ax2, xs, f_x′; label=L"Derivative $f_x′(x)$")
+
+	lines!(ax3, ys, f_y′; label=L"Derivative $f_x′(x)$")
+
+    # Plot 1st order Taylor series approximation
+    taylor_approx(x, y) = f2(x̂₁, ŷ₁) + f_x′(x̂₁)*(x-x̂₁) + f_y′(ŷ₁)*(y-ŷ₁) 
+    surface!(ax4, xs, ys, taylor_approx; label=L"Taylor approx. around $\tilde{x},\tilde{y}$")
+
+	fig
+end
+
+# ╔═╡ 583d4563-ac91-43f0-8cb1-2b598974edc7
+let 
+	fig=Figure()
+	ax = Axis(fig[1,1], xlabel=L"a")
+
+    # Plot function
+    as = range(-2, 2, 100)
+
+	f(a) = mse(ys, m.(xs, a, coeffs_guess[2:end]...))
+	ymin, ymax = extrema(f.(as))
+
+	ylims!(ax, ymin-5, ymax+5)
+	lines!(ax, as, f, label=L"Function $f = mse(ys, m(x; a, b, c, d))$")
+
+	# Obtain the function f′
+    f′ = derivative(f)
+
+    # Plot f′(x)
+    lines!(ax, as, f′; label=L"Derivative $f′(a)$")
+
+	â = coeffs_guess[1]
+    # Plot 1st order Taylor series approximation
+    taylor_approx(a) = f(â) + f′(â)*(a-â) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
+    lines!(ax, as, taylor_approx; label=L"Taylor approx. around $\tilde{a}$")
+
+    # Show point of linearization
+    vlines!(ax, [â]; color=:grey, linestyle=:dash, label=L"\tilde{a}")
+	axislegend(ax, position=:ct)
+
+	fig
+end
+
 # ╔═╡ 051b752d-b0aa-4e05-bfc4-5d671e17e6c8
 let
 	fig = Figure()
@@ -549,10 +713,9 @@ let
 end
 
 # ╔═╡ 55c17860-f5d9-4fda-ad3e-b16b075af06c
-md"""
-!!! note
-    Use [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) or [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) instead of using our local implementation here.
-"""
+tip(md"""
+Julia has a robust ecosystem of automatic-differentiation tools! Do not handroll your own library like we did here, but instead use [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) or [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl).
+""")
 
 # ╔═╡ 74bf8e0b-5018-422d-8536-a5a03053acd0
 md"""
@@ -560,28 +723,28 @@ md"""
 """
 
 # ╔═╡ dda152e7-a72a-4d71-b01d-c04f5b46de3a
-df_a(x, a, b, c, d) = f(x, Dual(a, one(a)), b, c, d)
+dm_a(x, a, b, c, d) = m(x, Dual(a, one(a)), b, c, d)
 
 # ╔═╡ 432f3155-d4ff-4a92-bf2b-a28cb055f54f
-df_b(x, a, b, c, d) = f(x, a, Dual(b, one(b)), c, d)
+dm_b(x, a, b, c, d) = m(x, a, Dual(b, one(b)), c, d)
 
 # ╔═╡ 747957c4-9908-42d7-a8a1-a94712019912
-df_c(x, a, b, c, d) = f(x, a, b, Dual(c, one(c)), d)
+dm_c(x, a, b, c, d) = m(x, a, b, Dual(c, one(c)), d)
 
 # ╔═╡ bf2c3298-ded1-40ad-8dc6-5cf6b03029db
-df_d(x, a, b, c, d) = f(x, a, b, c, Dual(d, one(d)))
+dm_d(x, a, b, c, d) = m(x, a, b, c, Dual(d, one(d)))
 
 # ╔═╡ 1835ca94-0c73-4dfd-bf7b-c227bf9a7375
-mse(ys, df_a.(xs, coeffs_guess...))
+mse(ys, dm_a.(xs, coeffs_guess...))
 
 # ╔═╡ 5770d63e-a957-4044-b60d-4d91c6760288
-mse(ys, df_b.(xs, coeffs_guess...))
+mse(ys, dm_b.(xs, coeffs_guess...))
 
 # ╔═╡ 385a9c94-d180-4e85-8255-fa8970d8153e
-mse(ys, df_c.(xs, coeffs_guess...))
+mse(ys, dm_c.(xs, coeffs_guess...))
 
 # ╔═╡ 5efd9e58-8677-4b22-af70-492a2beca00a
-mse(ys, df_d.(xs, coeffs_guess...))
+mse(ys, dm_d.(xs, coeffs_guess...))
 
 # ╔═╡ 8d45c6b6-b0fd-42d2-b265-d90a23b42eac
 md"""
@@ -597,10 +760,10 @@ const one_hot_vectors = [
 ]
 
 # ╔═╡ 25a37065-a181-431d-a973-b0a07701f564
-df(loss, ys, xs, coeffs) = map(v->loss(ys, f.(xs, v...)).deriv, map(v->v.+coeffs, one_hot_vectors))
+dm(loss, ys, xs, coeffs) = map(v->loss(ys, m.(xs, v...)).deriv, map(v->v.+coeffs, one_hot_vectors))
 
 # ╔═╡ 8223c585-24b7-4938-a1fb-08749e8909e0
-df(mse, xs, ys, [coeffs_guess...])
+dm(mse, xs, ys, [coeffs_guess...])
 
 # ╔═╡ 4649dadd-75bb-4ca9-a65a-281f05dfce44
 md"""
@@ -623,17 +786,17 @@ let
 	coeffs = rand(4)
 	errs = Float64[]
 	for i in 1:steps
-		_ys = f.(xs, coeffs...)
+		_ys = m.(xs, coeffs...)
 		err = mse(ys, _ys)
 		push!(errs, err)
 		if mod1(i, plot_every) == 1
 			lines!(xs, _ys, label="Epoch $i")
 		end
 		
-		dcoeffs = df(mse, ys, xs, coeffs)
+		dcoeffs = dm(mse, ys, xs, coeffs)
 		coeffs .-= learning_rate .* dcoeffs
 	end
-	_ys = f.(xs, coeffs...)
+	_ys = m.(xs, coeffs...)
 	err = mse(ys, _ys)
 	lines!(xs, _ys, label="Epoch $(steps+1)")
 
@@ -645,37 +808,6 @@ let
 	lines!(ax2, errs)
 	fig
 end	
-
-# ╔═╡ 9b27954f-9b51-4e53-88b1-a952974b82cd
-md"""
-## Other ideas
-- Symbolic AD
-
-"""
-
-# ╔═╡ 5a2ef8d9-ad4d-4010-b2ef-bf96547323a8
-function taylor(x, N)
-	sum = 0 * x
-	for i in 1:N
-		sum += x^i/i
-	end
-	return sum
-end
-
-# ╔═╡ 55d86753-487c-4ecd-b49e-db7ca619cf4b
-begin
-	@variables v_x
-	ex = taylor(v_x, 8)
-end
-
-# ╔═╡ 727cde04-07f8-4a66-b84c-41bf82db5d73
-d_ex = Symbolics.derivative(ex, v_x)
-
-# ╔═╡ e70a0acd-0a58-461a-82f3-7c19d8141bf5
-substitute(d_ex, v_x=>0.5)
-
-# ╔═╡ 2d97055a-3ba6-403a-b54a-68aa6082e5d8
-d_taylor(0.5)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2355,27 +2487,40 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─668493d8-bf95-4561-9a3a-2e7f7a987682
 # ╠═5eeae36d-988a-4906-ac80-4de96b1969bd
+# ╟─3a267f1f-1936-4cab-81cc-d42d59169d26
 # ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
+# ╟─668493d8-bf95-4561-9a3a-2e7f7a987682
+# ╟─0c125359-6dcf-49af-887d-e24dbd11ef48
+# ╠═280d83db-080d-4b22-8fc0-a175c8690b4a
+# ╟─38b821ed-91a9-414e-9575-eb43e8068956
+# ╟─9a0fe51f-b1df-46e7-8577-02d8cb4136f5
+# ╟─779370fe-7513-4f4e-8517-d3328337ac42
+# ╠═866b8869-47ec-4040-a7ef-a0831370b277
+# ╠═cf7662c3-6ad6-4cc8-b73b-42b1bb738f37
+# ╠═47da91d3-8a69-4aa5-a49f-55f9c4f585f9
+# ╟─e5193d1e-8613-4cc4-80a0-a08597c720a5
+# ╟─ddbbc711-bd5b-4d20-962b-7d103e0f31b4
 # ╠═ecf84d2e-46f6-4dd1-a5de-a5f65b1d281f
 # ╠═7a5bccfa-fce1-4bd8-8531-048ecb1c6a21
 # ╟─3c4079a7-a627-464a-9309-f0f5320d368b
 # ╟─4b079423-6c68-4ea0-a51d-b2b3bbfbb0f6
 # ╟─a4e57d7a-7232-4189-85ff-8a25a3cb82da
-# ╟─c4308c97-cf04-47f8-a65a-e230b6736791
+# ╟─74c8acf3-0c7b-4555-a795-0c712546d5b4
 # ╟─e86b88d2-baa7-4d41-9539-fb298ba5c123
-# ╠═b2cdecef-d2d5-4514-a6cd-d3d453ed9099
+# ╟─b2cdecef-d2d5-4514-a6cd-d3d453ed9099
 # ╟─608b15d4-9ab3-405d-b574-167788f0c842
 # ╠═834f9474-8f11-4bda-818e-ed3dd505f444
 # ╠═f73540da-cf91-4463-9adf-b0e5b98e7b79
+# ╟─3950039e-5d9d-4a00-b511-3f0a583d8309
 # ╠═14db561f-54c3-41d4-8078-531facb65038
 # ╠═367385c4-65b0-4a4a-aaf1-2cfcd8015b20
 # ╟─b75017e8-bcfd-42fd-8870-9777c2f230e3
 # ╟─a7f02fa7-8dac-424e-92d9-cc0f8ed85b93
-# ╟─6a63cae0-fcd7-4258-a82f-3f752b37225c
-# ╟─13cc6418-0738-41ab-b881-14d0593be79c
-# ╟─38b2f947-736b-4b05-9e38-51dc7e99b1db
+# ╠═6a63cae0-fcd7-4258-a82f-3f752b37225c
+# ╟─5429e788-a5ed-434b-a140-379f73b5cfc5
+# ╟─583d4563-ac91-43f0-8cb1-2b598974edc7
+# ╟─f918e5a2-d1b4-4c7d-93fa-a50dcd0d8fa5
 # ╟─63a62a52-d138-4fae-9c1f-c7dbebb94f45
 # ╠═eea941bf-0be0-4002-a07e-4ee5d95645dd
 # ╠═a037e8aa-1b41-4146-814f-af3c6ff38be4
@@ -2403,10 +2548,8 @@ version = "3.6.0+0"
 # ╠═68d42e2d-10cd-474d-a8c8-681f13bb027c
 # ╟─082e9259-8e64-4ffa-8ed7-5c9bdbad0a0c
 # ╠═b4214f5e-e675-46cb-89aa-1a51b49c141c
-# ╟─cb5d2cb3-4b88-41d9-9dcf-729275ef6865
 # ╟─803c58be-95da-4bba-940e-9a69a16ad6e5
 # ╠═2fa6bd76-7539-4857-9829-6212689c1d3a
-# ╠═097ae01c-d0a3-4e8f-a63d-74593829b462
 # ╟─8b9cd1a8-f33d-4ca2-9b4a-6f7684a52b7f
 # ╠═98a72e2a-7c21-4a31-8c1e-21f4efa7e4ee
 # ╠═19c0f6ea-3128-45ce-a198-644f4be7d9f0
@@ -2466,12 +2609,5 @@ version = "3.6.0+0"
 # ╟─4649dadd-75bb-4ca9-a65a-281f05dfce44
 # ╠═f9ad118c-65c2-439a-9254-9d025245aa98
 # ╠═b4dcb6d9-99a4-43da-bd3e-8af749c48290
-# ╠═9b27954f-9b51-4e53-88b1-a952974b82cd
-# ╠═676a0fe1-25c7-4df2-847e-afaaaa0fdf58
-# ╠═5a2ef8d9-ad4d-4010-b2ef-bf96547323a8
-# ╠═55d86753-487c-4ecd-b49e-db7ca619cf4b
-# ╠═727cde04-07f8-4a66-b84c-41bf82db5d73
-# ╠═e70a0acd-0a58-461a-82f3-7c19d8141bf5
-# ╠═2d97055a-3ba6-403a-b54a-68aa6082e5d8
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

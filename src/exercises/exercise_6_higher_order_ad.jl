@@ -57,9 +57,6 @@ begin
 	Base.:-(x::Dual) = Dual(-x.value, -x.deriv)
 end
 
-# ╔═╡ 6cdac96b-82f5-4a8f-827f-49b128d9f0d7
-Base.promote_type
-
 # ╔═╡ 1655b3b7-dc2a-4c8e-b460-e88ee278fb64
 begin
 	derivative(f, x) = f(Dual(x, one(x))).deriv
@@ -99,9 +96,6 @@ function nth_derivative_forwarddiff(f::F, x, ::Val{N}) where {F, N}
    end
 end
 
-# ╔═╡ 88068773-1783-4466-a6d4-1b7d8df85089
-
-
 # ╔═╡ 8b37d461-475f-4b2b-9045-73e9d3e56c65
 md"""
 ## Perturbation confusion
@@ -140,7 +134,7 @@ PlutoUI = "~0.7.51"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "67e5605487050213b37e51300ef7b427e91a4312"
 
@@ -412,7 +406,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.5+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -615,12 +609,11 @@ version = "17.4.0+2"
 """
 
 # ╔═╡ Cell order:
-# ╟─75b9bee9-7d03-4c90-b828-43e9e946517b
-# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
-# ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
+# ╠═75b9bee9-7d03-4c90-b828-43e9e946517b
+# ╠═8577787d-d72d-4d92-8c69-9e516a85b779
+# ╠═3e5c3c97-4401-41d4-a701-d9b24f9acdc6
 # ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
 # ╠═b2fb4bec-30f5-42ac-aeb4-f8b1d12ead8c
-# ╠═6cdac96b-82f5-4a8f-827f-49b128d9f0d7
 # ╠═1655b3b7-dc2a-4c8e-b460-e88ee278fb64
 # ╠═c69214ea-dd25-4da6-b067-21d1415e0eef
 # ╠═51ed0e6c-133a-407f-b0f5-38049af7366b
@@ -629,7 +622,6 @@ version = "17.4.0+2"
 # ╠═1f9b9590-96b9-4305-98e9-a8758f052d6d
 # ╠═2abd3f28-b033-4816-8752-2aea1cfafa1e
 # ╠═e15733d2-5dcd-4cba-a97f-22499fbc19a1
-# ╠═88068773-1783-4466-a6d4-1b7d8df85089
 # ╟─8b37d461-475f-4b2b-9045-73e9d3e56c65
 # ╠═0e01382a-3fd2-4d27-ab55-72cdd8ed0058
 # ╠═ab41dbd5-75ef-41c5-9aa3-796f39820203

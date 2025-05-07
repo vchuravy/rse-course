@@ -13,10 +13,20 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
-using PlutoTeachingTools, PlutoUI
+begin
+	using PlutoUI, PlutoTeachingTools
+	using PlutoUI: Slider
+	PlutoUI.TableOfContents(; depth=4)
+end
 
 # ╔═╡ ba4e41a6-c3e4-40f5-aae0-afd49744ca0d
-using CairoMakie
+begin
+	using CairoMakie
+	set_theme!(theme_latexfonts();
+			   fontsize = 16,
+			   Lines = (linewidth = 2,),
+			   markersize = 16)
+end
 
 # ╔═╡ bd7ddb00-a392-43d2-8637-55c9660db022
 using ForwardDiff
@@ -27,18 +37,15 @@ using Optim
 # ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
 ChooseDisplayMode()
 
-# ╔═╡ 3e5c3c97-4401-41d4-a701-d9b24f9acdc6
-PlutoUI.TableOfContents(; depth=4)
-
 # ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
 md"""
-# Exercise: Optimization
+# Optimization
 """
 
 # ╔═╡ 55ccce7c-0d5b-44d0-8288-4124fadd7544
 md"""
 
-## Rosenbrock function
+## Example: Rosenbrock function
 
 $f(x,y) = (1-x)^2 + 100(y-x^2)$
 
@@ -97,7 +104,83 @@ let
 end
 
 # ╔═╡ 29842c8e-9d95-4736-98b5-9f089e17f7f7
+md"""
+## Exercise: Fitting our parameters
+"""
 
+# ╔═╡ 9ec021a5-fc2b-484e-b019-b94df802b6da
+function m(x, a, b, c, d)
+	return sin(a*x)*b + cos(c*x)*d
+end
+
+# ╔═╡ c31e6c15-b847-4da7-baf3-dd9f400adc4a
+xs1 = 0.0:0.01:2π
+
+# ╔═╡ 46f13ab1-5ee5-4a50-99d1-fe1192101503
+ys1 = m.(xs1, 0.3, -1.2, 0.5, 0.7)
+
+# ╔═╡ c44b1c27-8db3-48fc-b203-01c3b1ad9163
+# Mean squared error
+function mse(ŷ, y)
+	sum((ŷ .- y).^2) / length(y)
+end
+
+# ╔═╡ 82882271-322b-4b2a-a499-92fc77bd81cd
+sol2 = let
+	f(coeffs) = mse(ys1, m.(xs1, coeffs...))
+	function g!(dc, c)
+		dc[1] = ForwardDiff.derivative(a->f((a, c[2], c[3], c[4])), c[1])
+		dc[2] = 0 # TODO
+		dc[3] = 0 # TODO
+		dc[4] = 0 # TODO
+		nothing
+	end
+	c₀ = [0.9456253412871252, 0.5060263144193908, 0.7313087724591087, 0.5401913661922946]
+	# TODO: What happens with c₀ = rand(-2.0:0.1:2.0, 4)
+	optimize(f, g!, c₀)
+end
+
+# ╔═╡ 4df257e1-5fa0-4e6b-bf4e-21651547a720
+Optim.minimizer(sol2)
+
+# ╔═╡ 5197f620-812e-49be-94cb-b3f7159420a8
+ys2 = m.(xs1, Optim.minimizer(sol2)...)
+
+# ╔═╡ fc8626da-dd5f-47d1-beb6-91b208236487
+let
+	fig = Figure()
+	ax = Axis(fig[1,1])
+
+	lines!(ax, xs1, ys1, label="Target curve")
+	lines!(ax, xs1, ys2, label="Your curve, mse = $(mse(ys1, ys2))")
+
+	axislegend(ax)
+	fig
+end
+
+# ╔═╡ c55d1584-49d7-4eb2-94b2-9361c44dbe5a
+hint(
+md"""
+```julia
+function g!(dc, c)
+	dc[1] = ForwardDiff.derivative(a->f((a, c[2], c[3], c[4])), c[1])
+	dc[2] = ForwardDiff.derivative(a->f((c[1], a, c[3], c[4])), c[2])
+	dc[3] = ForwardDiff.derivative(a->f((c[1], c[2], a, c[4])), c[3])
+	dc[4] = ForwardDiff.derivative(a->f((c[1], c[2], c[3], a)), c[4])
+	nothing
+end
+```
+"""
+)
+
+# ╔═╡ e03aeed9-e0ad-4ee3-b642-9bfc5a4f67c9
+danger(
+md"""
+It is not gurantueed that the optimizer converges to the correct global minimum.
+
+Change the initialization of `c₀`.
+"""
+)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -120,7 +203,7 @@ PlutoUI = "~0.7.51"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "55940ee9bb458846e8bfa70cae3f7218548dd611"
 
@@ -1221,7 +1304,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.5+0"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1913,13 +1996,12 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─75b9bee9-7d03-4c90-b828-43e9e946517b
+# ╠═75b9bee9-7d03-4c90-b828-43e9e946517b
 # ╟─8577787d-d72d-4d92-8c69-9e516a85b779
-# ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
-# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
 # ╠═ba4e41a6-c3e4-40f5-aae0-afd49744ca0d
+# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
 # ╠═bd7ddb00-a392-43d2-8637-55c9660db022
-# ╠═55ccce7c-0d5b-44d0-8288-4124fadd7544
+# ╟─55ccce7c-0d5b-44d0-8288-4124fadd7544
 # ╟─7c2bab99-da3a-49eb-9c64-3c81188e2abe
 # ╠═79a94548-d34f-4404-90e5-cbe3d383180b
 # ╠═444b279f-1fe0-4dbf-8ea9-d350a042e675
@@ -1931,6 +2013,16 @@ version = "3.6.0+0"
 # ╠═8199ebd3-f5a9-4b4f-9bd7-0c8a5c943688
 # ╠═ba244fcb-32c0-4e44-bc74-326c628b335c
 # ╠═10c39e63-bc7e-4169-9187-2bcdd07fb96d
-# ╠═29842c8e-9d95-4736-98b5-9f089e17f7f7
+# ╟─29842c8e-9d95-4736-98b5-9f089e17f7f7
+# ╠═9ec021a5-fc2b-484e-b019-b94df802b6da
+# ╠═c31e6c15-b847-4da7-baf3-dd9f400adc4a
+# ╟─46f13ab1-5ee5-4a50-99d1-fe1192101503
+# ╠═c44b1c27-8db3-48fc-b203-01c3b1ad9163
+# ╠═82882271-322b-4b2a-a499-92fc77bd81cd
+# ╠═4df257e1-5fa0-4e6b-bf4e-21651547a720
+# ╠═5197f620-812e-49be-94cb-b3f7159420a8
+# ╟─fc8626da-dd5f-47d1-beb6-91b208236487
+# ╟─c55d1584-49d7-4eb2-94b2-9361c44dbe5a
+# ╟─e03aeed9-e0ad-4ee3-b642-9bfc5a4f67c9
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
