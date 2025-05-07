@@ -1,6 +1,15 @@
 ### A Pluto.jl notebook ###
 # v0.20.6
 
+#> [frontmatter]
+#> order = "4.3"
+#> exercise_number = "7"
+#> title = "Pitfalls of AD"
+#> tags = ["module1", "track_ad", "exercises"]
+#> layout = "layout.jlhtml"
+#> description = "sample exercise"
+
+
 using Markdown
 using InteractiveUtils
 
