@@ -2,9 +2,14 @@
 # v0.20.4
 
 #> [frontmatter]
-#> title = "Exercise: Simple gradient descent"
+#> order = "4.4"
+#> exercise_number = "8"
+#> title = "Gradient descent"
 #> license = "MIT"
-#> 
+#> tags = ["module1", "track_ad", "exercises"]
+#> layout = "layout.jlhtml"
+#> description = "sample exercise"
+#>
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
 #>     url = "https://vchuravy.dev"
