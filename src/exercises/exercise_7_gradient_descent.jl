@@ -116,17 +116,44 @@ lines(errs)
 # ╔═╡ 15aba803-1960-4510-a490-e50a7e41dc3a
 md"""
 ## Exercises:
-- play around with this code and define your own model or loss function
-- is this implementation generic enough that it just works with different array types
-- try using either `CuArray`s or other GPU types
-- try a different AD framework like Enzyme
+"""
+
+# ╔═╡ 9a5e0b42-9d2f-4f86-905d-9e7f7cd2828e
+md"""
+### Exercise: Customization
+Play around with this code and define your own model or loss function
+"""
+
+# ╔═╡ d925aa0a-f35f-4b4a-8df1-a2dff5530582
+md"""
+### Exercise: GPU Arrays
 """
 
 # ╔═╡ d889d62b-186d-458f-bfb0-1db728b739a5
+question_box(md"""
+Cast your mind back to the lecture on parallel computing.
 
+This code only uses array based abstractions.
+Is it generic enough that it just works with different array types?
+""")
 
 # ╔═╡ 84ff0ef3-aeea-46de-8305-53d997bf0aa4
+md"""
+Try using something like a `CuArray` or other GPU types.
 
+!!! note
+    If it doesn't work with your library of choice? What do you need to fix?
+	Maybe you could file an issue or pull-request?
+"""
+
+# ╔═╡ 238e80e6-1358-407b-b617-7149ea055f96
+md"""
+### Exercise: Different AD frameworks
+
+We are using `ForwardDiff.gradient` here, as we discussed in class this is not efficient for many parameters.
+
+Can you use `Enzyme.gradient(Reverse, ...)`?
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1791,7 +1818,10 @@ version = "3.6.0+0"
 # ╠═f6a29895-b611-45fb-b665-747026682ced
 # ╠═84aab407-673c-4a01-a6a7-a91d30b00d4b
 # ╟─15aba803-1960-4510-a490-e50a7e41dc3a
-# ╠═d889d62b-186d-458f-bfb0-1db728b739a5
+# ╟─9a5e0b42-9d2f-4f86-905d-9e7f7cd2828e
+# ╟─d925aa0a-f35f-4b4a-8df1-a2dff5530582
+# ╟─d889d62b-186d-458f-bfb0-1db728b739a5
 # ╠═84ff0ef3-aeea-46de-8305-53d997bf0aa4
+# ╟─238e80e6-1358-407b-b617-7149ea055f96
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
