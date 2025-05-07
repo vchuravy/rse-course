@@ -4,7 +4,7 @@
 #> [frontmatter]
 #> order = "4.1"
 #> exercise_number = "6"
-#> title = "Profiling"
+#> title = "Optimization of parameters"
 #> tags = ["module1", "track_ad", "exercises"]
 #> layout = "layout.jlhtml"
 #> description = "sample exercise"
