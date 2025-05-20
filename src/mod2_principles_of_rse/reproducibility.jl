@@ -29,7 +29,266 @@ PlutoUI.TableOfContents(; depth=4)
 # ╔═╡ 0be73b29-7780-4be0-bf07-9b62c99fc4b4
 md"""
 # Reproducibility
+
+Two questions:
+
+1. Does my code **execute** on another computer
+    - Can someone else do it without my intervention
+2. Do we calculate the same results?
 """
+
+# ╔═╡ e70cbf6f-488f-4d5c-a097-7e36bd445f67
+md"""
+## Julia's package manager
+"""
+
+# ╔═╡ 5500f36a-57c6-4efb-b20e-4c766e20d2fe
+md"""
+!!! note
+    In Pluto the package-manager is tightly integrated. This leads to reproducible note-books. Open a Pluto notebook in an editor! What do you see? 
+"""
+
+# ╔═╡ 3e29e55b-fa8c-40fd-b5c3-8d804db5967d
+md"""
+### Project.toml
+"""
+
+# ╔═╡ 48862074-afaa-4a7a-babe-a0fbc6965620
+md"""
+#### Manifest.toml
+"""
+
+# ╔═╡ 4a8e696e-f060-40d8-a8d6-5dca99a5e0b5
+md"""
+### Pkg.jl
+"""
+
+# ╔═╡ 73339498-d236-42ce-ad8d-58918b9fe248
+md"""
+### Preferences.jl
+"""
+
+# ╔═╡ 0105ef53-817b-4e29-bb96-dcc890483b27
+md"""
+### Binaries
+"""
+
+# ╔═╡ dcfd1a1a-e9cf-4216-ad66-48775dfe3d90
+md"""
+## Workflows
+"""
+
+# ╔═╡ 18cfbe65-8895-4c89-a90a-c9620efd5ab2
+md"""
+## Numerical reproducibility
+
+- [What every Computer Scientist should know about Floating-Point arithmetic](https://dl.acm.org/doi/10.1145/103162.103163) 
+"""
+
+# ╔═╡ e865a795-5704-49ec-8548-195399cbae20
+md"""
+### Order of summing
+- 
+"""
+
+# ╔═╡ cb4980f7-4285-437d-9dfd-1ee14aa10a02
+md"""
+### 2046 floating pointer numbers that sum to (almost) anything
+
+Thanks to [Stefan Karpinski](https://discourse.julialang.org/t/array-ordering-and-naive-summation/1929)
+"""
+
+# ╔═╡ 017ad668-0cb6-4e12-9672-9f917a902939
+(0.1 + 0.2) + 0.3
+
+# ╔═╡ 2ab18473-2cbc-4508-8e02-3346b3f10512
+ 0.1 + (0.2 + 0.3)
+
+# ╔═╡ 7fab467c-9277-4a28-a854-121bbf279fa1
+md"""
+The `sumsto` function always returns the same 2046 floating-point numbers but returns them in a different order based on `x`: for any 64-bit float value of `x` from 0 up to (but not including) 2^970, the naive left-to-right sum of the vector returned by `sumsto(x)` is precisely `x`:
+"""
+
+# ╔═╡ 76149ceb-e19b-415e-8c3e-8e752a0b33f7
+function sumsto(x::Float64)
+    0 <= x < exp2(970) || throw(ArgumentError("sum must be in [0,2^970)"))
+    n, p₀ = Base.decompose(x) # integers such that `n*exp2(p₀) == x`
+    [floatmax(); [exp2(p) for p in -1074:969 if iseven(n >> (p-p₀))]
+    -floatmax(); [exp2(p) for p in -1074:969 if isodd(n >> (p-p₀))]]
+end
+
+# ╔═╡ beb3ac00-d5e6-4ba5-b130-34db904c0d06
+foldl(+, sumsto(0.0))
+
+# ╔═╡ 954aea7f-229d-486e-8bec-92bc323dee86
+foldl(+, sumsto(eps(0.0)))
+
+# ╔═╡ be837dec-8b71-4a13-86c3-71012f7c3382
+foldl(+, sumsto(1.23))
+
+# ╔═╡ 4813d655-706c-4ccf-91fb-19f4bc0dabaa
+foldl(+, sumsto(pi+0))
+
+# ╔═╡ b5ec5cac-3316-411c-9de6-63ebf5c2aa53
+foldl(+, sumsto(6.0221409e23))
+
+# ╔═╡ e078fa8e-6c28-4a7a-8553-077206068725
+foldl(+, sumsto(9.979201547673598e291))
+
+# ╔═╡ e499f486-0839-4430-80ea-afd2da5d8621
+md"""
+When adding the values from left to right, all the powers of two after `floatmax()` but before `-floatmax()` have no effect on the sum. Then `-floatmax()` cancels `floatmax()` out, bringing the sum back to zero so the remaining powers of two are added up as expected, giving the final result, `x`. There are 2044 powers of two that can be represented as 64-bit floating-point value below 2^970 since the smallest representable power of 2 is `eps(0.0) == exp2(-1074) == 5.0e-324`. So the number of values we’re summing is 1074 + 970 + 2, one for each power of two and two more for `floatmax()` and `-floatmax()`.
+"""
+
+# ╔═╡ d71b32cf-a506-4ff0-8e75-4f6064b66b5a
+md"""
+### Fast-math
+
+- https://simonbyrne.github.io/notes/fastmath/
+- https://llvm.org/devmtg/2024-10/slides/techtalk/Kaylor-Towards-Useful-Fast-Math.pdf
+"""
+
+# ╔═╡ 4169bd7e-f88d-46a7-8ac9-a878b0535709
+function foo()
+	A = 1.0f0
+	C = 1.0f0
+
+	# Find the smallest value A = 2^k  for which (A + 1 - A) != 1
+	while C == 1.0f0
+		A *= 2.0f0
+		C = A + 1.0f0 - A
+	end
+
+	return A
+end
+
+# ╔═╡ 03050d92-c1bf-4ff8-8695-daa52cbbf9fe
+foo()
+
+# ╔═╡ 88dfd9d8-5438-492e-afdf-cdc53d60fed8
+md"""
+!!! warning
+    Do not execute `foo_fast`! It will loop forever.
+"""
+
+# ╔═╡ e9ccfcea-c13b-4525-bb99-72ed99c360fb
+function foo_fast()
+	A = 1.0f0
+	C = 1.0f0
+
+	# Find the smallest value A = 2^k  for which (A + 1 - A) != 1
+	@fastmath while C == 1.0f0
+		A *= 2.0f0
+		C = A + 1.0f0 - A
+	end
+
+	return A
+end
+
+# ╔═╡ ce5c465d-0de4-4980-a138-08d1617879bb
+with_terminal() do
+	@code_llvm foo_fast()
+end
+
+# ╔═╡ c158b69f-beb9-4aef-bc48-e6cdbb9a15a9
+md"""
+### Precision of mathematical implementations
+"""
+
+# ╔═╡ dfe25ec0-c310-4aa3-9c08-a68fe0034561
+
+
+# ╔═╡ 760e6987-0631-4fcb-8355-1d81b8067680
+md"""
+### Implementation of Float16
+"""
+
+# ╔═╡ 49e158a5-43fb-44e3-a0fe-ff8dcecc6cab
+md"""
+```julia
+abstract type Number end
+abstract type Real <: Number end
+abstract type AbstractFloat <: Real end
+primitive type Float64 <: AbstractFloat 64 end
+primitive type Float32 <: AbstractFloat 32 end
+primitive type Float16 <: AbstractFloat 16 end
+```
+"""
+
+# ╔═╡ 4a7d7c1d-2586-4be3-8da1-747a2ab52e74
+methods(cbrt)
+
+# ╔═╡ 4ce03161-6375-4ee3-91ce-6d50f5f8fefd
+md"""
+First attempt: Naively lowering Float16 to LLVM’s half type.
+
+
+What to do on platforms with no/limited hardware support
+
+
+Extended precision (thanks x87) rears it’s ugly head
+
+
+Lesson: In order to implement numerical routines that are portable we must be very careful in what semantics we promise.
+
+
+Solution: On targets without hardware support for `Float16`, truncate after each operation.
+GCC 12 supports this as: `-fexcess-precision=16`
+"""
+
+# ╔═╡ eae704b8-97bf-4b82-a9dc-ec0453cdd37b
+md"""
+On x86
+"""
+
+# ╔═╡ 5a783949-59a5-4cbf-8563-dde81f3f2d80
+md"""
+```llvm
+define half @julia_muladd(half %0, half %1, half %2) {
+top:
+  %3 = fmul half %0, %1
+  %4 = fadd half %3, %2
+  ret half %4
+}
+```
+"""
+
+# ╔═╡ 2762ac92-7ed2-4ad1-9ac0-5894e218404f
+md"""
+turns into:
+"""
+
+# ╔═╡ 0202368f-ae34-4b23-b33a-f1552d3df85c
+md"""
+```
+define half @julia_muladd(half %0, half %1, half %2){
+top:
+  %3 = fpext half %0 to float
+  %4 = fpext half %1 to float
+  %5 = fmul float %3, %4
+  %6 = fptrunc float %5 to half
+  %7 = fpext half %6 to float
+  %8 = fpext half %2 to float
+  %9 = fadd float %7, %8
+  %10 = fptrunc float %9 to half
+  ret half %10
+```
+"""
+
+# ╔═╡ ed224fe1-4b82-4b20-a5ba-6b0021d14628
+md"""
+On your machine?:
+"""
+
+# ╔═╡ 1f4619c4-5bfe-47f3-a721-6f37b3a2fc26
+with_terminal() do
+	code_llvm(muladd, (Float16, Float16, Float16), optimize=false)
+end
+
+# ╔═╡ cfa19d3a-1e4d-420e-8760-b0e1019d7516
+with_terminal() do
+	code_llvm(muladd, (Float16, Float16, Float16))
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -325,6 +584,47 @@ version = "17.4.0+2"
 # ╟─5f6deede-7e22-4ebf-ae1a-14d584595f17
 # ╟─5c4c21e4-1a90-11f0-2f05-47d877772576
 # ╟─aa46fef4-0c92-4947-ac64-f06ee31cb43f
-# ╠═0be73b29-7780-4be0-bf07-9b62c99fc4b4
+# ╟─0be73b29-7780-4be0-bf07-9b62c99fc4b4
+# ╟─e70cbf6f-488f-4d5c-a097-7e36bd445f67
+# ╟─5500f36a-57c6-4efb-b20e-4c766e20d2fe
+# ╟─3e29e55b-fa8c-40fd-b5c3-8d804db5967d
+# ╟─48862074-afaa-4a7a-babe-a0fbc6965620
+# ╟─4a8e696e-f060-40d8-a8d6-5dca99a5e0b5
+# ╟─73339498-d236-42ce-ad8d-58918b9fe248
+# ╠═0105ef53-817b-4e29-bb96-dcc890483b27
+# ╟─dcfd1a1a-e9cf-4216-ad66-48775dfe3d90
+# ╠═18cfbe65-8895-4c89-a90a-c9620efd5ab2
+# ╠═e865a795-5704-49ec-8548-195399cbae20
+# ╟─cb4980f7-4285-437d-9dfd-1ee14aa10a02
+# ╠═017ad668-0cb6-4e12-9672-9f917a902939
+# ╠═2ab18473-2cbc-4508-8e02-3346b3f10512
+# ╟─7fab467c-9277-4a28-a854-121bbf279fa1
+# ╠═76149ceb-e19b-415e-8c3e-8e752a0b33f7
+# ╠═beb3ac00-d5e6-4ba5-b130-34db904c0d06
+# ╠═954aea7f-229d-486e-8bec-92bc323dee86
+# ╠═be837dec-8b71-4a13-86c3-71012f7c3382
+# ╠═4813d655-706c-4ccf-91fb-19f4bc0dabaa
+# ╠═b5ec5cac-3316-411c-9de6-63ebf5c2aa53
+# ╠═e078fa8e-6c28-4a7a-8553-077206068725
+# ╟─e499f486-0839-4430-80ea-afd2da5d8621
+# ╟─d71b32cf-a506-4ff0-8e75-4f6064b66b5a
+# ╠═4169bd7e-f88d-46a7-8ac9-a878b0535709
+# ╠═03050d92-c1bf-4ff8-8695-daa52cbbf9fe
+# ╟─88dfd9d8-5438-492e-afdf-cdc53d60fed8
+# ╠═e9ccfcea-c13b-4525-bb99-72ed99c360fb
+# ╠═ce5c465d-0de4-4980-a138-08d1617879bb
+# ╠═c158b69f-beb9-4aef-bc48-e6cdbb9a15a9
+# ╠═dfe25ec0-c310-4aa3-9c08-a68fe0034561
+# ╟─760e6987-0631-4fcb-8355-1d81b8067680
+# ╟─49e158a5-43fb-44e3-a0fe-ff8dcecc6cab
+# ╠═4a7d7c1d-2586-4be3-8da1-747a2ab52e74
+# ╠═4ce03161-6375-4ee3-91ce-6d50f5f8fefd
+# ╟─eae704b8-97bf-4b82-a9dc-ec0453cdd37b
+# ╟─5a783949-59a5-4cbf-8563-dde81f3f2d80
+# ╟─2762ac92-7ed2-4ad1-9ac0-5894e218404f
+# ╟─0202368f-ae34-4b23-b33a-f1552d3df85c
+# ╟─ed224fe1-4b82-4b20-a5ba-6b0021d14628
+# ╠═1f4619c4-5bfe-47f3-a721-6f37b3a2fc26
+# ╠═cfa19d3a-1e4d-420e-8760-b0e1019d7516
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
