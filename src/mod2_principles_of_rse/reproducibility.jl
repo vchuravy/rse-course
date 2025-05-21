@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.8
 
 #> [frontmatter]
 #> chapter = "2"
@@ -18,7 +18,23 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
-using PlutoUI
+begin
+	using PlutoUI, PlutoTeachingTools
+	using PlutoUI: Slider
+	PlutoUI.TableOfContents(; depth=4)
+end
+
+# ╔═╡ 4a74b127-85c2-40a3-a759-8adedd6a032e
+begin
+	using CairoMakie
+	set_theme!(theme_latexfonts();
+			   fontsize = 16,
+			   Lines = (linewidth = 2,),
+			   markersize = 16)
+end
+
+# ╔═╡ d8bf66d2-bfc7-40fa-a865-ac05de77e05a
+using Random
 
 # ╔═╡ c7d8c3eb-e5fb-4344-8f25-3f7e77722083
 using StochasticRounding
@@ -26,14 +42,8 @@ using StochasticRounding
 # ╔═╡ 7897ad92-c80f-4709-9348-5cc4d4adca02
 using Statistics
 
-# ╔═╡ 08239047-9498-4099-801a-373366cae9ba
-using CairoMakie
-
-# ╔═╡ 5f6deede-7e22-4ebf-ae1a-14d584595f17
-html"<button onclick='present()'>Toggle presentation mode</button>"
-
-# ╔═╡ aa46fef4-0c92-4947-ac64-f06ee31cb43f
-PlutoUI.TableOfContents(; depth=4)
+# ╔═╡ 03335a53-18de-47f8-87b0-d0c742e52f72
+ChooseDisplayMode()
 
 # ╔═╡ 0be73b29-7780-4be0-bf07-9b62c99fc4b4
 md"""
@@ -45,6 +55,80 @@ Two questions:
     - Can someone else do it without my intervention
 2. Do we calculate the same results?
 """
+
+# ╔═╡ b9ab169a-451f-4d45-8e98-2965e4284153
+md"""
+Should be easy right?
+
+```sh
+git clone https://github.com/vchuravy/FancyProject
+cd FancyProject
+julia run_script.jl
+```
+
+What can go wrong? 
+- What version of Julia did I use?
+- What Julia packages dig I use?
+- Which version of those Julia packages did I use?
+    - Which version of all the transitive dependencies did I use?
+"""
+
+# ╔═╡ 87b6ebd8-2c07-4750-aeba-8ce237403689
+md"""
+## How does Julia know which package can be loaded.
+
+[`LOAD_PATH`](https://docs.julialang.org/en/v1/base/constants/#Base.LOAD_PATH) describes the stacked environment. When doing an `import`/`using` (called a require operation) we search the stack for a matching package.
+
+In the REPL:
+
+```julia-repl
+julia> Base.LOAD_PATH
+3-element Vector{String}:
+ "@"
+ "@v#.#"
+ "@stdlib"
+```
+
+##### References:
+- [Code loading](https://docs.julialang.org/en/v1/manual/code-loading/#code-loading)
+"""
+
+# ╔═╡ 7477c827-d8e3-4e73-9946-e4aab74cb737
+Base.LOAD_PATH
+
+# ╔═╡ 1fa40423-27a7-4173-aa3b-ba3ec680e10d
+Base.load_path()
+
+# ╔═╡ a0888c75-8c85-4535-a27e-bc2e957c9ec0
+@doc Base.LOAD_PATH
+
+# ╔═╡ 947827d8-ee3f-49f2-8d48-663dd10bb747
+md"""
+### Active project
+
+The `@` entry in the `LOAD_PATH` corresponds to the active project:
+
+```sh
+julia --project=.
+```
+
+or 
+
+```sh
+JULIA_PROJECT="." julia
+```
+
+You can query the current active project with `Base.active_project()` and switch the active project with `Base.set_active_project()`
+
+!!! warning
+    When you switch projects inside a Julia session, you are combining "partial state". You might have loaded incompatible package versions!
+
+!!! note
+    In many older docs you will see `Pkg.activate` instead of `Base.set_active_project` which was only added in Julia 1.8.
+"""
+
+# ╔═╡ 2c796eb8-3700-4cd1-a7f6-423ebc609fa9
+Base.active_project()
 
 # ╔═╡ e70cbf6f-488f-4d5c-a097-7e36bd445f67
 md"""
@@ -60,11 +144,88 @@ md"""
 # ╔═╡ 3e29e55b-fa8c-40fd-b5c3-8d804db5967d
 md"""
 ### Project.toml
+
+A `Project.toml` describes the dependenencies of a project or a package
+
+```toml
+name = "App"
+uuid = "8f986787-14fe-4607-ba5d-fbff2944afa9"
+
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+
+[compat]
+BenchmarkTools = "1.6"
+julia = "1.10"
+```
+"""
+
+# ╔═╡ 7b9cfa72-2c51-4dc6-8819-fe7f0eac76bd
+md"""
+A package is a project with a name and a UUID.
+
+```toml
+name = "App"
+uuid = "8f986787-14fe-4607-ba5d-fbff2944afa9"
+```
+"""
+
+# ╔═╡ ae4bc03e-fd14-4048-a7c7-19a7b63467fa
+md"""
+The `[deps]` section maps names to `UUID`
+
+```toml
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+```
+"""
+
+# ╔═╡ 6529f938-637b-4952-85f8-218870992395
+md"""
+The `[compat]` section restricts the version of dependencies
+
+```toml
+[compat]
+BenchmarkTools = "1.6"
+julia = "1.10"
+```
+
+!!! note
+    There is a special entry for Julia.
 """
 
 # ╔═╡ 48862074-afaa-4a7a-babe-a0fbc6965620
 md"""
 #### Manifest.toml
+
+The Manifest is an auto-generated **record** of all the transitive dependencies.
+
+!!! note
+    Exact reproducibility is only gurantueed when using the same Julia version and the same `Manifest.toml`
+
+```toml
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.11.5"
+manifest_format = "2.0"
+project_hash = "cb14032aabe4b0376e6dcb58a497b54adc5b92d1"
+
+[[deps.Artifacts]]
+uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+version = "1.11.0"
+
+...
+```
+"""
+
+# ╔═╡ 4ff958ef-f27d-4267-ad61-a17d348f3127
+md"""
+!!! note
+    The `Manifest.toml` is version dependent! Note the recorded Julia version.
+    Since Julia 1.11, we have access the Julia version specific manifests.
+
+    - `Manifest.toml`: Fallback and only option for 1.10
+    - `Manifest-v1.11.toml`: Will be preferentiably read by 1.11 and ignored by all else.
 """
 
 # ╔═╡ 4a8e696e-f060-40d8-a8d6-5dca99a5e0b5
@@ -72,19 +233,113 @@ md"""
 ### Pkg.jl
 """
 
-# ╔═╡ 73339498-d236-42ce-ad8d-58918b9fe248
+# ╔═╡ 7fb243ae-0fe1-4829-a49d-df28c2b1bb60
 md"""
-### Preferences.jl
+Two modes of interaction:
+
+1. In the repl use `]` to switch
+2. `import Pkg; Pkg.add(...)`
+
+Read:
+- [Getting started with Pkg.jl](https://pkgdocs.julialang.org/v1/getting-started/)
+- [Managing packages](https://pkgdocs.julialang.org/v1/managing-packages/)
 """
 
-# ╔═╡ 0105ef53-817b-4e29-bb96-dcc890483b27
+# ╔═╡ 23cadca0-de88-43d4-8838-b05ac14cafb5
 md"""
-### Binaries
+### Compatibility
+
+```toml
+[compat]
+BenchmarkTools = "1.6"
+julia = "1.10"
+```
+
+Julia uses [semantic versioning](https://semver.org/) `vX.Y.Z`. `X` is the major version, `Y` is the minor version, `Z` is the patch version, with an exception for leading zeros. 
+
+1. MAJOR version when you make incompatible API changes
+2. MINOR version when you add functionality in a backward compatible manner
+3. PATCH version when you make backward compatible bug fixes
+
+When you write a version specifier `1.2.3` it is assumed to be compatible with `[1.2.3 - 2.0.0)` where `)` is a non-inclusive upper-bound.
+
+Julia has two specifiers:
+
+1. **Caret specifier**: `^1.2.3` (the default and equivalent to `1.2.3`)
+2. **Tilde specifier**: `~1.2.3`
+
+Julia also supports sets of multiple version specifiers
+
+```
+[compat]
+Example = "1.2, 2"
+```
+
+Will result in `[1.2.0, 3.0.0)`.
+
+#### Leading zeros `0.0.x` and `0.x.y`
+
+The first non-zero version acts as a major version.
+
+```
+[compat]
+Example = "0.2.1"
+```
+
+Will result in `[0.2.1, 0.3.0)`.
+
+#### Caret specifier
+
+A caret (`^`) specifier allows upgrade that would be compatible according to semantic versioning.
+
+```
+[compat]
+PkgA = "^1.2.3" # [1.2.3, 2.0.0)
+PkgB = "^1.2"   # [1.2.0, 2.0.0)
+PkgC = "^1"     # [1.0.0, 2.0.0)
+```
+
+#### Tilde specifier
+
+A tilde specifier provides more limited upgrade possibilities. When specifying major, minor and patch versions, or when specifying major and minor versions, only the patch version is allowed to change. If you only specify a major version, then both minor and patch versions are allowed to be upgraded (`~1` is thus equivalent to `^1`). For example:
+
+```
+[compat]
+PkgA = "~1.2.3" # [1.2.3, 1.3.0)
+PkgB = "~1.2"   # [1.2.0, 1.3.0)
+PkgC = "~1"     # [1.0.0, 2.0.0)
+```
+
+#### Other specifier
+
+You can also express **equality** and **inequality**, as well as ranges.
+
+See [Compatibility](https://pkgdocs.julialang.org/v1/compatibility/) for more information.
 """
 
 # ╔═╡ dcfd1a1a-e9cf-4216-ad66-48775dfe3d90
 md"""
-## Workflows
+## Workflow
+"""
+
+# ╔═╡ e2663784-2c02-419c-9965-2989631fd307
+md"""
+1. Clone repository
+2. Check if the repository has a `Project.toml`
+    - If not, yell at the author
+    - Check the `[deps]` section, is there an entry for every dependency?
+3. Check the project for a `Manifest.toml`
+```sh
+head -n 3 Manifest.toml
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.11.5"
+```
+4. Instantiate the manifest `julia +1.11 --project=. -e "import Pkg; Pkg.instantiate()"`
+
+
+!!! note
+    Instantiate will not resolve the environment again, it will just install all the dependencies listed in the `Manifest.toml`. Make sure to match the version.
 """
 
 # ╔═╡ 18cfbe65-8895-4c89-a90a-c9620efd5ab2
@@ -94,18 +349,74 @@ md"""
 - [What every Computer Scientist should know about Floating-Point arithmetic](https://dl.acm.org/doi/10.1145/103162.103163) 
 """
 
+# ╔═╡ e07a7759-4316-45e2-a7ac-11cba9a260d7
+md"""
+### Randomness
+
+We sometimes "desire" randomness, but true randomness is hard in a computer.
+In computer programs we talk about "pseudo-random number generators", given a seed they generate a "unpredicatble" sequence of numbers with a very large period.
+"""
+
+# ╔═╡ e13709c2-47f9-4f3c-9e96-eadf6f7bb20e
+rand()
+
+# ╔═╡ 564f0d8d-41da-4a41-88a8-8bb5e5484902
+rand()
+
+# ╔═╡ a6397c7f-1afd-4a55-ac16-337c54707b36
+let
+	Random.seed!(182)
+	rand()
+end
+
+# ╔═╡ 10918c07-75de-4dae-938a-9c8faa2f5617
+let
+	Random.seed!(182)
+	rand()
+end
+
+# ╔═╡ b1ea870f-0cdb-4463-8c4e-8cd2704a7cd7
+walk(x) = rand((x-1, x+1))
+
+# ╔═╡ 072ae92f-ec9f-4398-be1b-6e3d59bedfbb
+function walk_nsteps(N)
+	steps = [0]
+	for _ in 2:N
+		push!(steps, walk(steps[end]))
+	end
+	return steps
+end
+
+# ╔═╡ d27ca184-5884-454b-ba64-3f1689e05db9
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1], xlabel="Position", ylabel="Steps", title="Unseeded")
+	N = 100
+	lines!(ax, walk_nsteps(N), 1:N)
+	lines!(ax, walk_nsteps(N), 1:N)
+	lines!(ax, walk_nsteps(N), 1:N)
+	lines!(ax, walk_nsteps(N), 1:N)
+	fig
+end
+
+# ╔═╡ 6177d937-e936-4ce3-a1b3-414c59eb84f2
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1], xlabel="Position", ylabel="Steps", title="Seeded")
+	N = 100
+	Random.seed!(12)
+	lines!(ax, walk_nsteps(N), 1:N)
+	lines!(ax, walk_nsteps(N), 1:N)
+	lines!(ax, walk_nsteps(N), 1:N)
+	lines!(ax, walk_nsteps(N), 1:N)
+	fig
+end
+
 # ╔═╡ e865a795-5704-49ec-8548-195399cbae20
 md"""
 ### Order of summing
-- Kahan
-- https://github.com/JuliaLang/julia/pull/4039
-"""
-
-# ╔═╡ cb4980f7-4285-437d-9dfd-1ee14aa10a02
-md"""
-### 2046 floating pointer numbers that sum to (almost) anything
-
-Thanks to [Stefan Karpinski](https://discourse.julialang.org/t/array-ordering-and-naive-summation/1929)
+- [Kahan summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm)
+- [Pairwise summation used in Julia](https://github.com/JuliaLang/julia/pull/4039)
 """
 
 # ╔═╡ 017ad668-0cb6-4e12-9672-9f917a902939
@@ -113,6 +424,29 @@ Thanks to [Stefan Karpinski](https://discourse.julialang.org/t/array-ordering-an
 
 # ╔═╡ 2ab18473-2cbc-4508-8e02-3346b3f10512
  0.1 + (0.2 + 0.3)
+
+# ╔═╡ 1aa2c9f5-bb89-4289-8459-5632bbcd40b7
+md"""
+!!! note
+    My first ["silly question"](https://stackoverflow.com/questions/21872854/floating-point-math-in-different-programming-languages)
+"""
+
+# ╔═╡ 692aaf7a-6697-4e1e-83f1-64ee2443850f
+md"""
+Floating point arithmetic doesn't quite follow the rules of real arithmetic.
+Instead the rules are defined in a standard called `IEEE-754`.
+
+Because summation in different order will give different answers, the compiler has no lease to reorder operations for us. This is in particular relevant for vectorization and parallel computation.
+
+Code may give different answers due to different execution order.
+"""
+
+# ╔═╡ cb4980f7-4285-437d-9dfd-1ee14aa10a02
+md"""
+#### 2046 floating pointer numbers that sum to (almost) anything
+
+Thanks to [Stefan Karpinski](https://discourse.julialang.org/t/array-ordering-and-naive-summation/1929)
+"""
 
 # ╔═╡ 7fab467c-9277-4a28-a854-121bbf279fa1
 md"""
@@ -154,8 +488,8 @@ When adding the values from left to right, all the powers of two after `floatmax
 md"""
 ### Fast-math
 
-- https://simonbyrne.github.io/notes/fastmath/
-- https://llvm.org/devmtg/2024-10/slides/techtalk/Kaylor-Towards-Useful-Fast-Math.pdf
+- [Simon Byrne notes on Fast-Math](https://simonbyrne.github.io/notes/fastmath/)
+- [Towards Useful Fast-Math](https://llvm.org/devmtg/2024-10/slides/techtalk/Kaylor-Towards-Useful-Fast-Math.pdf)
 """
 
 # ╔═╡ 4169bd7e-f88d-46a7-8ac9-a878b0535709
@@ -171,9 +505,6 @@ function foo()
 
 	return A
 end
-
-# ╔═╡ 03050d92-c1bf-4ff8-8695-daa52cbbf9fe
-foo()
 
 # ╔═╡ 88dfd9d8-5438-492e-afdf-cdc53d60fed8
 md"""
@@ -204,10 +535,121 @@ end
 md"""
 ### Precision of mathematical implementations
 - CPU vs GPU?
+- `muladd` can given different answer
+- expansion of precsion...
 """
 
-# ╔═╡ dfe25ec0-c310-4aa3-9c08-a68fe0034561
+# ╔═╡ a43157ba-c0e9-425b-b57f-3f07ce00a228
+md"""
+Extending precision, can change the answer, as an example in Swift, operations may be executed in extended precision and one might get different answers under transformations.
 
+Take the code below and run it in https://swiftwasm.org/
+
+```swift
+func foo(x: Float16) -> Float16 {
+  let s: Float16 = 1024
+  let t: Float16 = 3*s
+  let rx: Float16 = x-((x+t)-t)
+  return rx
+}
+
+print(foo(x: 0.5))
+// 0.0
+
+func bar(x: Float16) -> Float16 {
+  let s: Float16 = 1024
+  let t: Float16 = 3*s
+  let rx: Float16 = x-(bar_plus(a:x, b:t)-t)
+  return rx
+}
+
+@inline(never) func bar_plus(a: Float16, b: Float16) -> Float16 {
+  return a+b
+}
+
+print(bar(x: 0.5))
+// 0.5
+```
+"""
+
+# ╔═╡ c7587ded-eea0-4ddd-bbca-fa72156d56d2
+md"""
+Our goal in Julia for `Float16` is to emulate what hardware with real Float16 support would do. 
+"""
+
+# ╔═╡ 92f1ad42-c14a-4af1-83f4-4e1e8ea0bbb7
+md"""
+This behavior is important when we implement our own [trigonometic functions](https://github.com/JuliaLang/julia/blob/8987f7ac6d284cb512d336279a74b5414c635757/base/special/trig.jl#L764)
+
+If we look at `foo` we would think that `x-((x+t)-t)` should always return `0.0`,
+but we choose `t` specially for that to not be the case.
+"""
+
+# ╔═╡ 8b4aa283-c61c-4a62-9696-12d87c0b000d
+maxintfloat(Float16) / 2 == Float16(1024)
+
+# ╔═╡ dfe25ec0-c310-4aa3-9c08-a68fe0034561
+function foo(x::T) where T
+	s = maxintfloat(T) / 2
+	t = 3*s
+	rx = x-((x+t)-t)
+end
+
+# ╔═╡ 03050d92-c1bf-4ff8-8695-daa52cbbf9fe
+foo()
+
+# ╔═╡ 6ea401df-9a34-4aa3-a13a-0dde8b4161bf
+foo(Float32(0.5))
+
+# ╔═╡ e7d65af2-ef14-44ee-8c5d-685a916b159c
+foo(Float64(0.5))
+
+# ╔═╡ 93e0cd30-a97d-4ab0-86d8-a16789789748
+foo(Float16(0.5))
+
+# ╔═╡ db1751fe-a8e4-486a-b179-d78b7c6c53aa
+@noinline function bar_plus(a, b)
+	return a+b
+end
+
+# ╔═╡ 1c809e29-f38f-4a7b-b332-c0c7725177c6
+function bar(x::Float16)
+	s = Float16(1024)
+	t = 3*s
+	rx = x-((bar_plus(x,t))-t)
+end
+
+# ╔═╡ 9da43115-c6cc-4475-9b83-0dfc10815030
+bar(Float16(0.5))
+
+# ╔═╡ 271f8f08-b6df-46e0-8960-1e570e49249d
+md"""
+So what happens is that Swift (and Julia in olden times) internally expanded `Float16` operations to `Float32`
+"""
+
+# ╔═╡ bb16118d-7a44-473d-93a4-1d19d492b70e
+begin
+	extend(x::Float16) = Float32(x)
+	extend(x::Float32) = Float64(x)
+end
+
+# ╔═╡ 2043df93-77ff-4a94-b079-383dc6400ccb
+function foo_extended(x::T) where T
+	s = maxintfloat(T) / 2
+	t = extend(3*s) # extend precision
+	rx = T(x-((x+t)-t))
+end
+
+# ╔═╡ 22ccd87c-0ff5-4ce2-b807-485a95ce9a6b
+foo_extended(Float16(0.5))
+
+# ╔═╡ d1a8850c-de9d-4d1d-9fa3-d3b9863d035d
+foo_extended(Float32(0.5))
+
+# ╔═╡ 01cc47b1-a43f-4199-ac99-525292e5eaa8
+md"""
+This answer is seemingly "more" correct since it calculates our "real" understanding of x-((x+t)-t), but it is more useless since it does not accuratly implement floating-point semantics.
+"""
 
 # ╔═╡ 760e6987-0631-4fcb-8355-1d81b8067680
 md"""
@@ -303,9 +745,45 @@ end
 
 # ╔═╡ 115ca2cf-cc4f-4761-9646-7ead91ee7f5b
 md"""
-#### Stochastic rounding 🎲
+### Stochastic rounding 🎲
 
-https://giordano.github.io/talks/2024-06-20-julia-ipu-ornl/#b11731af-d8f3-4714-839d-1535f459a278
+Sometimes randomness can be quite useful!
+
+Real numbers constitue a continuous set $\mathbb{R}$, but finite precision numbers used in computers are a part of a discrete set $F \subset \mathbb{R}$.
+When computers do operations involving floating point numbers in $F$, the true result $x \in \mathbb{R}$ will be approximated by a number $\hat{x} \in F$, which is typically chosen deterministically to be the nearest number in $F$: this is called "nearest rounding".
+
+Stochastic rounding is an alternative rounding mode to classic deterministic rounding, which randomly rounds a number $x \in \mathbb{R}$ to either of the two nearest floating point numbers of the result $\lfloor x \rfloor$ (previous number in $F$) or $\lceil x \rceil$ (following number in $F$) with the following rule:
+
+```math
+\mathrm{round}(x) = \begin{cases}
+\lfloor x \rfloor & \text{with probability } P(x) \\[6pt]
+\lceil x \rceil   & \text{with probability } 1 - P(x)
+\end{cases}
+```
+
+Common choices are $P(x) = 1/2$ or, more interestingly,
+
+```math
+P(x) = \frac{x - \lfloor x \rfloor}{\lceil x \rceil - \lfloor x \rfloor}
+```
+
+In the following we'll always talk about the latter probability function $P(x)$.
+
+$(Resource("https://nickhigham.files.wordpress.com/2020/06/stoch_round_fig2.jpg"))
+(source: "[What Is Stochastic Rounding?](https://nhigham.com/2020/07/07/what-is-stochastic-rounding/)" by Nick Higham)
+
+Stochastic rounding is useful because the _average_ result of operations matches the expected mathematical result.
+In a statistical sense, it retains some of the information that is discarded by a deterministic rounding scheme, smoothing out numerical rounding errors due to limited precisions.
+This is particularly important when using low-precision floating point numbers like `Float16`.
+For contrast, deterministic rounding modes like nearest rounding introduce a bias, which is more severe as the precision of the numbers is lower.
+
+The IPU is one of the very few processors available with hardware support for stochastic rounding.
+
+Let's do an exercise on the CPU with classical nearest rounding.
+We define a function to do the naive sequential sum of a vector of numbers, because the `sum` function in Julia uses [pairwise summation](https://en.wikipedia.org/wiki/Pairwise_summation), which would have better accuracy.
+
+From [Mosè Giordano talk on using Julia on IPU](
+https://giordano.github.io/talks/2024-06-20-julia-ipu-ornl/#b11731af-d8f3-4714-839d-1535f459a278)
 """
 
 # ╔═╡ 7775bc29-19ca-49ea-88ec-5a22730319ce
@@ -324,7 +802,7 @@ eps(Float16(2048))
 naive_sum(x) ≈ x[1] * length(x)
 
 # ╔═╡ bfd10bb9-0565-463c-ac09-16acb747b6c1
-x_sr = Float16sr.(x)
+x_sr = Float16sr.(x);
 
 # ╔═╡ d642ea52-59d8-455e-a661-9516eed5581c
 naive_sum(x_sr)
@@ -359,12 +837,15 @@ end
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StochasticRounding = "3843c9a1-1f18-49ff-9d99-1b4c8a8e97ed"
 
 [compat]
-CairoMakie = "~0.13.4"
+CairoMakie = "~0.13.6"
+PlutoTeachingTools = "~0.3.1"
 PlutoUI = "~0.7.62"
 StochasticRounding = "~0.8.3"
 """
@@ -375,7 +856,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "8757a1af55c17f41dc1e56fd933829e6cadce171"
+project_hash = "6af027ac8fcf07c9d43e9074fc9314fcfba22804"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -498,9 +979,9 @@ version = "1.1.1"
 
 [[deps.CairoMakie]]
 deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
-git-tree-sha1 = "c1c90ea6bba91f769a8fc3ccda802e96620eb24c"
+git-tree-sha1 = "d116d9b54ff8a3b84b2ed0be32dff6304e9c7798"
 uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-version = "0.13.4"
+version = "0.13.6"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -517,6 +998,12 @@ weakdeps = ["SparseArrays"]
 
     [deps.ChainRulesCore.extensions]
     ChainRulesCoreSparseArraysExt = "SparseArrays"
+
+[[deps.CodeTracking]]
+deps = ["InteractiveUtils", "UUIDs"]
+git-tree-sha1 = "062c5e1a5bf6ada13db96a4ae4749a4c2234f521"
+uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
+version = "1.3.9"
 
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON"]
@@ -617,9 +1104,9 @@ version = "1.11.0"
 
 [[deps.Distributions]]
 deps = ["AliasTables", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "6d8b535fd38293bc54b88455465a1386f8ac1c3c"
+git-tree-sha1 = "3e6d038b77f22791b8e3472b7c633acea1ecac06"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.119"
+version = "0.25.120"
 
     [deps.Distributions.extensions]
     DistributionsChainRulesCoreExt = "ChainRulesCore"
@@ -671,9 +1158,9 @@ uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.6.5+0"
 
 [[deps.Extents]]
-git-tree-sha1 = "063512a13dbe9c40d999c439268539aa552d1ae6"
+git-tree-sha1 = "b309b36a9e02fe7be71270dd8c0fd873625332b4"
 uuid = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
-version = "0.1.5"
+version = "0.1.6"
 
 [[deps.FFMPEG_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
@@ -947,9 +1434,9 @@ weakdeps = ["Unitful"]
 
 [[deps.IntervalArithmetic]]
 deps = ["CRlibm", "MacroTools", "OpenBLASConsistentFPCSR_jll", "Random", "RoundingEmulator"]
-git-tree-sha1 = "4e1b4155f04ffa0acf3a0d6e3d651892604666f5"
+git-tree-sha1 = "694c52705f8b23dc5b39eeac629dc3059a168a40"
 uuid = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
-version = "0.22.34"
+version = "0.22.35"
 
     [deps.IntervalArithmetic.extensions]
     IntervalArithmeticDiffRulesExt = "DiffRules"
@@ -1033,6 +1520,12 @@ git-tree-sha1 = "eac1206917768cb54957c65a615460d87b455fc1"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.1.1+0"
 
+[[deps.JuliaInterpreter]]
+deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
+git-tree-sha1 = "6ac9e4acc417a5b534ace12690bc6973c25b862f"
+uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
+version = "0.10.3"
+
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
 git-tree-sha1 = "7d703202e65efa1369de1279c162b915e245eed1"
@@ -1067,6 +1560,22 @@ version = "2.10.3+0"
 git-tree-sha1 = "dda21b8cbd6a6c40d9d02a73230f9d70fed6918c"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.4.0"
+
+[[deps.Latexify]]
+deps = ["Format", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "OrderedCollections", "Requires"]
+git-tree-sha1 = "cd10d2cc78d34c0e2a3a36420ab607b611debfbb"
+uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
+version = "0.16.7"
+
+    [deps.Latexify.extensions]
+    DataFramesExt = "DataFrames"
+    SparseArraysExt = "SparseArrays"
+    SymEngineExt = "SymEngine"
+
+    [deps.Latexify.weakdeps]
+    DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+    SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -1168,6 +1677,12 @@ version = "0.3.29"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
 
+[[deps.LoweredCodeUtils]]
+deps = ["JuliaInterpreter"]
+git-tree-sha1 = "4ef1c538614e3ec30cb6383b9eb0326a5c3a9763"
+uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
+version = "3.3.0"
+
 [[deps.MIMEs]]
 git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
 uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
@@ -1186,15 +1701,15 @@ version = "0.5.16"
 
 [[deps.Makie]]
 deps = ["Animations", "Base64", "CRC32c", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "Contour", "Dates", "DelaunayTriangulation", "Distributions", "DocStringExtensions", "Downloads", "FFMPEG_jll", "FileIO", "FilePaths", "FixedPointNumbers", "Format", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageBase", "ImageIO", "InteractiveUtils", "Interpolations", "IntervalSets", "InverseFunctions", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MacroTools", "MakieCore", "Markdown", "MathTeXEngine", "Observables", "OffsetArrays", "PNGFiles", "Packing", "PlotUtils", "PolygonOps", "PrecompileTools", "Printf", "REPL", "Random", "RelocatableFolders", "Scratch", "ShaderAbstractions", "Showoff", "SignedDistanceFields", "SparseArrays", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "TriplotBase", "UnicodeFun", "Unitful"]
-git-tree-sha1 = "0318d174aa9ec593ddf6dc340b434657a8f1e068"
+git-tree-sha1 = "f79e47c8341376c283d3ff3b6eaeee2f73ce69a1"
 uuid = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-version = "0.22.4"
+version = "0.22.6"
 
 [[deps.MakieCore]]
 deps = ["ColorTypes", "GeometryBasics", "IntervalSets", "Observables"]
-git-tree-sha1 = "903ef1d9d326ebc4a9e6cf24f22194d8da022b50"
+git-tree-sha1 = "733d910c70805e7114c82508bae99c6cdf004466"
 uuid = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
-version = "0.9.2"
+version = "0.9.3"
 
 [[deps.MappedArrays]]
 git-tree-sha1 = "2dab0221fe2b0f2cb6754eaa743cc266339f527e"
@@ -1331,9 +1846,9 @@ version = "10.42.0+1"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "0e1340b5d98971513bddaa6bbed470670cebbbfe"
+git-tree-sha1 = "f07c06228a1c670ae4c87d1276b92c7c597fdda0"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.34"
+version = "0.11.35"
 
 [[deps.PNGFiles]]
 deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
@@ -1391,6 +1906,24 @@ deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random"
 git-tree-sha1 = "3ca9a356cd2e113c420f2c13bea19f8d3fb1cb18"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.3"
+
+[[deps.PlutoHooks]]
+deps = ["InteractiveUtils", "Markdown", "UUIDs"]
+git-tree-sha1 = "072cdf20c9b0507fdd977d7d246d90030609674b"
+uuid = "0ff47ea0-7a50-410d-8455-4348d5de0774"
+version = "0.0.5"
+
+[[deps.PlutoLinks]]
+deps = ["FileWatching", "InteractiveUtils", "Markdown", "PlutoHooks", "Revise", "UUIDs"]
+git-tree-sha1 = "8f5fa7056e6dcfb23ac5211de38e6c03f6367794"
+uuid = "0ff47ea0-7a50-410d-8455-4348d5de0420"
+version = "0.1.6"
+
+[[deps.PlutoTeachingTools]]
+deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoLinks", "PlutoUI"]
+git-tree-sha1 = "8252b5de1f81dc103eb0293523ddf917695adea1"
+uuid = "661c6b06-c737-4d37-b85c-46df65de6f69"
+version = "0.3.1"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
@@ -1526,6 +2059,16 @@ deps = ["UUIDs"]
 git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.1"
+
+[[deps.Revise]]
+deps = ["CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
+git-tree-sha1 = "cedc9f9013f7beabd8a9c6d2e22c0ca7c5c2a8ed"
+uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
+version = "3.7.6"
+weakdeps = ["Distributed"]
+
+    [deps.Revise.extensions]
+    DistributedExt = "Distributed"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -1807,9 +2350,9 @@ version = "0.4.1"
 
 [[deps.Unitful]]
 deps = ["Dates", "LinearAlgebra", "Random"]
-git-tree-sha1 = "c0667a8e676c53d390a09dc6870b3d8d6650e2bf"
+git-tree-sha1 = "d62610ec45e4efeabf7032d67de2ffdea8344bed"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
-version = "1.22.0"
+version = "1.22.1"
 weakdeps = ["ConstructionBase", "InverseFunctions"]
 
     [deps.Unitful.extensions]
@@ -1924,9 +2467,9 @@ version = "2.0.3+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "068dfe202b0a05b8332f1e8e6b4080684b9c7700"
+git-tree-sha1 = "002748401f7b520273e2b506f61cab95d4701ccf"
 uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
-version = "1.6.47+0"
+version = "1.6.48+0"
 
 [[deps.libsixel_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "libpng_jll"]
@@ -1976,23 +2519,47 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─5f6deede-7e22-4ebf-ae1a-14d584595f17
-# ╟─5c4c21e4-1a90-11f0-2f05-47d877772576
-# ╟─aa46fef4-0c92-4947-ac64-f06ee31cb43f
+# ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
+# ╠═4a74b127-85c2-40a3-a759-8adedd6a032e
+# ╟─03335a53-18de-47f8-87b0-d0c742e52f72
 # ╟─0be73b29-7780-4be0-bf07-9b62c99fc4b4
+# ╟─b9ab169a-451f-4d45-8e98-2965e4284153
+# ╟─87b6ebd8-2c07-4750-aeba-8ce237403689
+# ╠═7477c827-d8e3-4e73-9946-e4aab74cb737
+# ╠═1fa40423-27a7-4173-aa3b-ba3ec680e10d
+# ╠═a0888c75-8c85-4535-a27e-bc2e957c9ec0
+# ╟─947827d8-ee3f-49f2-8d48-663dd10bb747
+# ╠═2c796eb8-3700-4cd1-a7f6-423ebc609fa9
 # ╟─e70cbf6f-488f-4d5c-a097-7e36bd445f67
 # ╟─5500f36a-57c6-4efb-b20e-4c766e20d2fe
 # ╟─3e29e55b-fa8c-40fd-b5c3-8d804db5967d
+# ╟─7b9cfa72-2c51-4dc6-8819-fe7f0eac76bd
+# ╟─ae4bc03e-fd14-4048-a7c7-19a7b63467fa
+# ╟─6529f938-637b-4952-85f8-218870992395
 # ╟─48862074-afaa-4a7a-babe-a0fbc6965620
-# ╟─4a8e696e-f060-40d8-a8d6-5dca99a5e0b5
-# ╟─73339498-d236-42ce-ad8d-58918b9fe248
-# ╠═0105ef53-817b-4e29-bb96-dcc890483b27
+# ╟─4ff958ef-f27d-4267-ad61-a17d348f3127
+# ╠═4a8e696e-f060-40d8-a8d6-5dca99a5e0b5
+# ╟─7fb243ae-0fe1-4829-a49d-df28c2b1bb60
+# ╟─23cadca0-de88-43d4-8838-b05ac14cafb5
 # ╟─dcfd1a1a-e9cf-4216-ad66-48775dfe3d90
-# ╠═18cfbe65-8895-4c89-a90a-c9620efd5ab2
-# ╠═e865a795-5704-49ec-8548-195399cbae20
-# ╟─cb4980f7-4285-437d-9dfd-1ee14aa10a02
+# ╟─e2663784-2c02-419c-9965-2989631fd307
+# ╟─18cfbe65-8895-4c89-a90a-c9620efd5ab2
+# ╟─e07a7759-4316-45e2-a7ac-11cba9a260d7
+# ╠═d8bf66d2-bfc7-40fa-a865-ac05de77e05a
+# ╠═e13709c2-47f9-4f3c-9e96-eadf6f7bb20e
+# ╠═564f0d8d-41da-4a41-88a8-8bb5e5484902
+# ╠═a6397c7f-1afd-4a55-ac16-337c54707b36
+# ╠═10918c07-75de-4dae-938a-9c8faa2f5617
+# ╠═b1ea870f-0cdb-4463-8c4e-8cd2704a7cd7
+# ╠═072ae92f-ec9f-4398-be1b-6e3d59bedfbb
+# ╠═d27ca184-5884-454b-ba64-3f1689e05db9
+# ╠═6177d937-e936-4ce3-a1b3-414c59eb84f2
+# ╟─e865a795-5704-49ec-8548-195399cbae20
 # ╠═017ad668-0cb6-4e12-9672-9f917a902939
 # ╠═2ab18473-2cbc-4508-8e02-3346b3f10512
+# ╟─1aa2c9f5-bb89-4289-8459-5632bbcd40b7
+# ╟─692aaf7a-6697-4e1e-83f1-64ee2443850f
+# ╟─cb4980f7-4285-437d-9dfd-1ee14aa10a02
 # ╟─7fab467c-9277-4a28-a854-121bbf279fa1
 # ╠═76149ceb-e19b-415e-8c3e-8e752a0b33f7
 # ╠═beb3ac00-d5e6-4ba5-b130-34db904c0d06
@@ -2008,12 +2575,28 @@ version = "3.6.0+0"
 # ╟─88dfd9d8-5438-492e-afdf-cdc53d60fed8
 # ╠═e9ccfcea-c13b-4525-bb99-72ed99c360fb
 # ╠═ce5c465d-0de4-4980-a138-08d1617879bb
-# ╠═c158b69f-beb9-4aef-bc48-e6cdbb9a15a9
+# ╟─c158b69f-beb9-4aef-bc48-e6cdbb9a15a9
+# ╟─a43157ba-c0e9-425b-b57f-3f07ce00a228
+# ╟─c7587ded-eea0-4ddd-bbca-fa72156d56d2
+# ╟─92f1ad42-c14a-4af1-83f4-4e1e8ea0bbb7
+# ╠═8b4aa283-c61c-4a62-9696-12d87c0b000d
 # ╠═dfe25ec0-c310-4aa3-9c08-a68fe0034561
+# ╠═6ea401df-9a34-4aa3-a13a-0dde8b4161bf
+# ╠═e7d65af2-ef14-44ee-8c5d-685a916b159c
+# ╠═93e0cd30-a97d-4ab0-86d8-a16789789748
+# ╠═1c809e29-f38f-4a7b-b332-c0c7725177c6
+# ╠═db1751fe-a8e4-486a-b179-d78b7c6c53aa
+# ╠═9da43115-c6cc-4475-9b83-0dfc10815030
+# ╠═271f8f08-b6df-46e0-8960-1e570e49249d
+# ╠═bb16118d-7a44-473d-93a4-1d19d492b70e
+# ╠═2043df93-77ff-4a94-b079-383dc6400ccb
+# ╠═22ccd87c-0ff5-4ce2-b807-485a95ce9a6b
+# ╠═d1a8850c-de9d-4d1d-9fa3-d3b9863d035d
+# ╟─01cc47b1-a43f-4199-ac99-525292e5eaa8
 # ╟─760e6987-0631-4fcb-8355-1d81b8067680
 # ╟─49e158a5-43fb-44e3-a0fe-ff8dcecc6cab
 # ╠═4a7d7c1d-2586-4be3-8da1-747a2ab52e74
-# ╠═4ce03161-6375-4ee3-91ce-6d50f5f8fefd
+# ╟─4ce03161-6375-4ee3-91ce-6d50f5f8fefd
 # ╟─eae704b8-97bf-4b82-a9dc-ec0453cdd37b
 # ╟─5a783949-59a5-4cbf-8563-dde81f3f2d80
 # ╟─2762ac92-7ed2-4ad1-9ac0-5894e218404f
@@ -2021,7 +2604,7 @@ version = "3.6.0+0"
 # ╟─ed224fe1-4b82-4b20-a5ba-6b0021d14628
 # ╠═1f4619c4-5bfe-47f3-a721-6f37b3a2fc26
 # ╠═cfa19d3a-1e4d-420e-8760-b0e1019d7516
-# ╠═115ca2cf-cc4f-4761-9646-7ead91ee7f5b
+# ╟─115ca2cf-cc4f-4761-9646-7ead91ee7f5b
 # ╠═7775bc29-19ca-49ea-88ec-5a22730319ce
 # ╠═da33274b-1daa-45a4-a7e4-057cff7f922d
 # ╠═f1dbf7bc-61b2-4854-9bb8-fbd7eed4cdc8
@@ -2036,7 +2619,6 @@ version = "3.6.0+0"
 # ╠═5a5d0141-0987-43cd-91cf-8e92ffea2481
 # ╠═f5f2295a-776c-45bc-85df-8d828b29c02a
 # ╠═f51401b2-c0f8-44b7-8db7-b612455c87ca
-# ╠═08239047-9498-4099-801a-373366cae9ba
 # ╟─c7b384e4-6179-4d21-be07-ea12851a1aaf
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
