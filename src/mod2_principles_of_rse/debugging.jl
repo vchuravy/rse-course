@@ -6,7 +6,7 @@
 #> section = "3"
 #> order = "7"
 #> title = "Debugging"
-#> date = "2025-05-27"
+#> date = "2025-05-28"
 #> tags = ["module2", "track_principles"]
 #> layout = "layout.jlhtml"
 #> 
