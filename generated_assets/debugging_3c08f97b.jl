@@ -57,7 +57,8 @@ md"""
   - One change at a time!
 - Reduce, reduce, reduce!
   - The smaller the section of code, the easier it is to have a mental model of what is happeneing
-- Create a git-repository 
+- Create a git-repository \
+  Goal: Keep track of changes we have so that we don't lose a bug.
 - Is it "randomly" happening?
 """
 
@@ -78,6 +79,8 @@ Remember last weeks lecture on reproducibility! You might need to ask a friend o
 # ╔═╡ c73a1c40-6426-4ced-a70b-909e54be4ced
 md"""
 ### Common causes
+
+- [Noteworthy Differences](https://docs.julialang.org/en/v1/manual/noteworthy-differences/)
 
 ##### Undefined memory
 
@@ -105,26 +108,203 @@ this can "poison" your calculations
 """
 
 # ╔═╡ a2562dc3-ace7-47f4-a121-f83b500e5af0
-TODO("More common causes?")
+md"""
+## Aliasing of memory and variable scope
+
+```julia
+a = [0, 1, 0]
+b = a
+b[2] = 0
+??? a
+```
+
+```julia
+function f(a)
+	a = 3
+end
+
+a = 2
+f(a)
+?a
+```
+"""
 
 # ╔═╡ 3cb53905-b046-45b9-936d-38d1bf5f759a
 md"""
 ### "Printf" debugging
 
-- Julia's logging infrastructure
-- Revise
+When we write code we **should** check our assumptions and raise appropriate errors!
 
 """
+
+# ╔═╡ 0aa93f88-9106-403b-b478-d291f14425bb
+1÷0
+
+# ╔═╡ cae9f123-09e5-4fd2-90a0-e59635eb2cec
+1/0
+
+# ╔═╡ a2716f77-80f3-4e05-a1f4-0b4f6a020277
+md"""
+You can write your own exception types and use `throw` to raise them.
+"""
+
+# ╔═╡ 41764495-bbcf-4226-86e6-cfb67a53a090
+function safe_div(x, y)
+	if y == zero(y)
+		throw(DivideError())
+	end
+	x/y
+end
+
+# ╔═╡ 5068cf56-f781-4ae9-bc73-e404d6202467
+safe_div(1, 0)
+
+# ╔═╡ fa117a9f-2dc7-4c7d-8d96-d09390cd7c84
+md"""
+Or you can use `error` to raise a generic `ErrorException`.
+"""
+
+# ╔═╡ 9ec42638-5388-497f-b4b8-9831f04db8c4
+error("Should have thought about this")
+
+# ╔═╡ f56dbcde-59d8-4cba-8adb-67db04dbd3bf
+md"""
+Or `@assert` to check conditions.
+"""
+
+# ╔═╡ 2758d3b8-580f-47b0-bf05-7944ce54883c
+@assert 1 == 0
+
+# ╔═╡ b49f1524-9423-4678-8d97-7764f15c662f
+md"""
+
+#### Revise
+[Revise](https://github.com/timholy/Revise.jl) is a core component of my development workflow. It watches source files and packages for changes and applies them to my running Julia session!
+
+!!! note
+    If you use `VSCode` it is automatically used when you use the inbuilt Julia REPL.
+
+!!! note
+    If the script you are working on is split across multiple files, you need to use `includet` for Revise to track included files.
+"""
+
+# ╔═╡ c8f97f8b-f075-4dfb-a463-60d8d41513a0
+md"""
+#### Julia's logging infrastructure
+
+Julia has a rich [logging infrastructure](https://docs.julialang.org/en/v1/stdlib/Logging/#man-logging) with different levels:
+- `@debug` Hidden by default, can be turned on by setting the environment variable `JULIA_DEBUG="Package"`
+- `@info` General information, great for passing structured information to the user.
+- `@warn` Something is wrong, but the program is likely continuing
+- `@error` Something is really wrong
+
+!!! note
+    `@error` does not imply `error()` it in itself is not an exception. 
+
+You can use the Logging infrastructure to redirect and manipulate structured log messages.
+"""
+
+# ╔═╡ 93a99521-7756-443e-8bda-49d8a77c262f
+@info "Wow so useful!" lecture=true
+
+# ╔═╡ 1349f029-3266-40f8-8aa4-da94fc844f93
+md"""
+You can used the reserved field `exception` to recover from errors and pass along the backtrace!
+"""
+
+# ╔═╡ 28dfa3ec-3a11-4134-b01a-bbec164df4ae
+try
+	error("Ye who enters, abandons all hope!")
+catch err
+	@info "Caught error" exception=err
+end
+
+# ╔═╡ df4f823a-da8b-444d-b04c-507d5c1bce4f
+try
+	error("Ye who enters, abandons all hope!")
+catch err
+	bt = catch_backtrace()
+	@info "Caught error" exception=(err, bt)
+end
+
+# ╔═╡ 951590c4-88df-446b-b98f-e38de4bf5f31
+md"""
+This can be useful if you want to figure out in which context a log message was fired!
+"""
+
+# ╔═╡ 4ec0864a-480c-4b5b-939c-57672bc1608b
+function fib(x)
+	if x == 0 || x == 1
+		@info "Basecase" exception=(ErrorException(""), backtrace())
+		return x
+	end
+	fib(x-1)+fib(x-2)
+end
+
+# ╔═╡ 75d871c4-2999-4b10-934f-b613410e9083
+fib(1)
+
+# ╔═╡ 3a78addc-74c9-4ed3-a78e-71a68534e3ce
+fib(3)
 
 # ╔═╡ 0866e2b8-5425-4cb6-94dc-b99421981a14
 md"""
 ### Callstacks and backtraces!
 
-Profilers and debuggers 
+Profilers and debuggers think in backtraces! When we execute a program, each function needs a little bit of space on the stack.
+
+!!! note
+    Heap and Stack are regions in memory, the `heap` contains all **allocated** data and the stack contains the local variables & co of the currently executing functions.
+
+given the execution of `fib(3)`
+
+```
+fib(3)
+	fib(2)
+       fib(1)
+       fib(0)
+       +
+    fib(1)
+    +
+```
+
+Each function may execute more functions, but we only execute **one** function at a time. So we visit the call-graph in order and thus linearize the execution.
+
+```
+fib(3)
+```
+
+```
+fib(3)
+fib(2)
+```
+
+```
+fib(3)
+fib(2)
+fib(1)
+```
+
+```
+fib(3)
+fib(2)
+fib(0)
+```
+
+```
+fib(3)
+fib(1)
+```
 """
 
-# ╔═╡ 07b4ff4a-9291-4b5b-b0de-a9964d1807d8
-TODO("Explain callstacks and backtraces")
+# ╔═╡ 9237038c-0114-4d32-ab09-c02890e49b1d
+md"""
+When we collect a profile, or receive an exception, or are in a debugger at a breakpoint, we almost always will collect the current backtrace/stacktrace.
+
+Letting us know "how" did we get here.
+
+Information that is not in a backtrace is as an example loops!
+"""
 
 # ╔═╡ 9fa3636f-fabb-40d1-8671-658a5ac9b567
 md"""
@@ -167,7 +347,7 @@ md"""
 
 Since Debugger.jl needs to interpret all code to ensure breakpoints are triggered it can be slow on a very large code to reach the region of interest!
 
-```
+```julia
 function f(x)
 	out = []
 	for i in x
@@ -183,19 +363,16 @@ end
 
 """
 
-# ╔═╡ 5c169243-c228-42c0-bdc1-9015fb68358c
-TODO("example + recording with Infilrator.jl")
-
 # ╔═╡ f486d4f3-b819-4154-98f6-c7790aaaf027
 md"""
 ### VS-Code
 
-- https://www.julia-vscode.org/docs/dev/userguide/debugging/
+Debugger.jl is integrated into [VS-Code]( 
+https://www.julia-vscode.org/docs/dev/userguide/debugging/)
+
+it has similar caveats as before, but you may prefer it over the pure text interface.
 
 """
-
-# ╔═╡ 0b250469-db69-4bc9-8db7-a644f99f5a4a
-TODO("Some screenshots")
 
 # ╔═╡ aa5c57a6-ac91-4a6d-8839-16aa19d40ce3
 md"""
@@ -216,15 +393,66 @@ They are very powerful but they require are deeper understanding on how programs
 ##### Tricks
 - `ENABLE_GDBLISTENER=1 julia -g2` (and potentially a debug build of Julia)
 - `@ccall jl_breakpoint(val::Any)::Cvoid`
+- `jl_(...)`
 - Breakpoints
 - Watchpoitns
-
 - Execute commands on breakpoint
+- https://docs.julialang.org/en/v1/devdocs/debuggingtips/
 
+```julia
+function example()
+	r = Ref(0)
+	@ccall jl_breakpoint(r::Any)::Cvoid
+	for i in 1:10
+		r[] += i
+    end
+	return r
+end
+```
 """
 
-# ╔═╡ 0aeca8f4-2b33-42a8-b020-a31e7752fb29
-TODO("example + recording with gdb")
+# ╔═╡ 5a6c8369-5ad0-49b4-8802-1ba19e558980
+md"""
+```
+ENABLE_GDBLISTENER=1 gdb --args julia -g2
+(gdb) break jl_breakpoint
+(gdb) run
+julia> function example()
+               r = Ref(0)
+               @ccall jl_breakpoint(r::Any)::Cvoid
+               for i in 1:10
+                       r[] += i
+           end
+               return r
+       end
+example (generic function with 1 method)
+
+julia> example()
+Thread 1 "julia" hit Breakpoint 1, jl_breakpoint (v=0x7fffeec5c6a0)
+    at /cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/rtutils.c:1475
+warning: 1475	/cache/build/tester-amdci5-12/julialang/julia-release-1-dot-11/src/rtutils.c: No such file or directory
+(gdb) p jl_(v)
+Base.RefValue{Int64}(x=0)
+
+(gdb) bt 3
+
+(gdb) p *(int64_t*)v
+
+(gdb) p/x v
+$3 = 0x7fffeec5c6a0
+
+(gdb) watch *(int64_t*)0x7fffeec5c6a0
+Hardware watchpoint 2: *(int64_t*)0x7fffeec5c6a0
+
+(gdb) continue
+
+Thread 1 "julia" hit Hardware watchpoint 2: *(int64_t*)0x7fffeec5c6a0
+
+Old value = 0
+New value = 55
+0x00007fffebcfc518 in julia_example_43 () at REPL[1]:5
+```
+"""
 
 # ╔═╡ 33bd3052-65c5-461a-a255-6b436ab3f1f4
 md"""
@@ -312,26 +540,6 @@ with_terminal() do
   @code_warntype f(Interval(0.5, 0.6), rand(4))
 end
 
-# ╔═╡ 83375508-53cf-44d0-aec7-800739de2d76
-md"""
-### Creduce
-
-- https://github.com/maleadt/creduce_julia
-
-"""
-
-# ╔═╡ aba93713-1611-44f3-8454-eda81fcb4f91
-md"""
-### Santizers / Valgrind
-For completions sake...
-"""
-
-# ╔═╡ 8f7a38e9-6c39-447c-b0c5-5dc86ad3c9f0
-cast"""
-    using Pkg
-    Pkg.status()
-"""0.25
-
 # ╔═╡ 663d858f-7d9a-49b9-a527-02710b7688dd
 begin 
 	function asciicinema(src; speed=1.0)
@@ -361,7 +569,13 @@ end
 end
 
 # ╔═╡ a0ec1ed7-2041-4b9e-9f42-6b9411a35eed
-asciicinema(RobustLocalResource("https://vchuravy.dev/rse-course/mod2_principles_of_rse/recordings/debugger.cast", "recordings/debugger.cast").src; speed=2.0)
+asciicinema(LocalResource("recordings/debugger.cast").src; speed=2.0)
+
+# ╔═╡ 5c169243-c228-42c0-bdc1-9015fb68358c
+asciicinema(LocalResource("recordings/infiltrator.cast").src; speed=2.0)
+
+# ╔═╡ 0bd9e7cd-9edc-4f2c-ba91-4d81078fb67b
+asciicinema(LocalResource("recordings/gdb.cast").src; speed=1.5)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2076,25 +2290,44 @@ version = "3.6.0+0"
 # ╠═bc354629-dd2a-4b5a-8e9c-378dcc357575
 # ╠═9182a8ea-7b06-4e4f-b0a3-35aa4cbfa456
 # ╟─0be73b29-7780-4be0-bf07-9b62c99fc4b4
-# ╟─1109474f-1cf7-4293-b952-d80d15273de5
+# ╠═1109474f-1cf7-4293-b952-d80d15273de5
 # ╟─d5e479ec-7234-415b-845d-07f29f68eeaf
 # ╟─c73a1c40-6426-4ced-a70b-909e54be4ced
 # ╠═ef93ae34-fda8-488e-945b-6a3120de93c1
 # ╠═8984c5c1-11a4-40c0-986d-2ed7db543098
 # ╟─21185af9-6e23-4881-ba90-0fdd7af16471
-# ╠═a2562dc3-ace7-47f4-a121-f83b500e5af0
-# ╠═3cb53905-b046-45b9-936d-38d1bf5f759a
-# ╠═0866e2b8-5425-4cb6-94dc-b99421981a14
-# ╠═07b4ff4a-9291-4b5b-b0de-a9964d1807d8
+# ╟─a2562dc3-ace7-47f4-a121-f83b500e5af0
+# ╟─3cb53905-b046-45b9-936d-38d1bf5f759a
+# ╠═0aa93f88-9106-403b-b478-d291f14425bb
+# ╠═cae9f123-09e5-4fd2-90a0-e59635eb2cec
+# ╟─a2716f77-80f3-4e05-a1f4-0b4f6a020277
+# ╠═41764495-bbcf-4226-86e6-cfb67a53a090
+# ╠═5068cf56-f781-4ae9-bc73-e404d6202467
+# ╟─fa117a9f-2dc7-4c7d-8d96-d09390cd7c84
+# ╠═9ec42638-5388-497f-b4b8-9831f04db8c4
+# ╟─f56dbcde-59d8-4cba-8adb-67db04dbd3bf
+# ╠═2758d3b8-580f-47b0-bf05-7944ce54883c
+# ╠═b49f1524-9423-4678-8d97-7764f15c662f
+# ╠═c8f97f8b-f075-4dfb-a463-60d8d41513a0
+# ╠═93a99521-7756-443e-8bda-49d8a77c262f
+# ╟─1349f029-3266-40f8-8aa4-da94fc844f93
+# ╠═28dfa3ec-3a11-4134-b01a-bbec164df4ae
+# ╠═df4f823a-da8b-444d-b04c-507d5c1bce4f
+# ╟─951590c4-88df-446b-b98f-e38de4bf5f31
+# ╠═4ec0864a-480c-4b5b-939c-57672bc1608b
+# ╠═75d871c4-2999-4b10-934f-b613410e9083
+# ╠═3a78addc-74c9-4ed3-a78e-71a68534e3ce
+# ╟─0866e2b8-5425-4cb6-94dc-b99421981a14
+# ╟─9237038c-0114-4d32-ab09-c02890e49b1d
 # ╟─9fa3636f-fabb-40d1-8671-658a5ac9b567
 # ╟─87f77c8a-bdab-4616-8518-04dd4ee59881
-# ╟─a0ec1ed7-2041-4b9e-9f42-6b9411a35eed
+# ╠═a0ec1ed7-2041-4b9e-9f42-6b9411a35eed
 # ╟─d9119daf-cd85-4000-ac82-05616efe75f5
-# ╠═5c169243-c228-42c0-bdc1-9015fb68358c
-# ╠═f486d4f3-b819-4154-98f6-c7790aaaf027
-# ╠═0b250469-db69-4bc9-8db7-a644f99f5a4a
-# ╠═aa5c57a6-ac91-4a6d-8839-16aa19d40ce3
-# ╠═0aeca8f4-2b33-42a8-b020-a31e7752fb29
+# ╟─5c169243-c228-42c0-bdc1-9015fb68358c
+# ╟─f486d4f3-b819-4154-98f6-c7790aaaf027
+# ╟─aa5c57a6-ac91-4a6d-8839-16aa19d40ce3
+# ╟─0bd9e7cd-9edc-4f2c-ba91-4d81078fb67b
+# ╟─5a6c8369-5ad0-49b4-8802-1ba19e558980
 # ╟─33bd3052-65c5-461a-a255-6b436ab3f1f4
 # ╟─e46a6e89-f595-4b14-a4e7-353624a7ee51
 # ╟─bc77f366-2276-4079-a41b-ddf240331bf2
@@ -2102,9 +2335,6 @@ version = "3.6.0+0"
 # ╠═0095cc89-8c61-4c89-bd4e-adac2ef5c77e
 # ╠═7aa7385e-fa24-480c-a38c-d4dae0200305
 # ╠═630955cb-8fe9-4042-b573-b6b64c4c91f3
-# ╠═83375508-53cf-44d0-aec7-800739de2d76
-# ╠═aba93713-1611-44f3-8454-eda81fcb4f91
-# ╠═8f7a38e9-6c39-447c-b0c5-5dc86ad3c9f0
-# ╠═663d858f-7d9a-49b9-a527-02710b7688dd
+# ╟─663d858f-7d9a-49b9-a527-02710b7688dd
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
