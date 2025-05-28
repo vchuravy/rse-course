@@ -60,6 +60,10 @@ md"""
 - Create a git-repository \
   Goal: Keep track of changes we have so that we don't lose a bug.
 - Is it "randomly" happening?
+
+**What do we do after we fixed a bug?**
+- Turn our MWE into a test! 
+- The bug likely happened due to some confusion of assumptions! Does this pattern repeat elsewhere?
 """
 
 # ╔═╡ d5e479ec-7234-415b-845d-07f29f68eeaf
@@ -2290,7 +2294,7 @@ version = "3.6.0+0"
 # ╠═bc354629-dd2a-4b5a-8e9c-378dcc357575
 # ╠═9182a8ea-7b06-4e4f-b0a3-35aa4cbfa456
 # ╟─0be73b29-7780-4be0-bf07-9b62c99fc4b4
-# ╠═1109474f-1cf7-4293-b952-d80d15273de5
+# ╟─1109474f-1cf7-4293-b952-d80d15273de5
 # ╟─d5e479ec-7234-415b-845d-07f29f68eeaf
 # ╟─c73a1c40-6426-4ced-a70b-909e54be4ced
 # ╠═ef93ae34-fda8-488e-945b-6a3120de93c1
