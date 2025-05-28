@@ -13,7 +13,7 @@
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
 #>     image = "https://avatars.githubusercontent.com/u/145258?v=4"
-#>     url = "https://vchuravy.dev
+#>     url = "https://vchuravy.dev"
 
 using Markdown
 using InteractiveUtils
@@ -23,6 +23,11 @@ using PlutoTeachingTools
 
 # ╔═╡ 4102ceaf-db99-4ae0-a026-1d4488e43d1f
 import ForwardDiff
+
+# ╔═╡ b95b424b-0c7b-4c82-b8d0-48610d6865d6
+md"""
+# Exercise: Debugging directional derivatives
+"""
 
 # ╔═╡ 3dc9b338-3b9e-11f0-3f74-d92fbbc6004c
 function jvp(F, u, v, ϵ = sqrt(eps()))
@@ -44,9 +49,6 @@ end
 # ╔═╡ e0adc011-382f-428a-8dc8-1841de97ebec
 F1(x) = [x[1]^4 - 3; exp(x[2]) - 2]
 
-# ╔═╡ 00227690-e4ff-4e7a-bd5d-b8e08947c659
-F2(x) = [x[1]^4 - 3; exp(x[2]) - 2; log(x[1]) - x[2]^2]
-
 # ╔═╡ d0842474-69d9-4a41-b33b-ef235be025ab
 jacobian(F1, [1.0, 2.0])
 
@@ -64,6 +66,9 @@ let
 		keep_working()
 	end
 end
+
+# ╔═╡ 00227690-e4ff-4e7a-bd5d-b8e08947c659
+F2(x) = [x[1]^4 - 3; exp(x[2]) - 2; log(x[1]) - x[2]^2]
 
 # ╔═╡ dc76859a-9cb6-441f-b208-55e20f3bfa43
 jacobian(F2, [1.0, 2.0])
@@ -92,6 +97,107 @@ let
 			keep_working()
 		end
 	end
+end
+
+# ╔═╡ c2a4ab20-4ec3-48ab-b7ab-d476f80e7e59
+md"""
+# Exercise: Linked-List
+"""
+
+# ╔═╡ 2fce6d2c-5bf1-4d97-91a8-e4c0ce4b9220
+mutable struct LinkedList{T}
+	const value::T
+	next::Union{Nothing, LinkedList{T}}
+	LinkedList(value::T) where T = new{T}(value, nothing)
+end
+
+# ╔═╡ 3618e283-73d0-4567-97c6-1eaad9749d32
+function collect(ll::LinkedList)
+	values = [ll.value]
+	while ll.next !== nothing
+		push!(values, ll.next.value)
+	end
+	values
+end
+
+# ╔═╡ 60ef9516-c98d-48d3-a5de-2ff0739ea488
+ll = LinkedList(1.0)
+
+# ╔═╡ 558e6ce3-b44d-4d72-8cd4-875119366aab
+collect(ll)
+
+# ╔═╡ 3621e247-a3bc-42fa-b20a-dcaca71bbf42
+md"""
+Let's write a function that appends values!
+"""
+
+# ╔═╡ 9f5483ce-dbd0-42bf-876c-73d1e43fd682
+function append!(ll::LinkedList, value)
+	# Find tail
+	while ll.next !== nothing
+		ll = ll.next
+	end
+	ll.next = LinkedList(value)
+end
+
+# ╔═╡ 4214ceed-9dce-49f1-92d7-408239217117
+let
+	ll = LinkedList(1.0)
+	append!(ll, 2.0)
+
+	# TODO: collect(ll) hangs!
+	ll
+end
+
+# ╔═╡ 7f5f0cc9-464e-44c0-91a0-70733f2865a2
+"""
+    insert!(ll, after, value)
+
+Insert a value after another
+"""
+function insert!(ll::LinkedList, after, value)
+	while ll !== nothing
+		if ll.value == after
+			ll.next = LinkedList(value)
+			break
+		else
+			ll = ll.next
+		end
+	end	
+end
+
+# ╔═╡ 0b050f7e-929c-4cbd-9c66-084bb0d698f9
+function delete!(ll::LinkedList, value)
+	while ll !== nothing
+		if ll.value == value
+			ll.next = nothing
+			break
+		else
+			ll = ll.next
+		end
+	end	
+end
+
+# ╔═╡ 2e59c299-8bd2-4a4f-94b0-add48528dfdc
+let
+	ll = LinkedList(1.0)
+	append!(ll, 3.0)
+	insert!(ll, 1.0, 2.0)
+
+	# OOPS where did 3.0 go?
+	ll
+end
+
+# ╔═╡ 61c7a7d7-86b8-46dc-a17a-fd4d5a7e2466
+let
+	ll = LinkedList(1.0)
+	append!(ll, 2.0)
+	append!(ll, 3.0)
+
+	delete!(ll, 2.0)
+
+	# OOPS where did 3.0 go, and why is 2.0 still here?
+	ll
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -586,6 +692,7 @@ version = "17.4.0+2"
 # ╔═╡ Cell order:
 # ╟─4102ceaf-db99-4ae0-a026-1d4488e43d1f
 # ╟─21b8975a-f775-4002-a2ca-bca4b87c23ce
+# ╟─b95b424b-0c7b-4c82-b8d0-48610d6865d6
 # ╠═3dc9b338-3b9e-11f0-3f74-d92fbbc6004c
 # ╠═8c0e2d22-1fc2-4405-a44e-24a4c188acaf
 # ╠═e0adc011-382f-428a-8dc8-1841de97ebec
@@ -594,5 +701,17 @@ version = "17.4.0+2"
 # ╠═00227690-e4ff-4e7a-bd5d-b8e08947c659
 # ╠═dc76859a-9cb6-441f-b208-55e20f3bfa43
 # ╟─872c0fb2-d393-451d-ad96-1543612457f5
+# ╟─c2a4ab20-4ec3-48ab-b7ab-d476f80e7e59
+# ╠═2fce6d2c-5bf1-4d97-91a8-e4c0ce4b9220
+# ╠═3618e283-73d0-4567-97c6-1eaad9749d32
+# ╠═60ef9516-c98d-48d3-a5de-2ff0739ea488
+# ╠═558e6ce3-b44d-4d72-8cd4-875119366aab
+# ╟─3621e247-a3bc-42fa-b20a-dcaca71bbf42
+# ╠═9f5483ce-dbd0-42bf-876c-73d1e43fd682
+# ╠═4214ceed-9dce-49f1-92d7-408239217117
+# ╠═7f5f0cc9-464e-44c0-91a0-70733f2865a2
+# ╠═0b050f7e-929c-4cbd-9c66-084bb0d698f9
+# ╠═2e59c299-8bd2-4a4f-94b0-add48528dfdc
+# ╠═61c7a7d7-86b8-46dc-a17a-fd4d5a7e2466
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
