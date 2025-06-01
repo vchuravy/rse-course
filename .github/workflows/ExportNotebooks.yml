@@ -1,4 +1,5 @@
 name: Export Pluto notebooks & Deploy
+
 on:
     push:
         branches:
@@ -7,20 +8,23 @@ on:
         branches:
             - main
     workflow_dispatch:
+
 concurrency:
     group: export
     cancel-in-progress: true
+
 permissions:
   contents: write
+
 jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout source
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
 
             - name: 🙌 Install Julia
-              uses: julia-actions/setup-julia@v1
+              uses: julia-actions/setup-julia@v2
               with:
                   version: "1.11"
 
@@ -56,7 +60,7 @@ jobs:
 
             - name: 🚀 Deploy to GitHub Pages (main)
               if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-              uses: JamesIves/github-pages-deploy-action@releases/v4
+              uses: JamesIves/github-pages-deploy-action@v4
               with:
                   BRANCH: gh-pages
                   FOLDER: _site
@@ -65,7 +69,7 @@ jobs:
 
             - name: Deploy PR preview
               if: github.event_name == 'pull_request' && github.repository == github.event.pull_request.head.repo.full_name # if this build is a PR build and the PR is NOT from a fork
-              uses: JamesIves/github-pages-deploy-action@releases/v4
+              uses: JamesIves/github-pages-deploy-action@v4
               with:
                   BRANCH: gh-pages
                   FOLDER: _site

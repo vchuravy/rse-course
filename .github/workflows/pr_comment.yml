@@ -1,7 +1,9 @@
 name: PR Comment # Write a comment in the PR with a link to the preview of the given website
+
 on:
   pull_request:
     types: [opened, reopened]
+
 jobs:
   pr_comment:
     runs-on: ubuntu-latest

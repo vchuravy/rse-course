@@ -10,18 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: gh-pages
       - name: Delete preview and history + push changes
         run: |
-            if [ -d "previews/PR$PRNUM" ]; then
+            if [ -d "previews/PR${{ github.event.number }}" ]; then
               git config user.name "Documenter.jl"
               git config user.email "documenter@juliadocs.github.io"
-              git rm -rf "previews/PR$PRNUM"
+              git rm -rf "previews/PR${{ github.event.number }}"
               git commit -m "delete preview"
               git branch gh-pages-new $(echo "delete history" | git commit-tree HEAD^{tree})
               git push --force origin gh-pages-new:gh-pages
             fi
-        env:
-            PRNUM: ${{ github.event.number }}
