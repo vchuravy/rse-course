@@ -66,8 +66,17 @@ md"""# Interactive performance tuning with Julia
 Part of this presentation will use material from the workshop [Julia for HPC @ UCL 2024](https://github-pages.arc.ucl.ac.uk/julia-hpc-2024/) run by **Carsten Bauer**, the course material is available at [carstenbauer/JuliaUCL24](https://github.com/carstenbauer/JuliaUCL24).
 """
 
+# ╔═╡ a4906361-f71d-4376-8d64-a4c8fa9153fa
+md"""
+!!! warn
+    This notebook uses and LIKWID & LinuxPerf.jl, which requires Linux!
+"""
+
 # ╔═╡ b2e4f4a1-e516-42d4-bd34-09ba3bdeecc9
-ThreadPinning.pinthreads(Int.(log2.(parse.(BigInt, first(split(ENV["SLURM_CPU_BIND_LIST"], ','), Threads.nthreads())))); warn=false)
+# ThreadPinning.pinthreads(Int.(log2.(parse.(BigInt, first(split(ENV["SLURM_CPU_BIND_LIST"], ','), Threads.nthreads())))); warn=false)
+
+# ╔═╡ 68e51081-9150-43cb-91a1-333d8c97ae37
+ThreadPinning.pinthreads(:cores)
 
 # ╔═╡ 1cf0469b-664a-4ae8-948b-044c3b11d60e
 with_terminal(() -> ThreadPinning.threadinfo())
@@ -251,22 +260,6 @@ sum(data) ≈ sum_map_spawn(data)
 # ╠═╡ show_logs = false
 @pstats perf_events sum_map_spawn(data)
 
-# ╔═╡ d8de17a5-e639-4e73-8ec8-9b56d387533c
-md"""
-## Going fast nowhere
-
-Inspired by the [talk by the same title](https://vchuravy.dev/talks/Going_fast_nowhere/) by **Valentin Churavy**.
-"""
-
-# ╔═╡ 00c17bb2-6c70-4dcd-92ff-d14a56db0e08
-function count_to(n::Int)
-	sum = 0
-	for x in 1:n
-		sum += 1
-	end
-	return sum
-end
-
 # ╔═╡ b9cca1ff-8586-4396-9a1f-3d7aa2dcbde8
 let
 	range = trunc.(Int, exp10.(0:0.2:9))
@@ -274,21 +267,6 @@ let
 	large\_N = $(@bind large_N Slider(range, default=10, show_value=true))
 	"""
 end
-
-# ╔═╡ 41c9a318-6df2-4844-a63f-a74a3112e1b7
-count_to(large_N)
-
-# ╔═╡ 8e200db5-a865-447e-ae1d-efc3e27ad943
-time_sum_to = @b count_to(large_N)
-
-# ╔═╡ 9aa32ad5-cd98-4554-819c-51bd55578fb3
-let
-	iops = large_N / time_sum_to.time
-	md"On a single core we achieved $(round(iops; sigdigits=2)) IOPS, we need $(Int(cld(1e18, iops))) core(s) to go exascale"
-end
-
-# ╔═╡ b528cf8a-dc41-4298-9ff3-52b57c4d72b3
-with_terminal(() -> code_llvm(count_to, (Int,); debuginfo=:none))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -739,8 +717,10 @@ version = "17.4.0+2"
 # ╔═╡ Cell order:
 # ╟─bbbe6c9c-f032-41b7-a976-c6fd5666adf5
 # ╟─630971b1-9053-427e-8ede-41bde809befb
+# ╟─a4906361-f71d-4376-8d64-a4c8fa9153fa
 # ╠═c7f41ccc-062d-4446-b121-a009334c6b64
 # ╠═b2e4f4a1-e516-42d4-bd34-09ba3bdeecc9
+# ╠═68e51081-9150-43cb-91a1-333d8c97ae37
 # ╠═1cf0469b-664a-4ae8-948b-044c3b11d60e
 # ╠═a282a68c-f485-4c61-9ba0-6867c9b445e1
 # ╠═fe999d9b-9684-4d4a-ac87-b826a476c6e1
@@ -788,12 +768,6 @@ version = "17.4.0+2"
 # ╠═58d58747-9f86-4893-8366-843e523b555a
 # ╠═0bc93e84-39cf-4ad4-969f-6259aff876df
 # ╠═68639105-4b7b-44ac-9244-588291e73d53
-# ╟─d8de17a5-e639-4e73-8ec8-9b56d387533c
-# ╠═00c17bb2-6c70-4dcd-92ff-d14a56db0e08
 # ╟─b9cca1ff-8586-4396-9a1f-3d7aa2dcbde8
-# ╠═41c9a318-6df2-4844-a63f-a74a3112e1b7
-# ╠═8e200db5-a865-447e-ae1d-efc3e27ad943
-# ╟─9aa32ad5-cd98-4554-819c-51bd55578fb3
-# ╠═b528cf8a-dc41-4298-9ff3-52b57c4d72b3
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
