@@ -2,7 +2,7 @@
 # v0.20.6
 
 #> [frontmatter]
-#> order = "8.1"
+#> order = "8.3"
 #> exercise_number = "10"
 #> title = "Shared memory parallelism"
 #> tags = ["module2", "track_parallel", "exercises"]

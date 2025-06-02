@@ -2,7 +2,7 @@
 # v0.20.8
 
 #> [frontmatter]
-#> order = "6.1"
+#> order = "7.1"
 #> exercise_number = "9"
 #> title = "Debugging"
 #> tags = ["module2", "track_principles", "exercises"]
