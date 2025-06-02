@@ -45,6 +45,9 @@ using Atomix: Atomix, @atomic, @atomicswap, @atomicreplace
 # ╔═╡ 6954d632-9e8d-42aa-893f-bc90160b8648
 using OhMyThreads
 
+# ╔═╡ c82e1c97-11c6-4227-966b-aa12d7e9efda
+using BenchmarkTools
+
 # ╔═╡ b14fd513-13ab-4a35-bc96-5022537c10a7
 ChooseDisplayMode()
 
@@ -93,6 +96,13 @@ end
 # ╔═╡ dc53ba40-1c1f-4925-b18b-a0ddeee9f7bc
 md"""
 ## Julia tasks
+
+In Julia concurrent and parallel programming is done through **tasks**. Tasks are independent and communication units of computation. They execute **always** concurrently, but not always parallel.
+
+
+!!! info "Further reading"
+    - https://docs.julialang.org/en/v1/manual/asynchronous-programming/
+    - https://proceedings.juliacon.org/papers/10.21105/jcon.00054
 """
 
 # ╔═╡ 60a94c32-81b6-4983-b14c-b1afd29561b6
@@ -112,13 +122,26 @@ end
 # ╔═╡ 379511ed-1ee4-4007-ab92-ed65a7e3397a
 fib(5)
 
-
 # ╔═╡ e474e858-5f7d-4b2e-8a01-366d298d1f9b
-TODO("divide-and-conquor")
+md"""
+!!! note
+    A core principle at play is the notion of divide-and-conquer. Can I split a problem into smaller sub-problems? Often, in parallel computing we split problems until a ***grain-size* is reached for which we execute a base-case. 
+
+	Today's exercise "Parallel sorting" is an example of divide-and-conquer
+"""
 
 # ╔═╡ 8f11b736-cc8f-4672-9b3a-343ddbff7c9f
 md"""
 ### Channels
+"""
+
+# ╔═╡ c96021c9-db62-4bbc-8841-c2cfd9f0bcd4
+md"""
+As mentioned Julia tasks are **communicating**, communication can happen with dedicated programming concepts like `Channel`, or directly through memory shared with another tasks.
+
+Channels are first-in-first-out queues that can either be buffered (e.g. contain a reservoir for a number of elements), or un-buffered/blocking. 
+
+Julia's channels support `put!`, `take!`
 """
 
 # ╔═╡ ad83880f-8e1d-4ad6-8d9f-5e2951749cd6
@@ -136,6 +159,8 @@ end
 # ╔═╡ cca0c4ab-1f5d-49ff-900a-dadc6fd85326
 md"""
 ## Race-conditions
+
+`Channel` is a concurrent data-structure and ensure that it safe to use with multiple tasks. When we use our own data-structures we have to make sure that we make them safe if necessary, otherwise we will observe data-races.
 """
 
 # ╔═╡ d9a04988-61c0-41b7-ad0b-f0f49ea97bf6
@@ -147,7 +172,7 @@ end
 let a = BrokenCounter(0)
 	N = 10
 	K = 100_000
-	@time @sync for i in 1:N
+	@sync for i in 1:N
 		@spawn for i in 1:K
 			a.x += 1
 			GC.safepoint()
@@ -156,9 +181,29 @@ let a = BrokenCounter(0)
 	a.x, N*K, a.x/(N*K)
 end
 
+# ╔═╡ 0359e389-00c4-4e6a-8511-1aa2d9561afa
+md"""
+!!! note
+    We launch `N` tasks each performing `K` updates to our counter. We expect `N*K` updates, but we only observe a fraction of them.
+
+    ```julia
+    a.x += 1
+    # Can be written as
+    a.x = a.x + 1 
+    ```
+
+    But in the time between reading and writing `a.x`, there might have been another update. This is a classical race-conditions.
+"""
+
 # ╔═╡ 11e3046d-7ab9-4cb8-8ed4-db6c76ec6bd0
 md"""
 ### Atomics & Locks
+
+One way this can be fixed is to use atomics. Atomics allow to express the `read-and-increment` operation as one operation.
+
+!!! info "Further reading"
+    - https://marabos.nl/atomics/
+    - https://redixhumayun.github.io/systems/2024/01/03/atomics-and-concurrency.html
 """
 
 # ╔═╡ e114281e-a348-4a33-a465-8ee55ad04608
@@ -170,7 +215,7 @@ end
 let a = AtomicCounter(0)
 	N = 10
 	K = 100_000
-	@time @sync for i in 1:N
+	@sync for i in 1:N
 		@spawn for i in 1:K
 			@atomic a.x += 1
 			GC.safepoint()
@@ -188,6 +233,34 @@ end
 let a = AtomicCounter(0)
 	@atomic :sequentially_consistent a.x = 1+2
 end
+
+# ╔═╡ be920575-85ac-4ec4-bf37-ac94f279d6ba
+md"""
+We can also fix this using a lock.
+
+!!! note
+    `Lockable` was added in Julia 1.11.
+"""
+
+# ╔═╡ c801dc71-f50e-441e-ae4c-41eba64ab00b
+let a = Base.Lockable(BrokenCounter(0), Base.ReentrantLock())
+	N = 10
+	K = 100_000
+	@sync for i in 1:N
+		@spawn for i in 1:K
+			@lock(a, a[].x += 1)
+			GC.safepoint()
+		end
+	end
+	@lock a begin
+		a[].x, N*K, a[].x/(N*K)
+	end
+end
+
+# ╔═╡ ecbfdffe-40cb-4f2d-95da-d5a1363cc99e
+md"""
+Atomics are limited to things that are "small" (For fields Julia might put a lock variable next to the field, if the value is "big"). And locks are an easier way to provide access to things that should be exclusive access, but are more expensive than atomics.
+"""
 
 # ╔═╡ 6268a1ea-d366-4f0e-8b5a-6e590b38d222
 md"""
@@ -220,7 +293,20 @@ let
 end
 
 # ╔═╡ 0d7db4d6-15e8-419c-9ca2-7182df628b2e
-TODO("Example that doesn't rely on thread-id")
+md"""
+!!! note
+    `threadid` is a implementation detail, and should not be used as part of algoritms. Tasks migrate across threads, so it is not a stable observation.
+"""
+
+# ╔═╡ 42aabb33-ffb1-479e-a050-436646c4bae7
+md"""
+#### Schedulers
+
+Julia has diffferent schedulers for parallel for-loops
+- `:dynamic` (the default). Chunks the iteration-space.
+- `:greedy`: One-task-per-thread, good for unequal workloads. Iteration-space is interpreted as a channel and.
+- `:static`: One-task-per-thread, equal division of iteration-space. Can not be nested.
+"""
 
 # ╔═╡ e3003125-f4cb-48c2-99c7-0eb736ea0e44
 md"""
@@ -228,12 +314,193 @@ md"""
 """
 
 # ╔═╡ 7463e19b-6685-4d6c-a8f9-89250b046528
-TODO("")
+md"""
+While `@threads` is on the surface a okay interface, it is often cumbersome to implement reductions. There are several libraries that provide high-level parallel primitives based on higher-order functions (functions that take other functions).
+
+- `map(f, A)`
+- `reduce(+, A)`
+- `mapreduce(f, +, A)`
+
+`OhMyThreads.jl` provides:
+
+- `tmap`
+- `treduce`
+- `tmapreduce`
+- `tforeach`
+
+!!! note
+    It is a bit unfortunate that `map` & co are implicitly parallel on the GPU, but not on the CPU. Fixing this as been a long-standing ToDo. 
+"""
+
+# ╔═╡ de3c1416-acc7-4bf3-ad74-e0cc49b50f31
+let 
+	a = zeros(Int, nthreads()*2)
+	tforeach(1:length(a)) do i
+	    a[i] = threadid()
+	end
+	a
+end
+
+# ╔═╡ 2a982390-e075-4d2b-bcc2-38051bdfb1ea
+md"""
+## False-sharing
+
+Based on the [OhMyThreads.jl docs](https://juliafolds2.github.io/OhMyThreads.jl/stable/literate/falsesharing/falsesharing/).
+"""
+
+# ╔═╡ 31f6929c-baca-4cae-ad52-da4283e01d13
+data = rand(1_000_000 * nthreads());
+
+# ╔═╡ 24aa1f62-df36-4798-97e6-7a164e4e843d
+md"""
+**Baseline sequential sum:**
+"""
+
+# ╔═╡ beb1ee27-6e43-4fb7-9541-d03f482a18c7
+function simple_sum(data)
+	acc = zero(eltype(data))
+	for i in eachindex(data)
+		acc += data[i]
+	end
+	acc
+end
+
+# ╔═╡ c4f63461-d8fd-44f2-b4a7-f131900e342c
+@benchmark sum($data)
+
+# ╔═╡ c8ad6195-c142-44a1-81a3-009f700555dd
+@benchmark simple_sum($data)
+
+# ╔═╡ 0d8fbd27-1f16-4d58-a6af-8731ff8638f3
+question_box(md"""
+Note that our simple sum is slower than Julia's sum! Why might that be the case?
+""")
+
+# ╔═╡ fcd1a759-c595-43a4-a278-9c1a8d817477
+md"""
+**Naive parallel implementation:**
+
+We allocate space for the intermediate results.
+"""
+
+# ╔═╡ cd5a1da3-8b77-4763-a3a8-52abd0174728
+function parallel_sum_falsesharing(data; nchunks = nthreads())
+    psums = zeros(eltype(data), nchunks)
+    @sync for (c, idcs) in enumerate(OhMyThreads.index_chunks(data; n = nchunks))
+        @spawn begin
+            for i in idcs
+                psums[c] += data[i]
+            end
+        end
+    end
+    return sum(psums)
+end
+
+# ╔═╡ 1af636ab-f2ec-4c96-9282-d612bf513bd0
+ sum(data) ≈ parallel_sum_falsesharing(data)
+
+# ╔═╡ 261c0f75-00b7-411f-929f-2c5a7290a2e1
+@benchmark parallel_sum_falsesharing($data)
+
+# ╔═╡ b4e7a32a-6930-466c-a7f2-eb33c37405ab
+md"""
+**Oof** our parallel code is slower than our serial code! The core issue is that we directly update the values in memory and this causes the CPU to bounce the cache lines from core to core!
+"""
+
+# ╔═╡ 9392c90b-73f2-4894-85f3-a63d0570c6d1
+md"""
+**Padding to cache line size**
+
+One way of solving this is to over-allocate memory and pad each sum such that it is occuring on different cache lines.
+
+[`std::hardware_destructive_interference_size`](https://en.cppreference.com/w/cpp/thread/hardware_destructive_interference_size.html)
+"""
+
+# ╔═╡ 80faa7e3-3947-42c1-b21e-190d1b907b43
+const CACHE_LINE_SIZE = 64
+
+# ╔═╡ dc549c99-9f26-44dd-b3d0-67c8f3ac901a
+function parallel_sum_padded(data; nchunks = nthreads())
+	# pad each entry
+	stride = CACHE_LINE_SIZE ÷ sizeof(eltype(data))
+    psums = zeros(eltype(data), nchunks * stride)
+    @sync for (c, idcs) in enumerate(OhMyThreads.index_chunks(data; n = nchunks))
+        @spawn begin
+			c_idx = (c-1) * stride + 1
+            for i in idcs
+                psums[c_idx] += data[i]
+            end
+        end
+    end
+    return sum(psums)
+end
+
+# ╔═╡ e65fe2bc-bd28-4b31-85d4-d9b7ac4715ed
+@benchmark parallel_sum_padded($data)
+
+# ╔═╡ bc78c1b4-31a5-42ec-a76e-e14e6152bb59
+md"""
+!!! note
+    To make our implementation faster, we should first think about how we could make our `simple_sum` implementation faster.
+"""
+
+# ╔═╡ a394580b-ae6b-4b4c-a3a2-86d6c0892726
+md"""
+**Task-local parallel summation**
+
+Another way of solving this is to do a local reduction first!
+"""
+
+# ╔═╡ 10175638-9211-43b9-b764-623171c194a0
+function parallel_sum_tasklocal(data; nchunks = nthreads())
+    psums = zeros(eltype(data), nchunks)
+    @sync for (c, idcs) in enumerate(OhMyThreads.index_chunks(data; n = nchunks))
+        @spawn begin
+            local s = zero(eltype(data))
+            for i in idcs
+                s += data[i]
+            end
+            psums[c] = s
+        end
+    end
+    return sum(psums)
+end
+
+# ╔═╡ 4461e2e6-4e43-4a32-8572-bd1a9ae0121e
+@benchmark parallel_sum_tasklocal($data)
+
+# ╔═╡ 8b02babb-0594-4497-b217-99c5434c31df
+md"""
+**Reuse efficient local implementation:**
+"""
+
+# ╔═╡ a9219e30-049f-4b71-9d87-1a0e80416d44
+function parallel_sum_map(data; nchunks = nthreads())
+    psums = zeros(eltype(data), nchunks)
+    @sync for (c, idcs) in enumerate(OhMyThreads.index_chunks(data; n = nchunks))
+        @spawn begin
+            psums[c] = sum(view(data, idcs))
+        end
+    end
+    return sum(psums)
+end
+
+# ╔═╡ 0d1f56da-f39f-45f8-a26e-ae6a7e14a972
+@benchmark parallel_sum_map($data)
+
+# ╔═╡ 9dcb1863-c2a8-400d-bbf9-72df6cf288f4
+md"""
+Of course we can just use `OhMyThreads.treduce`!
+"""
+
+# ╔═╡ d09703dd-35cc-41f6-9e50-f75d1fd10cd2
+@benchmark treduce($+, $data; ntasks = $nthreads())
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 OhMyThreads = "67456a42-1dca-4109-a031-0a68de7e3ad5"
@@ -243,6 +510,7 @@ ThreadPinning = "811555cd-349b-4f26-b7bc-1f208b848042"
 
 [compat]
 Atomix = "~1.1.1"
+BenchmarkTools = "~1.6.0"
 CairoMakie = "~0.13.4"
 Hwloc = "~3.3.0"
 OhMyThreads = "~0.8.3"
@@ -257,7 +525,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "1fc7e0c427bdca2a51030109a0b4ed2ac3432a44"
+project_hash = "a4d542ae1fe774e115e4e07f16537ca34bf16842"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -402,6 +670,12 @@ version = "0.4.4"
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
+
+[[deps.BenchmarkTools]]
+deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "e38fbc49a620f5d0b660d7f543db1009fe0f8336"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.6.0"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1455,6 +1729,10 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
 
+[[deps.Profile]]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+version = "1.11.0"
+
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
 git-tree-sha1 = "13c5103482a8ed1536a54c08d0e742ae3dca2d42"
@@ -2041,26 +2319,59 @@ version = "3.6.0+0"
 # ╠═60a94c32-81b6-4983-b14c-b1afd29561b6
 # ╠═e5f5aa82-2152-4d4e-aad1-a03bedb36158
 # ╠═379511ed-1ee4-4007-ab92-ed65a7e3397a
-# ╠═e474e858-5f7d-4b2e-8a01-366d298d1f9b
+# ╟─e474e858-5f7d-4b2e-8a01-366d298d1f9b
 # ╟─8f11b736-cc8f-4672-9b3a-343ddbff7c9f
+# ╟─c96021c9-db62-4bbc-8841-c2cfd9f0bcd4
 # ╠═ad83880f-8e1d-4ad6-8d9f-5e2951749cd6
 # ╟─cca0c4ab-1f5d-49ff-900a-dadc6fd85326
 # ╠═d9a04988-61c0-41b7-ad0b-f0f49ea97bf6
 # ╠═974edb00-3713-4f6f-8092-79e0506b97b5
+# ╟─0359e389-00c4-4e6a-8511-1aa2d9561afa
 # ╟─11e3046d-7ab9-4cb8-8ed4-db6c76ec6bd0
 # ╠═e114281e-a348-4a33-a465-8ee55ad04608
 # ╠═0a201007-73ac-4bb8-b02f-25b6f7e23525
 # ╠═746a6ca4-f197-4f1c-a6be-ba0a509367e2
 # ╠═41e5929e-644d-43a5-b3a6-f83674b70003
+# ╟─be920575-85ac-4ec4-bf37-ac94f279d6ba
+# ╠═c801dc71-f50e-441e-ae4c-41eba64ab00b
+# ╟─ecbfdffe-40cb-4f2d-95da-d5a1363cc99e
 # ╟─6268a1ea-d366-4f0e-8b5a-6e590b38d222
 # ╠═000c5382-3d4c-403a-a5b1-59b6c096f3f4
 # ╠═961add94-0e5a-4163-bb8d-8a2868623fea
 # ╟─e64b3064-9730-460d-be79-6fc572ceefd4
 # ╠═782abc8b-0d43-4c1d-95dd-6d5c7c089408
 # ╠═77a0131c-d031-41d2-a9ff-bb305311e3f4
-# ╠═0d7db4d6-15e8-419c-9ca2-7182df628b2e
+# ╟─0d7db4d6-15e8-419c-9ca2-7182df628b2e
+# ╟─42aabb33-ffb1-479e-a050-436646c4bae7
 # ╟─e3003125-f4cb-48c2-99c7-0eb736ea0e44
 # ╠═6954d632-9e8d-42aa-893f-bc90160b8648
-# ╠═7463e19b-6685-4d6c-a8f9-89250b046528
+# ╟─7463e19b-6685-4d6c-a8f9-89250b046528
+# ╠═de3c1416-acc7-4bf3-ad74-e0cc49b50f31
+# ╟─2a982390-e075-4d2b-bcc2-38051bdfb1ea
+# ╠═c82e1c97-11c6-4227-966b-aa12d7e9efda
+# ╠═31f6929c-baca-4cae-ad52-da4283e01d13
+# ╟─24aa1f62-df36-4798-97e6-7a164e4e843d
+# ╠═beb1ee27-6e43-4fb7-9541-d03f482a18c7
+# ╠═c4f63461-d8fd-44f2-b4a7-f131900e342c
+# ╠═c8ad6195-c142-44a1-81a3-009f700555dd
+# ╟─0d8fbd27-1f16-4d58-a6af-8731ff8638f3
+# ╟─fcd1a759-c595-43a4-a278-9c1a8d817477
+# ╠═cd5a1da3-8b77-4763-a3a8-52abd0174728
+# ╠═1af636ab-f2ec-4c96-9282-d612bf513bd0
+# ╠═261c0f75-00b7-411f-929f-2c5a7290a2e1
+# ╟─b4e7a32a-6930-466c-a7f2-eb33c37405ab
+# ╟─9392c90b-73f2-4894-85f3-a63d0570c6d1
+# ╠═80faa7e3-3947-42c1-b21e-190d1b907b43
+# ╠═dc549c99-9f26-44dd-b3d0-67c8f3ac901a
+# ╠═e65fe2bc-bd28-4b31-85d4-d9b7ac4715ed
+# ╟─bc78c1b4-31a5-42ec-a76e-e14e6152bb59
+# ╟─a394580b-ae6b-4b4c-a3a2-86d6c0892726
+# ╠═10175638-9211-43b9-b764-623171c194a0
+# ╠═4461e2e6-4e43-4a32-8572-bd1a9ae0121e
+# ╟─8b02babb-0594-4497-b217-99c5434c31df
+# ╠═a9219e30-049f-4b71-9d87-1a0e80416d44
+# ╠═0d1f56da-f39f-45f8-a26e-ae6a7e14a972
+# ╟─9dcb1863-c2a8-400d-bbf9-72df6cf288f4
+# ╠═d09703dd-35cc-41f6-9e50-f75d1fd10cd2
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
