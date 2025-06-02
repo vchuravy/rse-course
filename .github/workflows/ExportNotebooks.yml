@@ -19,6 +19,19 @@ jobs:
             - name: Checkout source
               uses: actions/checkout@v2
 
+            - name: Install LIKWID
+              run: |
+                wget http://ftp.fau.de/pub/likwid/likwid-stable.tar.gz
+                mkdir likwid
+                tar -xaf likwid-stable.tar.gz -C likwid --strip-components=1
+                cd likwid
+                make
+                sudo make install
+                /usr/local/bin/likwid-topology -c -C -g
+                sudo modprobe msr
+                /usr/local/bin/likwid-perfctr -i
+                /usr/local/bin/likwid-perfctr -a
+
             - name: 🙌 Install Julia
               uses: julia-actions/setup-julia@v1
               with:
