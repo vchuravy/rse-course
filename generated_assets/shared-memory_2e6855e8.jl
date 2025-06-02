@@ -1,6 +1,19 @@
 ### A Pluto.jl notebook ###
 # v0.20.6
 
+#> [frontmatter]
+#> chapter = "3"
+#> section = "1"
+#> order = "8"
+#> title = "Shared-memory parallelism"
+#> date = "2025-06-04"
+#> tags = ["module3", "track_parallel"]
+#> layout = "layout.jlhtml"
+#> 
+#>     [[frontmatter.author]]
+#>     name = "Valentin Churavy"
+#>     url = "https://vchuravy.dev"
+
 using Markdown
 using InteractiveUtils
 

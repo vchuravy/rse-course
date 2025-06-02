@@ -2,8 +2,14 @@
 # v0.20.6
 
 #> [frontmatter]
+#> chapter = "3"
+#> section = "1"
+#> order = "8.2"
 #> title = "Interactive performance tuning with Julia"
 #> date = "2024-03-08"
+#> tags = ["module3", "track_parallel", "indepth"]
+#> layout = "layout.jlhtml"
+#> indepth_number = "3"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Mosè Giordano"
