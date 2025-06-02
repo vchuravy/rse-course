@@ -36,6 +36,9 @@ end
 # ╔═╡ db6c8c04-c343-4b64-9d8a-0037cfccf0d6
 using Hwloc
 
+# ╔═╡ d44b1725-7ff2-4707-9ca8-4b41394e429d
+using ThreadPinning
+
 # ╔═╡ 000c5382-3d4c-403a-a5b1-59b6c096f3f4
 using Atomix: Atomix, @atomic, @atomicswap, @atomicreplace
 
@@ -65,8 +68,27 @@ md"""
 ## CPU-architecture
 """
 
-# ╔═╡ ae821b15-4977-47b3-804c-046553e56cae
-TODO("Explain Hyper-threading")
+# ╔═╡ 6ce49967-effb-421e-9171-3f1db78c065b
+md"""
+In [Introduction to Parallelism](/../mod1_introduction/parallelism/) we briefly touched on computer architecture.
+
+On of the more peculiar issues are so called Hyperthreads (HT) . Hyperthread is the Intel brand name for Simultaneous multithreading (SMT).
+
+SMT-**N** provides **N** logical CPU-cores per physical CPU core. Some platforms may even make **N** configurable. On Intel and AMD systems **N**=2, but systems with higher **N** are available.
+
+The core idea is that memory accesses are slow and superscalar CPUs can have many instructions **in-flight** at once. 
+
+The CPU architecture exposes a limited amount of resources (registers) that can be used, but the actual implementation in hardware may have an abundance of resources.
+This is can be used to execute operations can be *speculativly* executed or we can execute multiple threads on the same physical core.
+
+!!! note
+    For our purposes the distinction can be mostly ignored, but we should not expect perfect scaling when exceeding the number of physical cores.
+"""
+
+# ╔═╡ 313a34bf-6893-4648-9cb8-4c68d3472d51
+with_terminal() do
+	threadinfo()
+end
 
 # ╔═╡ dc53ba40-1c1f-4925-b18b-a0ddeee9f7bc
 md"""
@@ -91,6 +113,14 @@ end
 fib(5)
 
 
+# ╔═╡ e474e858-5f7d-4b2e-8a01-366d298d1f9b
+TODO("divide-and-conquor")
+
+# ╔═╡ 8f11b736-cc8f-4672-9b3a-343ddbff7c9f
+md"""
+### Channels
+"""
+
 # ╔═╡ ad83880f-8e1d-4ad6-8d9f-5e2951749cd6
 let ch = Channel{Int}(Inf) # buffered
 	@sync begin
@@ -102,9 +132,6 @@ let ch = Channel{Int}(Inf) # buffered
 	collect(ch)
 end
 
-
-# ╔═╡ e474e858-5f7d-4b2e-8a01-366d298d1f9b
-TODO("divide-and-conquor")
 
 # ╔═╡ cca0c4ab-1f5d-49ff-900a-dadc6fd85326
 md"""
@@ -212,6 +239,7 @@ Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 OhMyThreads = "67456a42-1dca-4109-a031-0a68de7e3ad5"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+ThreadPinning = "811555cd-349b-4f26-b7bc-1f208b848042"
 
 [compat]
 Atomix = "~1.1.1"
@@ -220,6 +248,7 @@ Hwloc = "~3.3.0"
 OhMyThreads = "~0.8.3"
 PlutoTeachingTools = "~0.3.1"
 PlutoUI = "~0.7.62"
+ThreadPinning = "~1.0.2"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -228,7 +257,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "42761fa45225c9953c692f2c5a43dd1ea28dd5c3"
+project_hash = "1fc7e0c427bdca2a51030109a0b4ed2ac3432a44"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -540,6 +569,12 @@ deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
 git-tree-sha1 = "5620ff4ee0084a6ab7097a27ba0c19290200b037"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
 version = "1.6.4"
+
+[[deps.DelimitedFiles]]
+deps = ["Mmap"]
+git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
+uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+version = "1.9.1"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -1704,6 +1739,12 @@ deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 version = "7.7.0+0"
 
+[[deps.SysInfo]]
+deps = ["Dates", "DelimitedFiles", "Hwloc", "PrecompileTools", "Random", "Serialization"]
+git-tree-sha1 = "7aaebfbf5b3a39268f4a0caaa43e878e1138d25c"
+uuid = "90a7ee08-a23f-48b9-9006-0e0e2a9e4608"
+version = "0.3.0"
+
 [[deps.TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
@@ -1741,6 +1782,26 @@ version = "0.1.1"
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 version = "1.11.0"
+
+[[deps.ThreadPinning]]
+deps = ["DelimitedFiles", "Libdl", "LinearAlgebra", "PrecompileTools", "Preferences", "Random", "StableTasks", "SysInfo", "ThreadPinningCore"]
+git-tree-sha1 = "d47dbc7862f69ce1973fff227237275ff4a10781"
+uuid = "811555cd-349b-4f26-b7bc-1f208b848042"
+version = "1.0.2"
+
+    [deps.ThreadPinning.extensions]
+    DistributedExt = "Distributed"
+    MPIExt = "MPI"
+
+    [deps.ThreadPinning.weakdeps]
+    Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+    MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+
+[[deps.ThreadPinningCore]]
+deps = ["LinearAlgebra", "PrecompileTools", "StableTasks"]
+git-tree-sha1 = "bb3c6f3b5600fbff028c43348365681b34d06499"
+uuid = "6f48bc29-05ce-4cc8-baad-4adcba581a18"
+version = "0.4.5"
 
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "ProgressMeter", "SIMD", "UUIDs"]
@@ -1973,13 +2034,16 @@ version = "3.6.0+0"
 # ╠═db6c8c04-c343-4b64-9d8a-0037cfccf0d6
 # ╠═bf5b4b0b-9bda-4aed-b917-babcbe63ef85
 # ╟─833ec918-2852-4fd1-9a36-4b034cd6279a
-# ╠═ae821b15-4977-47b3-804c-046553e56cae
+# ╟─6ce49967-effb-421e-9171-3f1db78c065b
+# ╠═d44b1725-7ff2-4707-9ca8-4b41394e429d
+# ╠═313a34bf-6893-4648-9cb8-4c68d3472d51
 # ╟─dc53ba40-1c1f-4925-b18b-a0ddeee9f7bc
 # ╠═60a94c32-81b6-4983-b14c-b1afd29561b6
 # ╠═e5f5aa82-2152-4d4e-aad1-a03bedb36158
 # ╠═379511ed-1ee4-4007-ab92-ed65a7e3397a
-# ╠═ad83880f-8e1d-4ad6-8d9f-5e2951749cd6
 # ╠═e474e858-5f7d-4b2e-8a01-366d298d1f9b
+# ╟─8f11b736-cc8f-4672-9b3a-343ddbff7c9f
+# ╠═ad83880f-8e1d-4ad6-8d9f-5e2951749cd6
 # ╟─cca0c4ab-1f5d-49ff-900a-dadc6fd85326
 # ╠═d9a04988-61c0-41b7-ad0b-f0f49ea97bf6
 # ╠═974edb00-3713-4f6f-8092-79e0506b97b5
