@@ -1,6 +1,21 @@
 ### A Pluto.jl notebook ###
 # v0.20.6
 
+#> [frontmatter]
+#> order = "8.1"
+#> exercise_number = "10"
+#> title = "Shared memory parallelism"
+#> tags = ["module2", "track_parallel", "exercises"]
+#> license = "MIT"
+#> layout = "layout.jlhtml"
+#> description = "sample exercise"
+#>
+#>     [[frontmatter.author]]
+#>     name = "Valentin Churavy"
+#>     image = "https://avatars.githubusercontent.com/u/145258?v=4"
+#>     url = "https://vchuravy.dev"
+
+
 using Markdown
 using InteractiveUtils
 
