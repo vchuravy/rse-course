@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.9
 
 #> [frontmatter]
 #> order = "8.3"
@@ -9,12 +9,11 @@
 #> license = "MIT"
 #> layout = "layout.jlhtml"
 #> description = "sample exercise"
-#>
+#> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
 #>     image = "https://avatars.githubusercontent.com/u/145258?v=4"
 #>     url = "https://vchuravy.dev"
-
 
 using Markdown
 using InteractiveUtils
@@ -42,7 +41,7 @@ md"""
 # ╔═╡ c833702a-78d2-4753-ab31-ec8379930bf6
 question_box(
 md"""
-- How would you parallelize the following code
+- How would you parallelize the following code?
 - Are there advantages of a "functional" style using mapreduce vs explicit for-loops?
 """)
 
@@ -57,11 +56,11 @@ end
 
 # ╔═╡ 651b172a-976d-442e-99ed-0cf8b0fabbc9
 hint(md"""
-OhMyThreads.jl has a parall `tmapreduce`.
+OhMyThreads.jl has a parallel `tmapreduce`.
 """)
 
 # ╔═╡ 49c0f51e-f3b9-4bf7-9423-9e4391b927b3
-monte_carlo_pi(10000)
+monte_carlo_pi(10_000)
 
 # ╔═╡ 04576e42-3d47-11f0-28f7-5911ff99f73d
 md"""
@@ -177,7 +176,7 @@ end
 
 # ╔═╡ 229e4ec8-e9c7-4cc7-a816-520b0635c151
 hint(md"""
-Recall `pfib`!
+Recall the parallel `fib`!
 """)
 
 # ╔═╡ 293d2ad6-1635-429a-a089-7d67484a5e29

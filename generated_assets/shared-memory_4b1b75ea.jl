@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.9
 
 #> [frontmatter]
 #> chapter = "3"
@@ -64,7 +64,9 @@ with_terminal() do
 end
 
 # ╔═╡ bf5b4b0b-9bda-4aed-b917-babcbe63ef85
-topology_info()
+with_terminal() do
+	topology_info()
+end
 
 # ╔═╡ 833ec918-2852-4fd1-9a36-4b034cd6279a
 md"""
@@ -125,9 +127,18 @@ fib(5)
 # ╔═╡ e474e858-5f7d-4b2e-8a01-366d298d1f9b
 md"""
 !!! note
-    A core principle at play is the notion of divide-and-conquer. Can I split a problem into smaller sub-problems? Often, in parallel computing we split problems until a ***grain-size* is reached for which we execute a base-case. 
+    A core principle at play is the notion of divide-and-conquer. Can I split a problem into smaller sub-problems? Often, in parallel computing we split problems until a **grain-size** is reached for which we execute a base-case. 
 
 	Today's exercise "Parallel sorting" is an example of divide-and-conquer
+"""
+
+# ╔═╡ aef33f15-71b5-4c00-81af-c73178a2c96e
+md"""
+!!! question
+
+    The Fibonacci function above is just an example to demonstrate basic ideas
+    of parallel programming. How would you implement it if you were interested
+    in getting the result as fast as possible?
 """
 
 # ╔═╡ 8f11b736-cc8f-4672-9b3a-343ddbff7c9f
@@ -304,7 +315,7 @@ md"""
 
 Julia has diffferent schedulers for parallel for-loops
 - `:dynamic` (the default). Chunks the iteration-space.
-- `:greedy`: One-task-per-thread, good for unequal workloads. Iteration-space is interpreted as a channel and.
+- `:greedy`: One-task-per-thread, good for unequal workloads. Iteration-space is interpreted as a channel.
 - `:static`: One-task-per-thread, equal division of iteration-space. Can not be nested.
 """
 
@@ -315,7 +326,7 @@ md"""
 
 # ╔═╡ 7463e19b-6685-4d6c-a8f9-89250b046528
 md"""
-While `@threads` is on the surface a okay interface, it is often cumbersome to implement reductions. There are several libraries that provide high-level parallel primitives based on higher-order functions (functions that take other functions).
+While `@threads` is on the surface an acceptable interface, it is often cumbersome to implement reductions. There are several libraries that provide high-level parallel primitives based on higher-order functions (functions that take other functions).
 
 - `map(f, A)`
 - `reduce(+, A)`
@@ -2320,6 +2331,7 @@ version = "3.6.0+0"
 # ╠═e5f5aa82-2152-4d4e-aad1-a03bedb36158
 # ╠═379511ed-1ee4-4007-ab92-ed65a7e3397a
 # ╟─e474e858-5f7d-4b2e-8a01-366d298d1f9b
+# ╟─aef33f15-71b5-4c00-81af-c73178a2c96e
 # ╟─8f11b736-cc8f-4672-9b3a-343ddbff7c9f
 # ╟─c96021c9-db62-4bbc-8841-c2cfd9f0bcd4
 # ╠═ad83880f-8e1d-4ad6-8d9f-5e2951749cd6
