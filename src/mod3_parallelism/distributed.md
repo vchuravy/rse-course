@@ -1,8 +1,8 @@
 ---
 title: "Distributed"
-order: 9
+order: 10
 chapter: 3
-section: 2
+section: 3
 layout: "md.jlmd"
 image: ""
 tags: ["module3", "track_parallel"]

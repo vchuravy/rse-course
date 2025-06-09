@@ -3,9 +3,10 @@
 
 #> [frontmatter]
 #> chapter = "3"
-#> section = "3"
-#> order = "10"
+#> section = "2"
+#> order = "9"
 #> title = "GPU Computing"
+#> date = "2025-06-11"
 #> tags = ["module3", "track_parallel"]
 #> layout = "layout.jlhtml"
 #> 
