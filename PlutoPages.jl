@@ -341,6 +341,8 @@ function template_handler(::Union{
 		Val{Symbol(".png")},
 		Val{Symbol(".svg")},
 		Val{Symbol(".gif")},
+		Val{Symbol(".mp4")},
+		Val{Symbol(".ipynb")},
 	}, input::TemplateInput)::TemplateOutput
 
 	TemplateOutput(;
