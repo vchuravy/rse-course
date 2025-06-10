@@ -5,7 +5,7 @@
 #> order = "8.3"
 #> exercise_number = "10"
 #> title = "Shared memory parallelism"
-#> tags = ["module2", "track_parallel", "exercises"]
+#> tags = ["module3", "track_parallel", "exercises"]
 #> license = "MIT"
 #> layout = "layout.jlhtml"
 #> description = "sample exercise"
