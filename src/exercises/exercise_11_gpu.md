@@ -14,7 +14,8 @@ tags: ["module3", "track_parallel", "exercises"]
 Recently Google Colab started supporting Julia directly. One needs to switch the change the "runtime type" to "Julia",
 and Google Colab also provides some GPU support for free.
 
-![](../Colab.mp4)
+
+<video controls src="../Colab.mp4"</video> 
 
 **To get started with today's exercise:**
 
