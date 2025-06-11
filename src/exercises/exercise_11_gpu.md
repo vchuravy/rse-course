@@ -15,7 +15,7 @@ Recently Google Colab started supporting Julia directly. One needs to switch the
 and Google Colab also provides some GPU support for free.
 
 
-<video controls src="../Colab.mp4"</video> 
+<video controls src="../Colab.mp4"></video> 
 
 **To get started with today's exercise:**
 
