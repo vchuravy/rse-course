@@ -14,8 +14,10 @@ tags: ["module3", "track_parallel", "exercises"]
 Recently Google Colab started supporting Julia directly. One needs to switch the change the "runtime type" to "Julia",
 and Google Colab also provides some GPU support for free.
 
-![](Colab.mp4)
+![](../Colab.mp4)
 
 **To get started with today's exercise:**
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/vchuravy/rse-course/blob/main/src/mod3_parallelism/Introduction_to_KernelAbstractions.ipynb)
+
+<iframe src="https://nbviewer.org/urls/vchuravy.dev/rse-course/mod3_parallelism/Introduction_to_KernelAbstractions.ipynb" width="800" height="600"></iframe>
