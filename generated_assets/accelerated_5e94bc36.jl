@@ -17,17 +17,35 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
+
 # ╔═╡ 07565449-7cf6-47f2-b8f7-5a1bb2cd56ce
 using PlutoUI, PlutoTeachingTools
 
 # ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
 using CairoMakie
 
-# ╔═╡ 51835689-70c1-4e69-bb7b-255b2e27a66f
-using CUDA, KernelAbstractions, Atomix, BenchmarkTools
+# ╔═╡ b99be66c-bacb-4051-a9f4-c38a5d90437a
+using KernelAbstractions, BenchmarkTools
+
+# ╔═╡ 6aeda033-5739-43f7-9502-03f526e1e4f4
+using Atomix: @atomic, @atomicswap, @atomicreplace
 
 # ╔═╡ 0048148a-f7ed-49db-89da-c64d4a94f4a2
-using GPUArrays
+using GPUArraysCore
+
+# ╔═╡ 30871c58-c0fc-42cf-acae-386f1bd15353
+using Adapt
 
 # ╔═╡ 824496ff-5c4d-41b9-a341-bbfa0e2b69f3
 using LinearAlgebra
@@ -131,6 +149,18 @@ saxpy!(CUDABackend())(a, X, Y, ndrange=length(Y))
 Y .= a .* X .+ Y
 ```
 
+"""
+
+# ╔═╡ f4306075-f6e6-4629-8d30-60a13596a75a
+md"""
+#### Asynchronous operations
+
+!!! warn
+    GPU operations are asynchronous with regards to the host! They are **ordered** with respect to each other, but special care must be taken when using Julia's task based programming together with GPU programming.
+
+The JuliaGPU ecosystem **synchronizes** the GPU on access, so when you move data from and to the GPU we wait for all the kernels to finish!
+
+See the exercise "Introduction to KernelAbstractions" for more details on how to measure GPU kernels and performance.
 """
 
 # ╔═╡ 84d01e31-e216-42c8-9251-031030d8f088
@@ -274,6 +304,51 @@ Model{Float64, CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}}(...)
 ```
 """
 
+# ╔═╡ 2b73f9f2-d42e-48d9-a618-2e79fcb95965
+md"""
+## Writing a custom sum function with KernelAbstractions
+"""
+
+# ╔═╡ d6302d69-662a-4d10-b12a-20c861fd0bad
+begin
+	import CUDA
+	import Metal
+	# Work around <https://github.com/JuliaGPU/oneAPI.jl/issues/445>.
+	ENV["SYCL_PI_LEVEL_ZERO_BATCH_SIZE"] = "1"
+	import oneAPI
+	
+	# **sigh** Currently crashes inside Pluto
+	# import AMDGPU
+end;
+
+# ╔═╡ 2de28c84-2211-4b72-89d8-6689837a03a1
+let
+    available_backends = KernelAbstractions.Backend[CPU()]
+    CI = get(ENV, "GITHUB_ACTIONS", "false") == "true"
+	# Always shows all backend when rendering the notebook on GitHub Actions,
+	# notebooks will be static anyway.
+	if CUDA.functional() || CI
+		push!(available_backends, CUDA.CUDABackend())
+	end
+	if oneAPI.functional() || CI
+		push!(available_backends, oneAPI.oneAPIBackend())
+	end
+	if Metal.functional() || CI
+		push!(available_backends, Metal.MetalBackend())
+	end
+	# if AMDGPU.functional() || CI
+	# 	push!(available_backends, AMDGPU.ROCBackend())
+	# end
+	@bind backend Select(available_backends)
+end
+
+# ╔═╡ 69d43226-af1a-4983-84aa-05ddfbd9f920
+md"""
+The below code implements a custom eigenvalue solver. We are interested in implementing porting it to the GPU.
+
+For a momement let's forget about `GPUArrays` and all the high-level primitives it provides.
+"""
+
 # ╔═╡ 1a7bb9d3-936b-4717-b299-e1eccad05065
 md"""
 ```
@@ -293,6 +368,32 @@ end
 ```
 """
 
+# ╔═╡ 19559e66-42e7-4ae1-bec1-190a3fb86714
+question_box(md"""
+1. What fundamental operations do we need to implement?
+2. Is there a synchronization point within this code?
+""")
+
+# ╔═╡ 4a70d73c-50ac-4731-9e19-50606d8f1fdb
+hint(md"""
+1. `maximum(v)` can also be written as `reduce(max, v, init=typemin(eltype(v)))`
+2. `reduce(op, v)` can also be written as `mapreduce(identity, op, f)`
+
+So the only operation we need to implement is a `mapreduce`! 
+
+Yes, there are several synchronization points, most notably both `f` and `f′` have to wait for the GPU kernel to finish to return a scalar GPU value. An interesting optimization might be to better pipeline this code and try to avoid a bubble between `f` and `f′`. Or perhaps write a fully custom kernel!
+""")
+
+# ╔═╡ 492002f8-453f-416d-a259-810e0c6f9539
+md"""
+We can only communicate with the GPU through Global Memory. A GPU kernel does not return anything. Thus we allocate a single "value" storage array.
+
+!!! note "Shared Virtual Memory / Unified Virtual Memory"
+    SVM/UVM make memory on the GPU/CPU mutually accesibly, we could thus not use an array, but perhaps a `RefValue`, though this is not portable and would mean we miss the implicit syncronization semantics. 
+
+For our custom eigenvalue solver we need `mapreduce`, but for now let's just implement a non-generic `sum`.
+"""
+
 # ╔═╡ 463c5052-0f47-4abb-9dac-6496c27f2807
 @kernel function naive_sum(val, data)
 	I = @index(Global)
@@ -301,46 +402,61 @@ end
 end
 
 # ╔═╡ 6f163a44-768b-46cb-8c7b-8bae3936bb0d
-data = CUDA.ones(Int, 1024^2)
+data = KernelAbstractions.ones(backend, Int, 1024^2);
 
 # ╔═╡ 7a51372d-2dc3-48bb-9b11-3e6c74f0b276
 sum(data)
 
 # ╔═╡ 3f79859d-67bf-41ec-b8d3-d2f97d4e6da5
 let
-	x = CuArray([0])
-	naive_sum(CUDABackend())(x, data, ndrange=length(data))
+	x = KernelAbstractions.zeros(backend, eltype(data), 1)
+	naive_sum(backend)(x, data, ndrange=length(data))
 	Array(x)[1]
 end
+
+# ╔═╡ ba4ff15b-4c1b-4c80-96c1-9de0dd426996
+md"""
+!!! note "Data-race"
+    This looks similar to our issues from last week! Data races galore!
+	Let's use Atomix again to avoid these issues.
+"""
 
 # ╔═╡ 475af402-ada0-452c-a465-be9f67c4f7dc
 @kernel function naive_atomic_sum(val, data)
 	I = @index(Global)
 	x = data[I]
-	Atomix.@atomic val[1] += x
+	@atomic val[1] += x
 end
 
 # ╔═╡ aeb48a4a-31bc-429a-b336-fc4d542603e3
 let
-	x = CuArray([0])
-	naive_atomic_sum(CUDABackend())(x, data, ndrange=length(data))
+	x = KernelAbstractions.zeros(backend, eltype(data), 1) # oops I used similar here...
+	naive_atomic_sum(backend)(x, data, ndrange=length(data))
 	Array(x)[1]
 end
 
-# ╔═╡ 1e3be001-f38a-4174-8a46-fb49f385df52
-
-
 # ╔═╡ a572675c-f860-4530-a5d6-c4e9238ac082
 let
-	x = CuArray([0])
-	@benchmark CUDA.@sync naive_atomic_sum(CUDABackend())($x, data, ndrange=length(data))
+	x = KernelAbstractions.zeros(backend, eltype(data), 1)
+	@benchmark begin
+		naive_atomic_sum($backend)($x, data, ndrange=length(data))
+		KernelAbstractions.synchronize($backend)
+	end
 end
 
 # ╔═╡ 3c6d2d48-e150-4d91-bc2d-e52ff59f074d
-@benchmark CUDA.@sync sum(data)
+@benchmark sum(data)
 
 # ╔═╡ 1eb84449-0f88-4375-84d7-c5129593e663
-CUDA.@profile sum(data)
+if backend isa CUDA.CUDABackend
+	CUDA.@profile sum(data)
+end
+
+# ╔═╡ 5f51f862-7aed-4aeb-9ff6-de5ac1df9261
+md"""
+Currently we have a big-bottle neck. The atomic summation on the global data!
+KernelAbstraction provides a `@localmem` region that implements a memory region that is local to a work-group! So we can load all the data in parallel, then sum it up, and perform much fewer atomic stores.
+"""
 
 # ╔═╡ 7497fced-70f6-47ea-8bdc-cfdc8907b7d6
 @kernel function naive_shmem_sum(val, data::AbstractArray{T}) where T
@@ -355,24 +471,74 @@ CUDA.@profile sum(data)
 		for i in 2:N
 			acc += tile[i]
 		end	
-		Atomix.@atomic val[1] += acc
+		@atomic val[1] += acc
 	end
 end
 
 # ╔═╡ 49c1e005-ac01-4be1-8535-10d070a3beb7
 let
-	x = CuArray([0])
-	naive_shmem_sum(CUDABackend(), 64)(x, data, ndrange=length(data))
+	x = KernelAbstractions.zeros(backend, eltype(data), 1)
+	naive_shmem_sum(backend, 64)(x, data, ndrange=length(data))
 	Array(x)[1]
 end
 
 # ╔═╡ c035a400-d137-41ee-b257-6d6aebcaf85d
 let
-	x = CuArray([0])
-	@benchmark CUDA.@sync naive_shmem_sum(CUDABackend(), 64)($x, data, ndrange=length(data))
+	x = KernelAbstractions.zeros(backend, eltype(data), 1)
+	@benchmark begin
+		naive_shmem_sum($backend, 64)($x, data, ndrange=length(data))
+		KernelAbstractions.synchronize($backend)
+	end
 end
 
-# ╔═╡ 018ba447-aa6d-401e-8966-2b535a6cd488
+# ╔═╡ 7090e436-b837-4fa1-b36d-52fb057d44b0
+md"""
+!!! info
+    There are improvements we can do on this algorithm! As an example one thread is doing all the "sum" work per compute-group. We probably want to share that work. In CUDA there are also shuffle operations that can be used instead of the `localmem`.
+
+For now let's write a "mapreduce" code that applies an operation `f` to each element.
+"""
+
+# ╔═╡ 1dc7552f-ee6c-4408-aa1d-15ee58869cda
+md"""
+!!! warn
+    The code below contains an loop that uses atomic operations to update a value...
+    Developing this is a pain since it can easily hang your system.
+"""
+
+# ╔═╡ 1f7d82bd-4137-4a8e-a5e9-9ea5dbcbfebf
+md"""
+
+!!! note
+    Sometimes things are broken. Originally the plan was to implement a generic `mapreduce` kernel using atomic operations, but this did not work out generally.
+    Instead we implement only `mapsum`
+
+```julia
+@kernel function naive_shmem_mapreduce(val, data::AbstractArray{T}, f::F, op::O) where {T, F, O}
+	I = @index(Global)
+	i = @index(Local)
+	N = @uniform prod(@groupsize())
+	tile = @localmem T (N,)
+	tile[i] = f(data[I])
+	@synchronize
+	if i == 1
+		acc = tile[1]
+		for i in 2:N
+			acc = op(acc, tile[i])
+		end
+		# TODO: Generic @atomic breaks!
+		# @atomic val[1] op acc # val[1] = op(val[1], acc)
+		v = @atomic val[1]
+		success = false
+		while !success
+			v, success = @atomicreplace val[1] v => op(v, acc)
+		end
+	end
+end
+```
+"""
+
+# ╔═╡ 36515a5f-3efe-4daf-9479-00c4ea77000a
 @kernel function naive_shmem_mapsum(val, data::AbstractArray{T}, f::F) where {T, F}
 	I = @index(Global)
 	i = @index(Local)
@@ -384,30 +550,42 @@ end
 		acc = tile[1]
 		for i in 2:N
 			acc += tile[i]
-		end	
-		Atomix.@atomic val[1] += acc
+		end
+		@atomic val[1] += acc
 	end
 end
 
 # ╔═╡ bd15bebe-ee6f-4959-99a3-9a676b1515bc
 function my_mapsum(f, data)
-	x = similar(data, 1)
-	naive_shmem_mapsum(get_backend(data), 64)(x, data, f, ndrange=length(data))
-	GPUArrays.@allowscalar x[1]
+	backend = get_backend(data)
+	x = KernelAbstractions.zeros(backend, eltype(data), 1)
+	naive_shmem_mapsum(backend, 64)(x, data, f, ndrange=length(data))
+	GPUArraysCore.@allowscalar x[1]
 end
 
 # ╔═╡ 163a4d63-c249-43d5-9196-1c4c103c8de0
-my_mapsum(data) do x
-	x^2
-end
+my_mapsum(x->x^2, data)
 
 # ╔═╡ 68928b3f-59ff-4183-84f3-2512e0a6e9d7
-sum(data.^2)
+mapreduce(x->x^2, +, data)
 
 # ╔═╡ abe28a86-ed78-4b60-831b-8fd39f774ffc
 struct MyMatrix{A}
 	v::A
 end
+
+# ╔═╡ 46c29ca2-3eec-4020-858c-02a87e39e464
+Adapt.adapt_structure(to, x::MyMatrix) = MyMatrix(adapt(to, x.v))
+
+# ╔═╡ 1ef5e72d-8648-405e-90af-7c0b774c28ba
+X = randn(1024)
+
+# ╔═╡ 84c17ade-04a3-4793-beb2-9d390041f47d
+adapt(backend, MyMatrix(X))
+
+# ╔═╡ 33778678-1273-4698-a062-b98fb72c0402
+md"""
+"""
 
 # ╔═╡ 26eb4664-5769-484d-92ca-5102ddc77e7b
 f(A::MyMatrix)  = λ ->  1 + my_mapsum((v) -> v^2 / (v - λ), A.v)
@@ -417,7 +595,8 @@ f′(A::MyMatrix) = λ ->      my_mapsum((v) -> v^2 / (v - λ)^2, A.v)
 
 # ╔═╡ 2ced775b-4bbf-4e23-b390-7438fabbd62e
 function LinearAlgebra.eigmax(A::MyMatrix; tol = eps(2.0), debug = false)
-    x0 = maximum(A.v) + maximum(A.v)^2
+    # x0 = my_mapreduce(identity, max, A.v) + my_mapreduce(identity, max, A.v)^2
+	x0 = maximum(A.v) + maximum(A.v)^2 # Cheating by using GPUArrays
     δ = f(A)(x0)/f′(A)(x0)
     while abs(δ) > x0 * tol               
         x0 -= δ
@@ -427,9 +606,6 @@ function LinearAlgebra.eigmax(A::MyMatrix; tol = eps(2.0), debug = false)
     x0
 end
 
-# ╔═╡ 1ef5e72d-8648-405e-90af-7c0b774c28ba
-X = randn(1024)
-
 # ╔═╡ a7e0c2eb-1f31-4a18-abd2-a9f0aab02664
 eigmax(diagm(X) + X*X')
 
@@ -437,45 +613,48 @@ eigmax(diagm(X) + X*X')
 eigmax(MyMatrix(X))
 
 # ╔═╡ 4777bb70-1824-4c84-876b-48beb7d04688
-eigmax(MyMatrix(CuArray(X)))
-
-# ╔═╡ 26f458e5-5388-4698-be91-c1c2ad702c0d
-# CUDA.@profile eigmax(MyMatrix(CuArray(X)))
+eigmax(adapt(backend, MyMatrix(X)))
 
 # ╔═╡ b6fc9302-5998-4dac-bf6a-b4e808de6c17
-
+backend
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
+GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
 
 [compat]
+Adapt = "~4.3.0"
 Atomix = "~1.1.1"
 BenchmarkTools = "~1.6.0"
 CUDA = "~5.7.3"
 CairoMakie = "~0.13.4"
-GPUArrays = "~11.2.2"
+GPUArraysCore = "~0.2.0"
 KernelAbstractions = "~0.9.34"
+Metal = "~1.6.0"
 PlutoTeachingTools = "~0.2.15"
 PlutoUI = "~0.7.60"
+oneAPI = "~2.0.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "802deb1f01042ccd5ffe54f262b2fc5f94fb5d38"
+project_hash = "6c081b5de69a75b6758bf9f7044c4d4ecfae8214"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -675,6 +854,12 @@ deps = ["InteractiveUtils", "UUIDs"]
 git-tree-sha1 = "062c5e1a5bf6ada13db96a4ae4749a4c2234f521"
 uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
 version = "1.3.9"
+
+[[deps.CodecBzip2]]
+deps = ["Bzip2_jll", "TranscodingStreams"]
+git-tree-sha1 = "84990fa864b7f2b4901901ca12736e45ee79068c"
+uuid = "523fee87-0ab8-5b00-afb7-3ecf72e48cfd"
+version = "0.8.5"
 
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON"]
@@ -1044,6 +1229,12 @@ git-tree-sha1 = "2eaa69a7cab70a52b9687c8bf950a5a93ec895ae"
 uuid = "076d061b-32b6-4027-95e0-9a2c6f6d7e74"
 version = "0.2.0"
 
+[[deps.Hwloc_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "92f65c4d78ce8cdbb6b68daf88889950b0a99d11"
+uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
+version = "2.12.1+0"
+
 [[deps.HypergeometricFunctions]]
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
 git-tree-sha1 = "68c173f4f449de5b438ee67ed0c9c748dc31a2ec"
@@ -1297,6 +1488,12 @@ weakdeps = ["BFloat16s"]
     [deps.LLVM.extensions]
     BFloat16sExt = "BFloat16s"
 
+[[deps.LLVMDowngrader_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML", "Zlib_jll"]
+git-tree-sha1 = "c77c0540b96d29139dbbf5c7ef454fb45d7d32b4"
+uuid = "f52de702-fb25-5922-94ba-81dd59b07444"
+version = "0.6.0+0"
+
 [[deps.LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
 git-tree-sha1 = "4b5ad6a4ffa91a00050a964492bc4f86bb48cea0"
@@ -1496,6 +1693,16 @@ deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+0"
 
+[[deps.Metal]]
+deps = ["Adapt", "BFloat16s", "CEnum", "CodecBzip2", "ExprTools", "GPUArrays", "GPUCompiler", "GPUToolbox", "KernelAbstractions", "LLVM", "LLVMDowngrader_jll", "LinearAlgebra", "ObjectiveC", "PrecompileTools", "Preferences", "Printf", "Random", "SHA", "ScopedValues", "StaticArrays", "UUIDs"]
+git-tree-sha1 = "d367e4f5ba0079865eb1501e4ffe79102969ecd9"
+uuid = "dde4c033-4e86-420c-a63e-0dd931031962"
+version = "1.6.0"
+weakdeps = ["SpecialFunctions"]
+
+    [deps.Metal.extensions]
+    SpecialFunctionsExt = "SpecialFunctions"
+
 [[deps.Missings]]
 deps = ["DataAPI"]
 git-tree-sha1 = "ec4f7fbeab05d7747bdf98eb74d130a2a2ed298d"
@@ -1515,6 +1722,12 @@ version = "0.3.4"
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 version = "2023.12.12"
+
+[[deps.NEO_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML", "gmmlib_jll", "libigc_jll", "oneAPI_Level_Zero_Headers_jll"]
+git-tree-sha1 = "f1abd28502d049c09b24dadb247ab6931263e1da"
+uuid = "700fe977-ac61-5f37-bbc8-c6c4b2b6a9fd"
+version = "24.26.30049+0"
 
 [[deps.NVTX]]
 deps = ["Colors", "JuliaNVTXCallbacks_jll", "Libdl", "NVTX_jll"]
@@ -1543,6 +1756,12 @@ version = "1.1.1"
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
+
+[[deps.ObjectiveC]]
+deps = ["CEnum", "Libdl", "Preferences"]
+git-tree-sha1 = "c813346258bab0eb2ddc56b8083615eb3ebc4785"
+uuid = "e86c9b32-1129-44ac-8ea0-90d5bb39ded9"
+version = "3.4.1"
 
 [[deps.Observables]]
 git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
@@ -1575,6 +1794,12 @@ deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 version = "0.3.27+1"
 
+[[deps.OpenCL_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "4980a4b2679f1b9cdd65a21ccb57d1a89c0d68b9"
+uuid = "6cb37087-e8b6-5417-8430-1f242f1e46e4"
+version = "2024.10.24+1"
+
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
 git-tree-sha1 = "97db9e07fe2091882c765380ef58ec553074e9c7"
@@ -1590,7 +1815,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.5+0"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1864,6 +2089,24 @@ deps = ["PrecompileTools"]
 git-tree-sha1 = "fea870727142270bdf7624ad675901a1ee3b4c87"
 uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
 version = "3.7.1"
+
+[[deps.SPIRVIntrinsics]]
+deps = ["ExprTools", "GPUToolbox", "LLVM", "SpecialFunctions"]
+git-tree-sha1 = "d8653fb2e5e53d0d86c343ecfb506abda569d0f6"
+uuid = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
+version = "0.2.1"
+
+[[deps.SPIRV_LLVM_Translator_unified_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
+git-tree-sha1 = "16ee1efef28f1e83f61dbedab24c0c912f6cb1b8"
+uuid = "85f0d8ed-5b39-5caa-b1ae-7472de402361"
+version = "0.7.1+0"
+
+[[deps.SPIRV_Tools_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "840444e154db04043db7d007f3cdc1e7fa6f06bf"
+uuid = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
+version = "2025.1.0+1"
 
 [[deps.ScopedValues]]
 deps = ["HashArrayMappedTries", "Logging"]
@@ -2230,6 +2473,12 @@ git-tree-sha1 = "6498e3581023f8e530f34760d18f75a69e3a4ea8"
 uuid = "1e29f10c-031c-5a83-9565-69cddfc27673"
 version = "1.3.0+0"
 
+[[deps.gmmlib_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "734991d711846600137bf191ad4d88029b2b7f16"
+uuid = "09858cae-167c-5acb-9302-fddc6874d481"
+version = "22.3.20+0"
+
 [[deps.isoband_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "51b5eeb3f98367157a7a12a1fb0aa5328946c03c"
@@ -2259,6 +2508,12 @@ git-tree-sha1 = "8a22cf860a7d27e4f3498a0fe0811a7957badb38"
 uuid = "f638f0a6-7fb0-5443-88ba-1cc74229b280"
 version = "2.0.3+0"
 
+[[deps.libigc_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
+git-tree-sha1 = "a12b43190e01bd38318063c4bd470adcef401f19"
+uuid = "94295238-5935-5bd7-bb0f-b00942e9bdd5"
+version = "1.0.17193+0"
+
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
 git-tree-sha1 = "068dfe202b0a05b8332f1e8e6b4080684b9c7700"
@@ -2287,6 +2542,30 @@ version = "1.5.0+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
 version = "1.59.0+0"
+
+[[deps.oneAPI]]
+deps = ["Adapt", "CEnum", "ExprTools", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "Libdl", "LinearAlgebra", "NEO_jll", "Preferences", "Printf", "Random", "SPIRVIntrinsics", "SPIRV_LLVM_Translator_unified_jll", "SPIRV_Tools_jll", "SparseArrays", "SpecialFunctions", "StaticArrays", "oneAPI_Level_Zero_Headers_jll", "oneAPI_Level_Zero_Loader_jll", "oneAPI_Support_jll"]
+git-tree-sha1 = "66698df0dc75c6f8ec96f5e66f4c9ac21345bfe7"
+uuid = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
+version = "2.0.1"
+
+[[deps.oneAPI_Level_Zero_Headers_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "d0d85b04fdcf7a8bda76dac76e687e1670251a98"
+uuid = "f4bc562b-d309-54f8-9efb-476e56f0410d"
+version = "1.9.2+1"
+
+[[deps.oneAPI_Level_Zero_Loader_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "oneAPI_Level_Zero_Headers_jll"]
+git-tree-sha1 = "2f8568951b4f7629b69f1181469220298510e917"
+uuid = "13eca655-d68d-5b81-8367-6d99d727ab01"
+version = "1.17.6+0"
+
+[[deps.oneAPI_Support_jll]]
+deps = ["Artifacts", "Hwloc_jll", "JLLWrappers", "Libdl", "OpenCL_jll", "Pkg", "oneAPI_Level_Zero_Loader_jll"]
+git-tree-sha1 = "9f3fa2ed9c9e6688f45f11f45eaf0390117bf5cb"
+uuid = "b049733a-a71d-5ed3-8eba-7d323ac00b36"
+version = "0.7.0+0"
 
 [[deps.oneTBB_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2325,6 +2604,7 @@ version = "3.6.0+0"
 # ╟─4af8eedb-5a82-4207-b91d-bcb925a5d220
 # ╟─2cc61da7-f7b2-46fa-85c8-ed5cdd3e412a
 # ╟─b21b17f7-bc3e-4286-ad0b-3004e1bb4d78
+# ╟─f4306075-f6e6-4629-8d30-60a13596a75a
 # ╟─84d01e31-e216-42c8-9251-031030d8f088
 # ╟─b400807c-c2ee-4f11-bd49-6394ad73b3e8
 # ╟─e3d2ed97-e8b3-450e-a38b-03f8cb4f9824
@@ -2332,36 +2612,51 @@ version = "3.6.0+0"
 # ╟─a10ab271-4a58-47d3-90d6-8d48745ce712
 # ╟─33d2c72d-f6f1-4805-b3a6-1c6c6e79caa3
 # ╟─1b20ca8f-81a4-4f28-8c9e-02fd3c3b986a
-# ╠═51835689-70c1-4e69-bb7b-255b2e27a66f
+# ╟─2b73f9f2-d42e-48d9-a618-2e79fcb95965
+# ╠═b99be66c-bacb-4051-a9f4-c38a5d90437a
+# ╠═d6302d69-662a-4d10-b12a-20c861fd0bad
+# ╟─2de28c84-2211-4b72-89d8-6689837a03a1
+# ╟─69d43226-af1a-4983-84aa-05ddfbd9f920
 # ╟─1a7bb9d3-936b-4717-b299-e1eccad05065
+# ╟─19559e66-42e7-4ae1-bec1-190a3fb86714
+# ╟─4a70d73c-50ac-4731-9e19-50606d8f1fdb
+# ╟─492002f8-453f-416d-a259-810e0c6f9539
 # ╠═463c5052-0f47-4abb-9dac-6496c27f2807
 # ╠═6f163a44-768b-46cb-8c7b-8bae3936bb0d
 # ╠═7a51372d-2dc3-48bb-9b11-3e6c74f0b276
 # ╠═3f79859d-67bf-41ec-b8d3-d2f97d4e6da5
+# ╟─ba4ff15b-4c1b-4c80-96c1-9de0dd426996
+# ╠═6aeda033-5739-43f7-9502-03f526e1e4f4
 # ╠═475af402-ada0-452c-a465-be9f67c4f7dc
 # ╠═aeb48a4a-31bc-429a-b336-fc4d542603e3
-# ╠═1e3be001-f38a-4174-8a46-fb49f385df52
 # ╠═a572675c-f860-4530-a5d6-c4e9238ac082
 # ╠═3c6d2d48-e150-4d91-bc2d-e52ff59f074d
 # ╠═1eb84449-0f88-4375-84d7-c5129593e663
+# ╟─5f51f862-7aed-4aeb-9ff6-de5ac1df9261
 # ╠═7497fced-70f6-47ea-8bdc-cfdc8907b7d6
 # ╠═49c1e005-ac01-4be1-8535-10d070a3beb7
 # ╠═c035a400-d137-41ee-b257-6d6aebcaf85d
-# ╠═018ba447-aa6d-401e-8966-2b535a6cd488
+# ╟─7090e436-b837-4fa1-b36d-52fb057d44b0
+# ╟─1dc7552f-ee6c-4408-aa1d-15ee58869cda
+# ╟─1f7d82bd-4137-4a8e-a5e9-9ea5dbcbfebf
+# ╠═36515a5f-3efe-4daf-9479-00c4ea77000a
 # ╠═0048148a-f7ed-49db-89da-c64d4a94f4a2
 # ╠═bd15bebe-ee6f-4959-99a3-9a676b1515bc
 # ╠═163a4d63-c249-43d5-9196-1c4c103c8de0
 # ╠═68928b3f-59ff-4183-84f3-2512e0a6e9d7
+# ╠═30871c58-c0fc-42cf-acae-386f1bd15353
 # ╠═abe28a86-ed78-4b60-831b-8fd39f774ffc
+# ╠═46c29ca2-3eec-4020-858c-02a87e39e464
+# ╠═84c17ade-04a3-4793-beb2-9d390041f47d
+# ╠═1ef5e72d-8648-405e-90af-7c0b774c28ba
+# ╟─33778678-1273-4698-a062-b98fb72c0402
 # ╠═26eb4664-5769-484d-92ca-5102ddc77e7b
 # ╠═db9362dc-f50d-4ae8-88c8-8e1be999eeeb
 # ╠═824496ff-5c4d-41b9-a341-bbfa0e2b69f3
 # ╠═2ced775b-4bbf-4e23-b390-7438fabbd62e
-# ╠═1ef5e72d-8648-405e-90af-7c0b774c28ba
 # ╠═a7e0c2eb-1f31-4a18-abd2-a9f0aab02664
 # ╠═f0eb238f-753e-4007-8077-1c7e61cd4723
 # ╠═4777bb70-1824-4c84-876b-48beb7d04688
-# ╠═26f458e5-5388-4698-be91-c1c2ad702c0d
 # ╠═b6fc9302-5998-4dac-bf6a-b4e808de6c17
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
