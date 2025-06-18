@@ -64,9 +64,44 @@ For more information see: [https://juliaparallel.org/MPI.jl/stable/configuration
 
 When executing on a cluster you will likely need to configure `MPI.jl` to use the system provided MPI.
 
-
-
 ## Installing `mpiexecjl`
 
+```julia-repl
+julia> using MPI
+julia> MPI.install_mpiexecjl()
+```
 
+By default, it will install to `~/.julia/bin`, but you can also choose to install it somewhere else
 
+As an example to install it in the current working directory.
+
+```
+julia> using MPI
+julia> MPI.install_mpiexecjl(destdir=".")
+```
+
+After installing it, you can use it to start Julia.
+
+```
+mpiexecjl --project=/path/to/project -n 4 julia script.jl
+# or
+./mpiexecjl --project=/path/to/project -n 4 julia script.jl
+```
+
+## Exercises
+
+MPI.jl has a series of examples:
+
+- [Hello word](https://juliaparallel.org/MPI.jl/v0.20/examples/01-hello/)
+- [Broadcast](https://juliaparallel.org/MPI.jl/v0.20/examples/02-broadcast/)
+- [Reduce](https://juliaparallel.org/MPI.jl/v0.20/examples/03-reduce/)
+- [Send/receive](https://juliaparallel.org/MPI.jl/v0.20/examples/04-sendrecv/)
+
+### Diffusion
+
+In [exercise 2](https://vchuravy.dev/rse-course/exercises/exercise_2_accelerated/) we looked at a diffusion kernel.
+Instead of implementing this on the GPU you can also implement it with MPI.
+
+!!! note
+    The "hard" part is the handling of the boundary-conditions and ghost cells. So focus on that in the beginning.
+    How are you going to split the computational domain? Who needs to talk to whom?
