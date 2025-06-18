@@ -715,7 +715,7 @@ md"""
 
 # ╔═╡ 6fc7748b-b805-480e-b3ca-93f5188a4184
 md"""
-#### Allgather and Allreduce
+### Allgather and Allreduce
 
 `Gather` and `Reduce` are N to 1 collectives and they have sibling varieties that perform an all-to-all communication.
 
@@ -748,7 +748,7 @@ end
 
 # ╔═╡ 3e35d02c-57e7-4e00-ac44-453de4b9f4f4
 md"""
-### Communicators
+## Communicators
 """
 
 # ╔═╡ e45fff5c-98cb-40cc-b67c-2fe8364c7567
