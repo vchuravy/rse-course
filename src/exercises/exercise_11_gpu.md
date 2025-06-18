@@ -3,7 +3,7 @@ title: "Introduction to KernelAbstractions"
 order: 9.1
 exercise_number: 11
 chapter: 3
-section: 3
+section: 2
 layout: "md.jlmd"
 image: ""
 tags: ["module3", "track_parallel", "exercises"]
