@@ -188,6 +188,34 @@ MPICH features:
 <p>For more information see: <a href="https://juliaparallel.org/MPI.jl/stable/configuration/">https://juliaparallel.org/MPI.jl/stable/configuration/</a></p>
 <p>When executing on a cluster you will likely need to configure <code>MPI.jl</code> to use the system provided MPI.</p>
 <h2 id="installing-mpiexecjl"><a href="#installing-mpiexecjl" class="anchor"></a>Installing <code>mpiexecjl</code></h2>
+<pre><code class="language-julia-repl">julia&gt; using MPI
+julia&gt; MPI.install_mpiexecjl()
+</code></pre>
+<p>By default, it will install to <code>~/.julia/bin</code>, but you can also choose to install it somewhere else</p>
+<p>As an example to install it in the current working directory.</p>
+<pre><code>julia&gt; using MPI
+julia&gt; MPI.install_mpiexecjl(destdir=&quot;.&quot;)
+</code></pre>
+<p>After installing it, you can use it to start Julia.</p>
+<pre><code>mpiexecjl --project=/path/to/project -n 4 julia script.jl
+# or
+./mpiexecjl --project=/path/to/project -n 4 julia script.jl
+</code></pre>
+<h2 id="exercises"><a href="#exercises" class="anchor"></a>Exercises</h2>
+<p>MPI.jl has a series of examples:</p>
+<ul>
+<li><a href="https://juliaparallel.org/MPI.jl/v0.20/examples/01-hello/">Hello word</a></li>
+<li><a href="https://juliaparallel.org/MPI.jl/v0.20/examples/02-broadcast/">Broadcast</a></li>
+<li><a href="https://juliaparallel.org/MPI.jl/v0.20/examples/03-reduce/">Reduce</a></li>
+<li><a href="https://juliaparallel.org/MPI.jl/v0.20/examples/04-sendrecv/">Send/receive</a></li>
+</ul>
+<h3 id="diffusion"><a href="#diffusion" class="anchor"></a>Diffusion</h3>
+<p>In <a href="https://vchuravy.dev/rse-course/exercises/exercise_2_accelerated/">exercise 2</a> we looked at a diffusion kernel.
+Instead of implementing this on the GPU you can also implement it with MPI.</p>
+<div class="admonition note"><p class="admonition-title">Note</p>
+<p>The “hard” part is the handling of the boundary-conditions and ghost cells. So focus on that in the beginning.
+How are you going to split the computational domain? Who needs to talk to whom?</p>
+</div>
 </main>
 </div>
 
