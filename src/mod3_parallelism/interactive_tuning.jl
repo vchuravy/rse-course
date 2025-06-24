@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.13
 
 #> [frontmatter]
 #> chapter = "3"
@@ -29,30 +29,6 @@ macro bind(def, element)
     #! format: on
 end
 
-# ╔═╡ c7f41ccc-062d-4446-b121-a009334c6b64
-using ThreadPinning
-
-# ╔═╡ a282a68c-f485-4c61-9ba0-6867c9b445e1
-using CpuId
-
-# ╔═╡ c63b5e94-dbbc-11ee-1324-796a50760998
-using LIKWID
-
-# ╔═╡ c0f6be74-fa11-48a5-b4d2-5b14b333a064
-using LinuxPerf
-
-# ╔═╡ 6eeea444-5126-4776-a2e7-f3ba76605c2d
-using PlutoUI
-
-# ╔═╡ ba59bed0-132b-4ee7-bd5c-b941108fe80e
-using Chairmarks
-
-# ╔═╡ 9cbd0d6d-ebc3-4f15-a59e-e42e37d4af37
-using Base.Threads
-
-# ╔═╡ 8524cf32-3535-48a1-8439-a399d04eb160
-using ChunkSplitters
-
 # ╔═╡ bbbe6c9c-f032-41b7-a976-c6fd5666adf5
 TableOfContents()
 
@@ -72,6 +48,9 @@ md"""
     This notebook uses and LIKWID & LinuxPerf.jl, which requires Linux!
 """
 
+# ╔═╡ c7f41ccc-062d-4446-b121-a009334c6b64
+using ThreadPinning
+
 # ╔═╡ b2e4f4a1-e516-42d4-bd34-09ba3bdeecc9
 # ThreadPinning.pinthreads(Int.(log2.(parse.(BigInt, first(split(ENV["SLURM_CPU_BIND_LIST"], ','), Threads.nthreads())))); warn=false)
 
@@ -80,6 +59,9 @@ ThreadPinning.pinthreads(:cores)
 
 # ╔═╡ 1cf0469b-664a-4ae8-948b-044c3b11d60e
 with_terminal(() -> ThreadPinning.threadinfo())
+
+# ╔═╡ a282a68c-f485-4c61-9ba0-6867c9b445e1
+using CpuId
 
 # ╔═╡ fe999d9b-9684-4d4a-ac87-b826a476c6e1
 cpuinfo()
@@ -92,14 +74,17 @@ md"""
 ## Simple linear algebra
 """
 
-# ╔═╡ 7585b514-0b16-45cf-ba03-b1f40b0c86b6
-md"""T = $(@bind T Select([Float32, Float64]))"""
+# ╔═╡ c63b5e94-dbbc-11ee-1324-796a50760998
+using LIKWID
 
-# ╔═╡ a74235f2-7c25-4438-b6ed-4610d94dbb48
-let
-	range = trunc.(Int, exp10.(0:0.2:5))
-	md"N = $(@bind N Slider(range, default=10_000, show_value=true))"
-end
+# ╔═╡ c0f6be74-fa11-48a5-b4d2-5b14b333a064
+using LinuxPerf
+
+# ╔═╡ 6eeea444-5126-4776-a2e7-f3ba76605c2d
+using PlutoUI
+
+# ╔═╡ ba59bed0-132b-4ee7-bd5c-b941108fe80e
+using Chairmarks
 
 # ╔═╡ 7c536724-845e-4156-aa44-38d6a00189a7
 begin
@@ -108,6 +93,15 @@ begin
 	y = rand(T, N);
 	z = zeros(T, N);
 end;
+
+# ╔═╡ 7585b514-0b16-45cf-ba03-b1f40b0c86b6
+md"""T = $(@bind T Select([Float32, Float64]))"""
+
+# ╔═╡ a74235f2-7c25-4438-b6ed-4610d94dbb48
+let
+	range = trunc.(Int, exp10.(0:0.2:5))
+	md"N = $(@bind N Slider(range, default=10_000, show_value=true))"
+end
 
 # ╔═╡ 8d9eb2e4-4421-483f-86cf-3bc932c40061
 function axpy!(z, a, x, y)
@@ -124,6 +118,12 @@ md"""
 We can use [`LIKWID.jl`](https://github.com/JuliaPerf/LIKWID.jl) to measure the number of floating point operations performed in the `axpy!` function (details below 👇).
 """
 
+# ╔═╡ 235a7a10-d5e6-4043-9385-22547e1663a0
+N_FLOPs = first(events[perf_group])["RETIRED_SSE_AVX_FLOPS_ALL"]
+
+# ╔═╡ 05c48ee8-b8cc-46e7-9a60-2ac7b7eb7934
+N_FLOPs_per_iteration = N_FLOPs / N
+
 # ╔═╡ d8f66172-6e8d-4530-bad7-067d6e67ca3d
 with_terminal(() -> @code_llvm debuginfo=:none axpy!(z, a, x, y))
 
@@ -136,12 +136,6 @@ perf_group = T==Float32 ? "FLOPS_SP" : "FLOPS_DP";
 # ╔═╡ ce26cf0f-4ce5-404d-8ea1-7455b88faf6d
 # ╠═╡ show_logs = false
 metrics, events = @perfmon perf_group axpy!(z, a, x, y);
-
-# ╔═╡ 235a7a10-d5e6-4043-9385-22547e1663a0
-N_FLOPs = first(events[perf_group])["RETIRED_SSE_AVX_FLOPS_ALL"]
-
-# ╔═╡ 05c48ee8-b8cc-46e7-9a60-2ac7b7eb7934
-N_FLOPs_per_iteration = N_FLOPs / N
 
 # ╔═╡ af1209dc-31ae-4d7d-bbf2-5c83169f27e0
 first(metrics[perf_group])
@@ -176,6 +170,12 @@ sum(data)
 
 # ╔═╡ f21573da-4d5b-4ce4-a2e9-9e3ef1d9712c
 @b sum(data)
+
+# ╔═╡ 9cbd0d6d-ebc3-4f15-a59e-e42e37d4af37
+using Base.Threads
+
+# ╔═╡ 8524cf32-3535-48a1-8439-a399d04eb160
+using ChunkSplitters
 
 # ╔═╡ adbd49bd-8401-4160-9f94-0cbbb6c8d1d4
 function sum_threads_chunks(data; nchunks=nthreads())
@@ -281,7 +281,7 @@ ThreadPinning = "811555cd-349b-4f26-b7bc-1f208b848042"
 
 [compat]
 Chairmarks = "~1.1.0"
-ChunkSplitters = "~2.3.0"
+ChunkSplitters = "~2.6.0"
 CpuId = "~0.3.1"
 LIKWID = "~0.4.4"
 LinuxPerf = "~0.3.7"
@@ -295,7 +295,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "6360689c31d5eecab49c45c32cbc05880cd6d8fe"
+project_hash = "a5f953475df66ccc391f96c556d66daa9effcded"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -331,26 +331,22 @@ weakdeps = ["Statistics"]
     StatisticsChairmarksExt = ["Statistics"]
 
 [[deps.ChunkSplitters]]
-deps = ["Compat", "TestItems"]
-git-tree-sha1 = "a27e2550db5e1ee1882577931f83b9dfd0cc3a28"
+deps = ["TestItems"]
+git-tree-sha1 = "01d5db8756afc4022b1cf267cfede13245226c72"
 uuid = "ae650224-84b6-46f8-82ea-d812ca08434e"
-version = "2.3.0"
+version = "2.6.0"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
-git-tree-sha1 = "b10d0b65641d57b8b4d5e234446582de5047050d"
+git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
 uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-version = "0.11.5"
+version = "0.12.1"
 
-[[deps.Compat]]
-deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "8ae8d32e09f0dcf42a36b90d4e17f5dd2e4c4215"
-uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.16.0"
-weakdeps = ["Dates", "LinearAlgebra"]
+    [deps.ColorTypes.extensions]
+    StyledStringsExt = "StyledStrings"
 
-    [deps.Compat.extensions]
-    CompatLinearAlgebraExt = "LinearAlgebra"
+    [deps.ColorTypes.weakdeps]
+    StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -390,9 +386,9 @@ uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 version = "1.9.1"
 
 [[deps.DocStringExtensions]]
-git-tree-sha1 = "e7b7e6f178525d17c720ab9c081e4ef04429f860"
+git-tree-sha1 = "7442a5dfe1ebb773c29cc2962a8980f47221d76c"
 uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
-version = "0.9.4"
+version = "0.9.5"
 
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
@@ -553,10 +549,10 @@ version = "1.11.0"
     REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
 [[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "d3de2694b52a01ce61a036f18ea9c0f61c4a9230"
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "3151a0c8061cc3f887019beebf359e6c4b3daa08"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.62"
+version = "0.7.65"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -635,9 +631,9 @@ version = "1.0.1"
 
 [[deps.Tables]]
 deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
-git-tree-sha1 = "598cd7c1f68d1e205689b1c2fe65a9f85846f297"
+git-tree-sha1 = "f2c1efbc8f3a609aadf318094f8fc5204bdaf344"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.12.0"
+version = "1.12.1"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -650,9 +646,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 version = "1.11.0"
 
 [[deps.TestItems]]
-git-tree-sha1 = "8621ba2637b49748e2dc43ba3d84340be2938022"
+git-tree-sha1 = "42fd9023fef18b9b78c8343a4e2f3813ffbcefcb"
 uuid = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
-version = "0.1.1"
+version = "1.0.0"
 
 [[deps.ThreadPinning]]
 deps = ["DelimitedFiles", "DocStringExtensions", "Libdl", "LinearAlgebra", "PrecompileTools", "Preferences", "Random", "StableTasks"]
@@ -666,9 +662,9 @@ uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
 version = "0.1.10"
 
 [[deps.URIs]]
-git-tree-sha1 = "cbbebadbcc76c5ca1cc4b4f3b0614b3e603b5000"
+git-tree-sha1 = "24c1c558881564e2217dcf7840a8b2e10caeb0f9"
 uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
-version = "1.5.2"
+version = "1.6.0"
 
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
@@ -681,17 +677,21 @@ version = "1.11.0"
 
 [[deps.Unitful]]
 deps = ["Dates", "LinearAlgebra", "Random"]
-git-tree-sha1 = "d62610ec45e4efeabf7032d67de2ffdea8344bed"
+git-tree-sha1 = "d2282232f8a4d71f79e85dc4dd45e5b12a6297fb"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
-version = "1.22.1"
+version = "1.23.1"
 
     [deps.Unitful.extensions]
     ConstructionBaseUnitfulExt = "ConstructionBase"
+    ForwardDiffExt = "ForwardDiff"
     InverseFunctionsUnitfulExt = "InverseFunctions"
+    PrintfExt = "Printf"
 
     [deps.Unitful.weakdeps]
     ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
     InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
+    Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Zlib_jll]]
 deps = ["Libdl"]

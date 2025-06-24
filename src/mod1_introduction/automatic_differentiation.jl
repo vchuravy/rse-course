@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.13
 
 #> [frontmatter]
 #> chapter = "1"
@@ -36,6 +36,9 @@ begin
 	PlutoUI.TableOfContents(; depth=4)
 end
 
+# ╔═╡ 3a267f1f-1936-4cab-81cc-d42d59169d26
+ChooseDisplayMode()
+
 # ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
 begin
 	using CairoMakie
@@ -44,15 +47,6 @@ begin
 			   Lines = (linewidth = 2,),
 			   markersize = 16)
 end
-
-# ╔═╡ 424db547-b82b-45ae-a8ac-044de1ed6a0c
-using DoubleFloats
-
-# ╔═╡ 708757e8-f115-42d4-a100-9a132d91cd0f
-using BenchmarkTools
-
-# ╔═╡ 3a267f1f-1936-4cab-81cc-d42d59169d26
-ChooseDisplayMode()
 
 # ╔═╡ 668493d8-bf95-4561-9a3a-2e7f7a987682
 md"""
@@ -74,8 +68,39 @@ This number $f'(\tilde{x})$ is called the derivative of $f$ at $\tilde{x}$.
 Let's visualize this on a simple scalar function:
 """
 
+# ╔═╡ 280d83db-080d-4b22-8fc0-a175c8690b4a
+f(x) = x^2 - 5 * sin(x) - 10 # you can change this function!
+
 # ╔═╡ 38b821ed-91a9-414e-9575-eb43e8068956
 @bind x̂ Slider(-5:0.2:5, default=-1.5, show_value=true)
+
+# ╔═╡ 9a0fe51f-b1df-46e7-8577-02d8cb4136f5
+let
+	fig = Figure()
+	ax = Axis(fig[1,1], xlabel=L"x")
+
+    # Plot function
+    xs = range(-5, 5, 50)
+	ymin, ymax = extrema(f.(xs))
+
+	ylims!(ax, ymin-5, ymax+5)
+	lines!(ax, xs, f, label=L"Function $f(x)$")
+
+    # Obtain the function f′
+    f′ = derivative(f)
+
+    # Plot f′(x)
+    lines!(ax, xs, f′; label=L"Derivative $f′(x)$")
+
+    # # Plot 1st order Taylor series approximation
+    taylor_approx(x) = f(x̂) + f′(x̂)*(x-x̂) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
+    lines!(ax, xs, taylor_approx; label=L"Taylor approx. around $\tilde{x}$")
+
+    # # Show point of linearization
+    vlines!(ax, [x̂]; color=:grey, linestyle=:dash, label=L"\tilde{x}")
+	axislegend(ax, position=:ct)
+	fig
+end
 
 # ╔═╡ 779370fe-7513-4f4e-8517-d3328337ac42
 md"""
@@ -84,11 +109,49 @@ md"""
 For a multi-variable function like `f(x, y)` we define $\frac{\partial}{\partial x}f$ as the rate of change in the $x$ direction, and likewise $\frac{\partial}{\partial y}f$ as the rate of change in the $y$ direction.
 """
 
+# ╔═╡ 866b8869-47ec-4040-a7ef-a0831370b277
+f2(x, y) = x^2 - y^3 - 5 * sin(x) + 5 * cos(y * x) - 20 # you can change this function!
+
 # ╔═╡ cf7662c3-6ad6-4cc8-b73b-42b1bb738f37
 @bind x̂₁ Slider(-5:0.2:5, default=-1.5, show_value=true)
 
 # ╔═╡ 47da91d3-8a69-4aa5-a49f-55f9c4f585f9
 @bind ŷ₁ Slider(-5:0.2:5, default=-1.5, show_value=true)
+
+# ╔═╡ e5193d1e-8613-4cc4-80a0-a08597c720a5
+let
+	fig = Figure()
+	ax = Axis3(fig[1,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="f(x,y)")
+	ax4 = Axis3(fig[2,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="Taylor approx. around x̂=$x̂₁, ŷ=$ŷ₁")
+
+	ax2 = Axis(fig[1, 2], title="Partial deriv. in x at ŷ=$ŷ₁", xlabel=L"x")
+	ax3 = Axis(fig[2, 2], title="Partial deriv. in y at x̂", xlabel=L"y")
+
+    # Plot function
+    xs = range(-5, 5, 50)
+	ys = range(-5, 5, 50)
+	zmin, zmax = extrema(f2.(xs, ys'))
+
+	zlims!(ax, zmin-5, zmax+5)
+	surface!(ax, xs, ys, f2)
+	# lines!(ax, xs, f, label=L"Function $f(x)$")
+
+    # Obtain the partial derivative functions f′
+ 	f_x′ = derivative(x->f2(x, ŷ₁))
+	f_y′ = derivative(y->f2(x̂₁, y))
+
+
+    # Plot partial f′(x)
+    lines!(ax2, xs, f_x′; label=L"Derivative $f_x′(x)$")
+
+	lines!(ax3, ys, f_y′; label=L"Derivative $f_x′(x)$")
+
+    # Plot 1st order Taylor series approximation
+    taylor_approx(x, y) = f2(x̂₁, ŷ₁) + f_x′(x̂₁)*(x-x̂₁) + f_y′(ŷ₁)*(y-ŷ₁) 
+    surface!(ax4, xs, ys, taylor_approx; label=L"Taylor approx. around $\tilde{x},\tilde{y}$")
+
+	fig
+end
 
 # ╔═╡ ddbbc711-bd5b-4d20-962b-7d103e0f31b4
 md"""
@@ -107,12 +170,64 @@ Below we study a model that is the combination of a `sin` and `cos` function wit
 
 """
 
+# ╔═╡ ecf84d2e-46f6-4dd1-a5de-a5f65b1d281f
+function m(x, a, b, c, d)
+	return sin(a*x)*b + cos(c*x)*d
+end
+
+# ╔═╡ 7a5bccfa-fce1-4bd8-8531-048ecb1c6a21
+xs = 0.0:0.01:2π
+
+# ╔═╡ 3c4079a7-a627-464a-9309-f0f5320d368b
+function multi_slider(names, values)
+	return PlutoUI.combine() do Child
+		inputs = [
+			md""" $(name): $(
+				Child(name, Slider(vals; show_value=true, default=(first(vals)+last(vals))/2))
+			)"""
+			
+			for (name, vals) in zip(names, values)
+		]
+		
+		md"""
+		$(inputs)
+		"""
+	end
+end
+
+# ╔═╡ 4b079423-6c68-4ea0-a51d-b2b3bbfbb0f6
+@bind coeffs multi_slider(
+	("a", "b", "c", "d"), 
+	(-1.0:0.1:2.0,
+	 -1.0:0.1:2.0,
+	 -1.0:0.1:2.0,
+	 -1.0:0.1:2.0,))
+
+# ╔═╡ a4e57d7a-7232-4189-85ff-8a25a3cb82da
+let
+	fig = Figure()
+	ax = Axis(fig[1,1])
+
+	lines!(ax, xs, sin, label="sin")
+	lines!(ax, xs, cos, label="cos")
+	lines!(ax, xs, m.(xs, coeffs...), label = "model")
+
+	axislegend(ax)
+	fig
+end
+
 # ╔═╡ 74c8acf3-0c7b-4555-a795-0c712546d5b4
 question_box(
 md"""
 Given an "observed" evaluation of `m` can we "learn" the values of `a`, `b`, `c`, `d`?
 """
 )
+
+# ╔═╡ e86b88d2-baa7-4d41-9539-fb298ba5c123
+ys = m.(xs, 0.3, -1.2, 0.5, 0.7)
+
+# ╔═╡ b2cdecef-d2d5-4514-a6cd-d3d453ed9099
+lines(xs, ys)
 
 # ╔═╡ 608b15d4-9ab3-405d-b574-167788f0c842
 md"""
@@ -122,15 +237,50 @@ We could try some random values!
 # ╔═╡ 834f9474-8f11-4bda-818e-ed3dd505f444
 coeffs_guess = rand(-2.0:0.1:2.0, 4)
 
+# ╔═╡ f73540da-cf91-4463-9adf-b0e5b98e7b79
+ys_guess = m.(xs, coeffs_guess...)
+
 # ╔═╡ 3950039e-5d9d-4a00-b511-3f0a583d8309
 md"""
 We need to define a "loss" a function that measures how far away we are from our solution. The Mean-Squared-Error is a common choice.
 """
 
+# ╔═╡ 14db561f-54c3-41d4-8078-531facb65038
+# Mean squared error
+function mse(ŷ, y)
+	sum((ŷ .- y).^2) / length(y)
+end
+
+# ╔═╡ 367385c4-65b0-4a4a-aaf1-2cfcd8015b20
+mse(ys, ys_guess)
+
+# ╔═╡ b75017e8-bcfd-42fd-8870-9777c2f230e3
+let
+	fig = Figure()
+	ax = Axis(fig[1,1], title="MSE = $(mse(ys, ys_guess))")
+	lines!(ax, xs, ys)
+	lines!(ax, xs, ys_guess)
+	fig
+end
+
 # ╔═╡ a7f02fa7-8dac-424e-92d9-cc0f8ed85b93
 md"""
 So how do we improve our guess systematically?
 """
+
+# ╔═╡ 6a63cae0-fcd7-4258-a82f-3f752b37225c
+let
+	neighborhood = -0.3:0.1:0.3
+
+	fig = Figure()
+	ax = Axis(fig[1,1])
+	for offset in neighborhood
+		_ys = m.(xs, coeffs_guess[1]+offset, coeffs_guess[2:end]...)
+		lines!(ax, xs, _ys, label="Offset a+$(offset), MSE= $(mse(ys, _ys))" )
+	end
+	axislegend(ax)
+	fig
+end
 
 # ╔═╡ 5429e788-a5ed-434b-a140-379f73b5cfc5
 tip(
@@ -145,6 +295,38 @@ But what we are after is the "rate of change" in the error given for a parameter
 (or all parameters).
 """
 )
+
+# ╔═╡ 583d4563-ac91-43f0-8cb1-2b598974edc7
+let 
+	fig=Figure()
+	ax = Axis(fig[1,1], xlabel=L"a")
+
+    # Plot function
+    as = range(-2, 2, 100)
+
+	f(a) = mse(ys, m.(xs, a, coeffs_guess[2:end]...))
+	ymin, ymax = extrema(f.(as))
+
+	ylims!(ax, ymin-5, ymax+5)
+	lines!(ax, as, f, label=L"Function $f = mse(ys, m(x; a, b, c, d))$")
+
+	# Obtain the function f′
+    f′ = derivative(f)
+
+    # Plot f′(x)
+    lines!(ax, as, f′; label=L"Derivative $f′(a)$")
+
+	â = coeffs_guess[1]
+    # Plot 1st order Taylor series approximation
+    taylor_approx(a) = f(â) + f′(â)*(a-â) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
+    lines!(ax, as, taylor_approx; label=L"Taylor approx. around $\tilde{a}$")
+
+    # Show point of linearization
+    vlines!(ax, [â]; color=:grey, linestyle=:dash, label=L"\tilde{a}")
+	axislegend(ax, position=:ct)
+
+	fig
+end
 
 # ╔═╡ f918e5a2-d1b4-4c7d-93fa-a50dcd0d8fa5
 tip(
@@ -180,11 +362,17 @@ and approximate the limit by taking a small $h > 0$. However, this leads to roun
 error since we typically represent real numbers via *floating point numbers with fixed precision*.
 """
 
+# ╔═╡ eea941bf-0be0-4002-a07e-4ee5d95645dd
+nextfloat(1.0) - 1.0
+
 # ╔═╡ a037e8aa-1b41-4146-814f-af3c6ff38be4
 eps(1.0)
 
 # ╔═╡ 5acc8ada-625a-4a8b-a790-a2b57a4ed189
 eps(1.0f0)
+
+# ╔═╡ 492d49ba-94aa-4c30-894b-4e59ed98402a
+(nextfloat(1.234e5) - 1.234e5)
 
 # ╔═╡ 4fbd8caf-04a5-46f0-8c73-a2db450bd172
 eps(1.234e5)
@@ -199,8 +387,42 @@ We illustrate this for different functions $f$ at $x = 1$. We use different type
 finite difference approximation.
 """
 
+# ╔═╡ 424db547-b82b-45ae-a8ac-044de1ed6a0c
+using DoubleFloats
+
+# ╔═╡ 400c2d07-00f1-404f-b360-572671c467b5
+@bind f_diff Select([
+	sin => "f(x) = sin(x)",
+	cos => "f(x) = cos(x)",
+	exp => "f(x) = exp(x)",
+	(x -> sin(100 * x)) => "f(x) = sin(100 x)",
+	(x -> sin(x / 100)) => "f(x) = sin(x / 100)",
+])
+
 # ╔═╡ 799fd006-6e40-47cd-98c6-62222e8c74eb
 @bind FloatType Select([Float32, Float64, Double64]; default = Float64)
+
+# ╔═╡ 051b752d-b0aa-4e05-bfc4-5d671e17e6c8
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1]; 
+			  xlabel = L"Step size $h$", 
+			  ylabel = "Error of the forward differences",
+			  xscale = log10, yscale = log10)
+	
+	f = f_diff
+	x = one(FloatType)
+	f′x = derivative(f, Float64(x))
+	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
+	fd_error(h) = max(abs((f(x + h) - f(x)) / h - f′x), eps(x) / 100)
+	lines!(ax, h, fd_error.(h); label = "")
+	
+	h_def = sqrt(eps(x))
+	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
+	text!(ax, "sqrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
+	
+	fig
+end
 
 # ╔═╡ 3150ee27-4907-4a83-9969-b1ed75bf6378
 md"""
@@ -208,6 +430,29 @@ Next, we use the central difference
 
 $$\frac{f(x + h) - f(x - h)}{2 h} \approx f'(x).$$
 """
+
+# ╔═╡ 518443a4-47d6-4009-bc1b-6272b46a168a
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1]; 
+			  xlabel = L"Step size $h$", 
+			  ylabel = "Error of the central differences",
+			  xscale = log10, yscale = log10)
+	
+	f = f_diff
+	x = one(FloatType)
+	(f′x,) = derivative(f, Float64(x))
+	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
+	fd_error(h) = max(abs((f(x + h) - f(x - h)) / (2 * h) - f′x), eps(x) / 100)
+	lines!(ax, h, fd_error.(h); label = "")
+	
+	h_def = cbrt(eps(x))
+	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
+	text!(ax, "cbrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
+	
+	fig
+end
+
 
 # ╔═╡ 89d5bd8a-a9e4-4a1a-9e71-206db516a50f
 md"""
@@ -222,14 +467,63 @@ is to implement the basic rules of calculus like the product rule and the chain 
 Before doing that, let's consider an example.
 """
 
+# ╔═╡ 7122f82d-32b8-46c3-9299-6f7e31b7fd55
+g(x) = log(x^2 + exp(sin(x)))
+
 # ╔═╡ ac9403df-12f2-436f-bfbd-553e9de1ab2e
 md"""We can compute the derivative by hand using the chain rule."""
+
+# ╔═╡ bc07318f-abb3-4791-9044-3609c05aebb3
+g′(x) = 1 / (x^2 + exp(sin(x))) * (2 * x + exp(sin(x)) * cos(x))
 
 # ╔═╡ 611ecf77-940d-4c1f-92e3-4249c2d720ef
 md"We can think of the function as a kind of *computational graph* obtained by dividing it into steps."
 
+# ╔═╡ 27220cbf-40ee-4e00-882c-d3a16f048cb0
+function g_graph(x)
+	c1 = x^2
+	c2 = sin(x)
+	c3 = exp(c2)
+	c4 = c1 + c3
+	c5 = log(c4)
+	return c5
+end
+
+# ╔═╡ 2993b2be-69d1-4d35-81af-73fcd33e1465
+g(1.0) ≈ g_graph(1.0)
+
 # ╔═╡ 5e99b4d7-5c7a-473a-aace-6e0ea16ec1bf
 md"To compute the derivative, we have to apply the chain rule multiple times."
+
+# ╔═╡ 4e610480-f0d1-420d-a273-08ee98a5438c
+function g_graph_derivative(x)
+	c1 = x^2
+	c1_ε = 2 * x
+	
+	c2 = sin(x)
+	c2_ε = cos(x)
+	
+	c3 = exp(c2)
+	c3_ε = exp(c2) * c2_ε
+	
+	c4 = c1 + c3
+	c4_ε = c1_ε + c3_ε
+	
+	c5 = log(c4)
+	c5_ε = c4_ε / c4
+	return c5, c5_ε
+end
+
+# ╔═╡ 96c8d882-2970-4497-8638-19c7d34ab492
+g_graph_derivative(1.0)
+
+# ╔═╡ 44cc65e6-f622-4601-8f4f-c31b89ce00fe
+(g(1.0), g′(1.0))
+
+# ╔═╡ 68d42e2d-10cd-474d-a8c8-681f13bb027c
+let x = 1.0, h = sqrt(eps())
+	(g(x + h) - g(x)) / h
+end
 
 # ╔═╡ 082e9259-8e64-4ffa-8ed7-5c9bdbad0a0c
 md"""
@@ -283,12 +577,6 @@ Dual(1, 2) + Dual(2.0, 3)
 Base.:-(x::Dual, y::Dual) = Dual(x.value - y.value,
 								 x.deriv - y.deriv)
 
-# ╔═╡ eea941bf-0be0-4002-a07e-4ee5d95645dd
-nextfloat(1.0) - 1.0
-
-# ╔═╡ 492d49ba-94aa-4c30-894b-4e59ed98402a
-(nextfloat(1.234e5) - 1.234e5)
-
 # ╔═╡ ae46c18f-3e2e-4f92-8a96-ed786215b51f
 Dual(1, 2) - Dual(2.0, 3)
 
@@ -296,46 +584,12 @@ Dual(1, 2) - Dual(2.0, 3)
 Base.:*(x::Dual, y::Dual) = Dual(x.value * y.value,
 								 x.value * y.deriv + x.deriv * y.value)
 
-# ╔═╡ 7a5bccfa-fce1-4bd8-8531-048ecb1c6a21
-xs = 0.0:0.01:2π
-
 # ╔═╡ 05629dd9-7777-46c8-9851-5b39ce2829df
 Dual(1, 2) * Dual(2.0, 3)
 
 # ╔═╡ 4006fed7-9a7d-4eee-bb75-ed7b5472d6d1
 Base.:/(x::Dual, y::Dual) = Dual(x.value / y.value,
 								 (x.deriv * y.value - x.value * y.deriv) / y.value^2)
-
-# ╔═╡ 3c4079a7-a627-464a-9309-f0f5320d368b
-function multi_slider(names, values)
-	return PlutoUI.combine() do Child
-		inputs = [
-			md""" $(name): $(
-				Child(name, Slider(vals; show_value=true, default=(first(vals)+last(vals))/2))
-			)"""
-			
-			for (name, vals) in zip(names, values)
-		]
-		
-		md"""
-		$(inputs)
-		"""
-	end
-end
-
-# ╔═╡ 4b079423-6c68-4ea0-a51d-b2b3bbfbb0f6
-@bind coeffs multi_slider(
-	("a", "b", "c", "d"), 
-	(-1.0:0.1:2.0,
-	 -1.0:0.1:2.0,
-	 -1.0:0.1:2.0,
-	 -1.0:0.1:2.0,))
-
-# ╔═╡ 14db561f-54c3-41d4-8078-531facb65038
-# Mean squared error
-function mse(ŷ, y)
-	sum((ŷ .- y).^2) / length(y)
-end
 
 # ╔═╡ f0ed7963-e935-41cc-9820-94db0c3cd042
 Dual(1, 2) / Dual(2.0, 3)
@@ -355,73 +609,14 @@ Dual(1, 2) + 3.0
 # ╔═╡ 67f88aac-14e4-423c-9a7b-35275a01a309
 md"Next, we need to implement the well-know derivatives of special functions."
 
-# ╔═╡ 81a8a7b4-47dc-4e20-a26f-adf6f36d12d9
-Base.cos(x::Dual) = Dual(cos(x.value), -sin(x.value) * x.deriv)
-
 # ╔═╡ 10553f26-b660-4889-b0a7-71d68dbc105c
 Base.sin(x::Dual) = Dual(sin(x.value), cos(x.value) * x.deriv)
 
-# ╔═╡ 280d83db-080d-4b22-8fc0-a175c8690b4a
-f(x) = x^2 - 5 * sin(x) - 10 # you can change this function!
-
-# ╔═╡ 866b8869-47ec-4040-a7ef-a0831370b277
-f2(x, y) = x^2 - y^3 - 5 * sin(x) + 5 * cos(y * x) - 20 # you can change this function!
-
-# ╔═╡ ecf84d2e-46f6-4dd1-a5de-a5f65b1d281f
-function m(x, a, b, c, d)
-	return sin(a*x)*b + cos(c*x)*d
-end
-
-# ╔═╡ e86b88d2-baa7-4d41-9539-fb298ba5c123
-ys = m.(xs, 0.3, -1.2, 0.5, 0.7)
-
-# ╔═╡ b2cdecef-d2d5-4514-a6cd-d3d453ed9099
-lines(xs, ys)
-
-# ╔═╡ f73540da-cf91-4463-9adf-b0e5b98e7b79
-ys_guess = m.(xs, coeffs_guess...)
-
-# ╔═╡ 367385c4-65b0-4a4a-aaf1-2cfcd8015b20
-mse(ys, ys_guess)
-
-# ╔═╡ b75017e8-bcfd-42fd-8870-9777c2f230e3
-let
-	fig = Figure()
-	ax = Axis(fig[1,1], title="MSE = $(mse(ys, ys_guess))")
-	lines!(ax, xs, ys)
-	lines!(ax, xs, ys_guess)
-	fig
-end
-
-# ╔═╡ 6a63cae0-fcd7-4258-a82f-3f752b37225c
-let
-	neighborhood = -0.3:0.1:0.3
-
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	for offset in neighborhood
-		_ys = m.(xs, coeffs_guess[1]+offset, coeffs_guess[2:end]...)
-		lines!(ax, xs, _ys, label="Offset a+$(offset), MSE= $(mse(ys, _ys))" )
-	end
-	axislegend(ax)
-	fig
-end
-
-# ╔═╡ a4e57d7a-7232-4189-85ff-8a25a3cb82da
-let
-	fig = Figure()
-	ax = Axis(fig[1,1])
-
-	lines!(ax, xs, sin, label="sin")
-	lines!(ax, xs, cos, label="cos")
-	lines!(ax, xs, m.(xs, coeffs...), label = "model")
-
-	axislegend(ax)
-	fig
-end
-
 # ╔═╡ 42af19cc-c2b9-4736-9d07-8376c8b6cf09
 sin(Dual(π, 1.0))
+
+# ╔═╡ 81a8a7b4-47dc-4e20-a26f-adf6f36d12d9
+Base.cos(x::Dual) = Dual(cos(x.value), -sin(x.value) * x.deriv)
 
 # ╔═╡ 89be32ff-786e-4794-9aa7-9246dc488a8c
 cos(Dual(π, 1.0))
@@ -434,64 +629,6 @@ log(Dual(1.0, 1))
 
 # ╔═╡ 34d68aa2-42de-480c-8e1b-ce7dfdd1e538
 Base.exp(x::Dual) = Dual(exp(x.value), exp(x.value) * x.deriv)
-
-# ╔═╡ 400c2d07-00f1-404f-b360-572671c467b5
-@bind f_diff Select([
-	sin => "f(x) = sin(x)",
-	cos => "f(x) = cos(x)",
-	exp => "f(x) = exp(x)",
-	(x -> sin(100 * x)) => "f(x) = sin(100 x)",
-	(x -> sin(x / 100)) => "f(x) = sin(x / 100)",
-])
-
-# ╔═╡ 7122f82d-32b8-46c3-9299-6f7e31b7fd55
-g(x) = log(x^2 + exp(sin(x)))
-
-# ╔═╡ 68d42e2d-10cd-474d-a8c8-681f13bb027c
-let x = 1.0, h = sqrt(eps())
-	(g(x + h) - g(x)) / h
-end
-
-# ╔═╡ bc07318f-abb3-4791-9044-3609c05aebb3
-g′(x) = 1 / (x^2 + exp(sin(x))) * (2 * x + exp(sin(x)) * cos(x))
-
-# ╔═╡ 44cc65e6-f622-4601-8f4f-c31b89ce00fe
-(g(1.0), g′(1.0))
-
-# ╔═╡ 27220cbf-40ee-4e00-882c-d3a16f048cb0
-function g_graph(x)
-	c1 = x^2
-	c2 = sin(x)
-	c3 = exp(c2)
-	c4 = c1 + c3
-	c5 = log(c4)
-	return c5
-end
-
-# ╔═╡ 2993b2be-69d1-4d35-81af-73fcd33e1465
-g(1.0) ≈ g_graph(1.0)
-
-# ╔═╡ 4e610480-f0d1-420d-a273-08ee98a5438c
-function g_graph_derivative(x)
-	c1 = x^2
-	c1_ε = 2 * x
-	
-	c2 = sin(x)
-	c2_ε = cos(x)
-	
-	c3 = exp(c2)
-	c3_ε = exp(c2) * c2_ε
-	
-	c4 = c1 + c3
-	c4_ε = c1_ε + c3_ε
-	
-	c5 = log(c4)
-	c5_ε = c4_ε / c4
-	return c5, c5_ε
-end
-
-# ╔═╡ 96c8d882-2970-4497-8638-19c7d34ab492
-g_graph_derivative(1.0)
 
 # ╔═╡ 027dcf07-5dbf-4bfe-bab3-9e8ad3279e3a
 exp(Dual(1.0, 1))
@@ -526,6 +663,9 @@ md"This works since the compiler basically performs the transformation `f` $\to$
 # ╔═╡ 51a97752-ac9b-441a-a654-65a82ec6057c
 md"Since the compiler can see all the different steps, it can generate very efficient code."
 
+# ╔═╡ 708757e8-f115-42d4-a100-9a132d91cd0f
+using BenchmarkTools
+
 # ╔═╡ 1fdcaee7-3f27-4d97-bace-1a022babaff9
 @benchmark g_graph_derivative($(Ref(1.0))[])
 
@@ -538,152 +678,6 @@ md"Now, we have a versatile tool to compute derivatives of functions depending o
 # ╔═╡ 552d2403-41a8-4f56-938a-61e6ced75d85
 derivative(f, x::Real) = f(Dual(x, one(x))).deriv
 
-# ╔═╡ 69e2683a-caf4-48b0-a71a-b73f24bdab83
-md"We can also get the derivative as a function itself."
-
-# ╔═╡ 6f903e30-2c85-4ae1-a4cc-591934f1e012
-derivative(f) = x -> derivative(f, x)
-
-# ╔═╡ 9a0fe51f-b1df-46e7-8577-02d8cb4136f5
-let
-	fig = Figure()
-	ax = Axis(fig[1,1], xlabel=L"x")
-
-    # Plot function
-    xs = range(-5, 5, 50)
-	ymin, ymax = extrema(f.(xs))
-
-	ylims!(ax, ymin-5, ymax+5)
-	lines!(ax, xs, f, label=L"Function $f(x)$")
-
-    # Obtain the function f′
-    f′ = derivative(f)
-
-    # Plot f′(x)
-    lines!(ax, xs, f′; label=L"Derivative $f′(x)$")
-
-    # # Plot 1st order Taylor series approximation
-    taylor_approx(x) = f(x̂) + f′(x̂)*(x-x̂) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
-    lines!(ax, xs, taylor_approx; label=L"Taylor approx. around $\tilde{x}$")
-
-    # # Show point of linearization
-    vlines!(ax, [x̂]; color=:grey, linestyle=:dash, label=L"\tilde{x}")
-	axislegend(ax, position=:ct)
-	fig
-end
-
-# ╔═╡ e5193d1e-8613-4cc4-80a0-a08597c720a5
-let
-	fig = Figure()
-	ax = Axis3(fig[1,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="f(x,y)")
-	ax4 = Axis3(fig[2,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="Taylor approx. around x̂=$x̂₁, ŷ=$ŷ₁")
-
-	ax2 = Axis(fig[1, 2], title="Partial deriv. in x at ŷ=$ŷ₁", xlabel=L"x")
-	ax3 = Axis(fig[2, 2], title="Partial deriv. in y at x̂", xlabel=L"y")
-
-    # Plot function
-    xs = range(-5, 5, 50)
-	ys = range(-5, 5, 50)
-	zmin, zmax = extrema(f2.(xs, ys'))
-
-	zlims!(ax, zmin-5, zmax+5)
-	surface!(ax, xs, ys, f2)
-	# lines!(ax, xs, f, label=L"Function $f(x)$")
-
-    # Obtain the partial derivative functions f′
- 	f_x′ = derivative(x->f2(x, ŷ₁))
-	f_y′ = derivative(y->f2(x̂₁, y))
-
-
-    # Plot partial f′(x)
-    lines!(ax2, xs, f_x′; label=L"Derivative $f_x′(x)$")
-
-	lines!(ax3, ys, f_y′; label=L"Derivative $f_x′(x)$")
-
-    # Plot 1st order Taylor series approximation
-    taylor_approx(x, y) = f2(x̂₁, ŷ₁) + f_x′(x̂₁)*(x-x̂₁) + f_y′(ŷ₁)*(y-ŷ₁) 
-    surface!(ax4, xs, ys, taylor_approx; label=L"Taylor approx. around $\tilde{x},\tilde{y}$")
-
-	fig
-end
-
-# ╔═╡ 583d4563-ac91-43f0-8cb1-2b598974edc7
-let 
-	fig=Figure()
-	ax = Axis(fig[1,1], xlabel=L"a")
-
-    # Plot function
-    as = range(-2, 2, 100)
-
-	f(a) = mse(ys, m.(xs, a, coeffs_guess[2:end]...))
-	ymin, ymax = extrema(f.(as))
-
-	ylims!(ax, ymin-5, ymax+5)
-	lines!(ax, as, f, label=L"Function $f = mse(ys, m(x; a, b, c, d))$")
-
-	# Obtain the function f′
-    f′ = derivative(f)
-
-    # Plot f′(x)
-    lines!(ax, as, f′; label=L"Derivative $f′(a)$")
-
-	â = coeffs_guess[1]
-    # Plot 1st order Taylor series approximation
-    taylor_approx(a) = f(â) + f′(â)*(a-â) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
-    lines!(ax, as, taylor_approx; label=L"Taylor approx. around $\tilde{a}$")
-
-    # Show point of linearization
-    vlines!(ax, [â]; color=:grey, linestyle=:dash, label=L"\tilde{a}")
-	axislegend(ax, position=:ct)
-
-	fig
-end
-
-# ╔═╡ 051b752d-b0aa-4e05-bfc4-5d671e17e6c8
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; 
-			  xlabel = L"Step size $h$", 
-			  ylabel = "Error of the forward differences",
-			  xscale = log10, yscale = log10)
-	
-	f = f_diff
-	x = one(FloatType)
-	f′x = derivative(f, Float64(x))
-	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
-	fd_error(h) = max(abs((f(x + h) - f(x)) / h - f′x), eps(x) / 100)
-	lines!(ax, h, fd_error.(h); label = "")
-	
-	h_def = sqrt(eps(x))
-	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
-	text!(ax, "sqrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
-	
-	fig
-end
-
-# ╔═╡ 518443a4-47d6-4009-bc1b-6272b46a168a
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; 
-			  xlabel = L"Step size $h$", 
-			  ylabel = "Error of the central differences",
-			  xscale = log10, yscale = log10)
-	
-	f = f_diff
-	x = one(FloatType)
-	(f′x,) = derivative(f, Float64(x))
-	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
-	fd_error(h) = max(abs((f(x + h) - f(x - h)) / (2 * h) - f′x), eps(x) / 100)
-	lines!(ax, h, fd_error.(h); label = "")
-	
-	h_def = cbrt(eps(x))
-	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
-	text!(ax, "cbrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
-	
-	fig
-end
-
-
 # ╔═╡ de74c171-b9e2-4a7e-9550-124508e0dfaa
 derivative(g, 1.0)
 
@@ -694,6 +688,12 @@ derivative(x -> 3 * x^2 + 4 * x + 5, 2)
 derivative(3) do x
 	sin(x) * log(x)
 end
+
+# ╔═╡ 69e2683a-caf4-48b0-a71a-b73f24bdab83
+md"We can also get the derivative as a function itself."
+
+# ╔═╡ 6f903e30-2c85-4ae1-a4cc-591934f1e012
+derivative(f) = x -> derivative(f, x)
 
 # ╔═╡ ad924e1f-ef4c-433e-a259-120c9ef0c2d9
 let dg = derivative(g)
@@ -820,10 +820,10 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
 BenchmarkTools = "~1.6.0"
-CairoMakie = "~0.13.4"
+CairoMakie = "~0.15.0"
 DoubleFloats = "~1.4.3"
-PlutoTeachingTools = "~0.3.1"
-PlutoUI = "~0.7.62"
+PlutoTeachingTools = "~0.4.1"
+PlutoUI = "~0.7.65"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -832,7 +832,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "a3c0ebcd2c65f6173530902f92b58435e7cc6029"
+project_hash = "b02ccd87a23cd1ed304cb5508053eefe87ee4dfa"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -914,6 +914,11 @@ version = "0.4.7"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
+[[deps.BaseDirs]]
+git-tree-sha1 = "03fea4a4efe25d2069c2d5685155005fc251c0a1"
+uuid = "18cc8868-cbac-4acf-b575-c8ff214dc66f"
+version = "1.3.0"
+
 [[deps.BenchmarkTools]]
 deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
 git-tree-sha1 = "e38fbc49a620f5d0b660d7f543db1009fe0f8336"
@@ -955,31 +960,25 @@ version = "1.1.1"
 
 [[deps.CairoMakie]]
 deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
-git-tree-sha1 = "c1c90ea6bba91f769a8fc3ccda802e96620eb24c"
+git-tree-sha1 = "dd5027f20df65e8db14a1288ccc039dfea4e4f4b"
 uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-version = "0.13.4"
+version = "0.15.0"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "2ac646d71d0d24b44f3f8c84da8c9f4d70fb67df"
+git-tree-sha1 = "fde3bf89aead2e723284a8ff9cdf5b551ed700e8"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
-version = "1.18.4+0"
+version = "1.18.5+0"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra"]
-git-tree-sha1 = "1713c74e00545bfe14605d2a2be1712de8fbcb58"
+git-tree-sha1 = "06ee8d1aa558d2833aa799f6f0b31b30cada405f"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.25.1"
+version = "1.25.2"
 weakdeps = ["SparseArrays"]
 
     [deps.ChainRulesCore.extensions]
     ChainRulesCoreSparseArraysExt = "SparseArrays"
-
-[[deps.CodeTracking]]
-deps = ["InteractiveUtils", "UUIDs"]
-git-tree-sha1 = "062c5e1a5bf6ada13db96a4ae4749a4c2234f521"
-uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
-version = "1.3.9"
 
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON"]
@@ -995,15 +994,19 @@ version = "3.29.0"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
-git-tree-sha1 = "b10d0b65641d57b8b4d5e234446582de5047050d"
+git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
 uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-version = "0.11.5"
+version = "0.12.1"
+weakdeps = ["StyledStrings"]
+
+    [deps.ColorTypes.extensions]
+    StyledStringsExt = "StyledStrings"
 
 [[deps.ColorVectorSpace]]
 deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "Requires", "Statistics", "TensorCore"]
-git-tree-sha1 = "a1f44953f2382ebb937d60dafbe2deea4bd23249"
+git-tree-sha1 = "8b3b6f87ce8f65a2b4f857528fd8d70086cd72b1"
 uuid = "c3611d14-8923-5661-9e6a-0046d554d3a4"
-version = "0.10.0"
+version = "0.11.0"
 weakdeps = ["SpecialFunctions"]
 
     [deps.ColorVectorSpace.extensions]
@@ -1011,9 +1014,9 @@ weakdeps = ["SpecialFunctions"]
 
 [[deps.Colors]]
 deps = ["ColorTypes", "FixedPointNumbers", "Reexport"]
-git-tree-sha1 = "64e15186f0aa277e174aa81798f7eb8598e0157e"
+git-tree-sha1 = "37ea44092930b1811e666c3bc38065d7d87fcc74"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
-version = "0.13.0"
+version = "0.13.1"
 
 [[deps.Compat]]
 deps = ["TOML", "UUIDs"]
@@ -1030,10 +1033,16 @@ deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "1.1.1+0"
 
+[[deps.ComputePipeline]]
+deps = ["Observables", "Preferences"]
+git-tree-sha1 = "09570704174dbe7d72ee5dcca604b985b6f384e6"
+uuid = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
+version = "0.1.1"
+
 [[deps.ConstructionBase]]
-git-tree-sha1 = "76219f1ed5771adbb096743bff43fb5fdd4c1157"
+git-tree-sha1 = "b4b092499347b18a015186eae3042f72267106cb"
 uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-version = "1.5.8"
+version = "1.6.0"
 weakdeps = ["IntervalSets", "LinearAlgebra", "StaticArrays"]
 
     [deps.ConstructionBase.extensions]
@@ -1080,9 +1089,9 @@ version = "1.11.0"
 
 [[deps.Distributions]]
 deps = ["AliasTables", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "6d8b535fd38293bc54b88455465a1386f8ac1c3c"
+git-tree-sha1 = "3e6d038b77f22791b8e3472b7c633acea1ecac06"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.119"
+version = "0.25.120"
 
     [deps.Distributions.extensions]
     DistributionsChainRulesCoreExt = "ChainRulesCore"
@@ -1095,9 +1104,9 @@ version = "0.25.119"
     Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.DocStringExtensions]]
-git-tree-sha1 = "e7b7e6f178525d17c720ab9c081e4ef04429f860"
+git-tree-sha1 = "7442a5dfe1ebb773c29cc2962a8980f47221d76c"
 uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
-version = "0.9.4"
+version = "0.9.5"
 
 [[deps.DoubleFloats]]
 deps = ["GenericLinearAlgebra", "LinearAlgebra", "Polynomials", "Printf", "Quadmath", "Random", "Requires", "SpecialFunctions"]
@@ -1134,9 +1143,9 @@ uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.6.5+0"
 
 [[deps.Extents]]
-git-tree-sha1 = "063512a13dbe9c40d999c439268539aa552d1ae6"
+git-tree-sha1 = "b309b36a9e02fe7be71270dd8c0fd873625332b4"
 uuid = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
-version = "0.1.5"
+version = "0.1.6"
 
 [[deps.FFMPEG_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
@@ -1146,9 +1155,9 @@ version = "6.1.2+0"
 
 [[deps.FFTW]]
 deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
-git-tree-sha1 = "7de7c78d681078f027389e067864a8d53bd7c3c9"
+git-tree-sha1 = "797762812ed063b9b94f6cc7742bc8883bb5e69e"
 uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-version = "1.8.1"
+version = "1.9.0"
 
 [[deps.FFTW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1231,10 +1240,10 @@ uuid = "d7e528f0-a631-5988-bf34-fe36492bcfd7"
 version = "2.13.4+0"
 
 [[deps.FreeTypeAbstraction]]
-deps = ["ColorVectorSpace", "Colors", "FreeType", "GeometryBasics"]
-git-tree-sha1 = "d52e255138ac21be31fa633200b65e4e71d26802"
+deps = ["BaseDirs", "ColorVectorSpace", "Colors", "FreeType", "GeometryBasics", "Mmap"]
+git-tree-sha1 = "4ebb930ef4a43817991ba35db6317a05e59abd11"
 uuid = "663a7486-cb36-511b-a19d-713bb74d65c9"
-version = "0.10.6"
+version = "0.10.8"
 
 [[deps.FriBidi_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1266,9 +1275,9 @@ version = "1.4.1"
 
 [[deps.GeometryBasics]]
 deps = ["EarCut_jll", "Extents", "GeoInterface", "IterTools", "LinearAlgebra", "PrecompileTools", "Random", "StaticArrays"]
-git-tree-sha1 = "65e3f5c519c3ec6a4c59f4c3ba21b6ff3add95b0"
+git-tree-sha1 = "2670cf32dcf0229c9893b895a9afe725edb23545"
 uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-version = "0.5.7"
+version = "0.5.9"
 
 [[deps.Gettext_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -1284,9 +1293,9 @@ version = "5.2.3+0"
 
 [[deps.Glib_jll]]
 deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "b0036b392358c80d2d2124746c2bf3d48d457938"
+git-tree-sha1 = "fee60557e4f19d0fe5cd169211fdda80e494f4e8"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.82.4+0"
+version = "2.84.0+0"
 
 [[deps.Graphics]]
 deps = ["Colors", "LinearAlgebra", "NaNMath"]
@@ -1313,9 +1322,9 @@ version = "1.0.2"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll"]
-git-tree-sha1 = "55c53be97790242c29031e5cd45e8ac296dadda3"
+git-tree-sha1 = "f923f9a774fcf3f5cb761bfa43aeadd689714813"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
-version = "8.5.0+0"
+version = "8.5.1+0"
 
 [[deps.HypergeometricFunctions]]
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
@@ -1410,11 +1419,12 @@ weakdeps = ["Unitful"]
 
 [[deps.IntervalArithmetic]]
 deps = ["CRlibm", "MacroTools", "OpenBLASConsistentFPCSR_jll", "Random", "RoundingEmulator"]
-git-tree-sha1 = "4e1b4155f04ffa0acf3a0d6e3d651892604666f5"
+git-tree-sha1 = "79342df41c3c24664e5bf29395cfdf2f2a599412"
 uuid = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
-version = "0.22.34"
+version = "0.22.36"
 
     [deps.IntervalArithmetic.extensions]
+    IntervalArithmeticArblibExt = "Arblib"
     IntervalArithmeticDiffRulesExt = "DiffRules"
     IntervalArithmeticForwardDiffExt = "ForwardDiff"
     IntervalArithmeticIntervalSetsExt = "IntervalSets"
@@ -1423,6 +1433,7 @@ version = "0.22.34"
     IntervalArithmeticSparseArraysExt = "SparseArrays"
 
     [deps.IntervalArithmetic.weakdeps]
+    Arblib = "fb37089c-8514-4489-9461-98f9c8763369"
     DiffRules = "b552c78f-8df3-52c6-915a-8e097449b14b"
     ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
     IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
@@ -1496,12 +1507,6 @@ git-tree-sha1 = "eac1206917768cb54957c65a615460d87b455fc1"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.1.1+0"
 
-[[deps.JuliaInterpreter]]
-deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
-git-tree-sha1 = "ad08bbc177bc329888d21a94b37beb6aa919273a"
-uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
-version = "0.10.2"
-
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
 git-tree-sha1 = "7d703202e65efa1369de1279c162b915e245eed1"
@@ -1539,19 +1544,21 @@ version = "1.4.0"
 
 [[deps.Latexify]]
 deps = ["Format", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "OrderedCollections", "Requires"]
-git-tree-sha1 = "cd10d2cc78d34c0e2a3a36420ab607b611debfbb"
+git-tree-sha1 = "4f34eaabe49ecb3fb0d58d6015e32fd31a733199"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.16.7"
+version = "0.16.8"
 
     [deps.Latexify.extensions]
     DataFramesExt = "DataFrames"
     SparseArraysExt = "SparseArrays"
     SymEngineExt = "SymEngine"
+    TectonicExt = "tectonic_jll"
 
     [deps.Latexify.weakdeps]
     DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
+    tectonic_jll = "d7dd28d6-a5e6-559c-9131-7eb760cdacc5"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -1593,10 +1600,10 @@ uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 version = "1.11.0"
 
 [[deps.Libffi_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "27ecae93dd25ee0909666e6835051dd684cc035e"
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "c8da7e6a91781c41a863611c7e966098d783c57a"
 uuid = "e9f186c6-92d2-5b65-8a66-fee21dc1b490"
-version = "3.2.2+2"
+version = "3.4.7+0"
 
 [[deps.Libglvnd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll", "Xorg_libXext_jll"]
@@ -1653,12 +1660,6 @@ version = "0.3.29"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
 
-[[deps.LoweredCodeUtils]]
-deps = ["JuliaInterpreter"]
-git-tree-sha1 = "4ef1c538614e3ec30cb6383b9eb0326a5c3a9763"
-uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "3.3.0"
-
 [[deps.MIMEs]]
 git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
 uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
@@ -1676,16 +1677,10 @@ uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 version = "0.5.16"
 
 [[deps.Makie]]
-deps = ["Animations", "Base64", "CRC32c", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "Contour", "Dates", "DelaunayTriangulation", "Distributions", "DocStringExtensions", "Downloads", "FFMPEG_jll", "FileIO", "FilePaths", "FixedPointNumbers", "Format", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageBase", "ImageIO", "InteractiveUtils", "Interpolations", "IntervalSets", "InverseFunctions", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MacroTools", "MakieCore", "Markdown", "MathTeXEngine", "Observables", "OffsetArrays", "PNGFiles", "Packing", "PlotUtils", "PolygonOps", "PrecompileTools", "Printf", "REPL", "Random", "RelocatableFolders", "Scratch", "ShaderAbstractions", "Showoff", "SignedDistanceFields", "SparseArrays", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "TriplotBase", "UnicodeFun", "Unitful"]
-git-tree-sha1 = "0318d174aa9ec593ddf6dc340b434657a8f1e068"
+deps = ["Animations", "Base64", "CRC32c", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "ComputePipeline", "Contour", "Dates", "DelaunayTriangulation", "Distributions", "DocStringExtensions", "Downloads", "FFMPEG_jll", "FileIO", "FilePaths", "FixedPointNumbers", "Format", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageBase", "ImageIO", "InteractiveUtils", "Interpolations", "IntervalSets", "InverseFunctions", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MacroTools", "Markdown", "MathTeXEngine", "Observables", "OffsetArrays", "PNGFiles", "Packing", "Pkg", "PlotUtils", "PolygonOps", "PrecompileTools", "Printf", "REPL", "Random", "RelocatableFolders", "Scratch", "ShaderAbstractions", "Showoff", "SignedDistanceFields", "SparseArrays", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "TriplotBase", "UnicodeFun", "Unitful"]
+git-tree-sha1 = "59226215851d7d304ed6e35a56a932d562a34f5f"
 uuid = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-version = "0.22.4"
-
-[[deps.MakieCore]]
-deps = ["ColorTypes", "GeometryBasics", "IntervalSets", "Observables"]
-git-tree-sha1 = "903ef1d9d326ebc4a9e6cf24f22194d8da022b50"
-uuid = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
-version = "0.9.2"
+version = "0.24.0"
 
 [[deps.MappedArrays]]
 git-tree-sha1 = "2dab0221fe2b0f2cb6754eaa743cc266339f527e"
@@ -1699,9 +1694,9 @@ version = "1.11.0"
 
 [[deps.MathTeXEngine]]
 deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "UnicodeFun"]
-git-tree-sha1 = "f5a6805fb46c0285991009b526ec6fae43c6dec2"
+git-tree-sha1 = "6e64d2321257cc52f47e193407d0659ea1b2b431"
 uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
-version = "0.6.3"
+version = "0.6.5"
 
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1811,9 +1806,9 @@ uuid = "91d4177d-7536-5919-b921-800302f37372"
 version = "1.3.3+0"
 
 [[deps.OrderedCollections]]
-git-tree-sha1 = "cc4054e898b852042d7b503313f7ad03de99c3dd"
+git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.8.0"
+version = "1.8.1"
 
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1822,9 +1817,9 @@ version = "10.42.0+1"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "0e1340b5d98971513bddaa6bbed470670cebbbfe"
+git-tree-sha1 = "f07c06228a1c670ae4c87d1276b92c7c597fdda0"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.34"
+version = "0.11.35"
 
 [[deps.PNGFiles]]
 deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
@@ -1846,9 +1841,9 @@ version = "0.5.12"
 
 [[deps.Pango_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "3b31172c032a1def20c98dae3f2cdc9d10e3b561"
+git-tree-sha1 = "275a9a6d85dc86c24d03d1837a0010226a96f540"
 uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
-version = "1.56.1+0"
+version = "1.56.3+0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
@@ -1883,29 +1878,17 @@ git-tree-sha1 = "3ca9a356cd2e113c420f2c13bea19f8d3fb1cb18"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.3"
 
-[[deps.PlutoHooks]]
-deps = ["InteractiveUtils", "Markdown", "UUIDs"]
-git-tree-sha1 = "072cdf20c9b0507fdd977d7d246d90030609674b"
-uuid = "0ff47ea0-7a50-410d-8455-4348d5de0774"
-version = "0.0.5"
-
-[[deps.PlutoLinks]]
-deps = ["FileWatching", "InteractiveUtils", "Markdown", "PlutoHooks", "Revise", "UUIDs"]
-git-tree-sha1 = "8f5fa7056e6dcfb23ac5211de38e6c03f6367794"
-uuid = "0ff47ea0-7a50-410d-8455-4348d5de0420"
-version = "0.1.6"
-
 [[deps.PlutoTeachingTools]]
-deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoLinks", "PlutoUI"]
-git-tree-sha1 = "8252b5de1f81dc103eb0293523ddf917695adea1"
+deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoUI"]
+git-tree-sha1 = "537c439831c0f8d37265efe850ee5c0d9c7efbe4"
 uuid = "661c6b06-c737-4d37-b85c-46df65de6f69"
-version = "0.3.1"
+version = "0.4.1"
 
 [[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "d3de2694b52a01ce61a036f18ea9c0f61c4a9230"
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "3151a0c8061cc3f887019beebf359e6c4b3daa08"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.62"
+version = "0.7.65"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -1914,9 +1897,9 @@ version = "0.1.2"
 
 [[deps.Polynomials]]
 deps = ["LinearAlgebra", "OrderedCollections", "RecipesBase", "Requires", "Setfield", "SparseArrays"]
-git-tree-sha1 = "555c272d20fc80a2658587fb9bbda60067b93b7c"
+git-tree-sha1 = "2660ba4e0e9354cf0f3deeefb61531bbdac5495d"
 uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
-version = "4.0.19"
+version = "4.0.21"
 
     [deps.Polynomials.extensions]
     PolynomialsChainRulesCoreExt = "ChainRulesCore"
@@ -2034,16 +2017,6 @@ git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.1"
 
-[[deps.Revise]]
-deps = ["CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
-git-tree-sha1 = "cedc9f9013f7beabd8a9c6d2e22c0ca7c5c2a8ed"
-uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.7.6"
-weakdeps = ["Distributed"]
-
-    [deps.Revise.extensions]
-    DistributedExt = "Distributed"
-
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
 git-tree-sha1 = "852bd0f55565a9e973fcfee83a84413270224dc4"
@@ -2073,9 +2046,9 @@ version = "3.7.1"
 
 [[deps.Scratch]]
 deps = ["Dates"]
-git-tree-sha1 = "3bac05bc7e74a75fd9cba4295cde4045d9fe2386"
+git-tree-sha1 = "9b81b8393e50b7d4e6d0a9f14e192294d3b7c109"
 uuid = "6c6a2e73-6563-6170-7368-637461726353"
-version = "1.2.1"
+version = "1.3.0"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
@@ -2149,15 +2122,15 @@ weakdeps = ["ChainRulesCore"]
 
 [[deps.StableRNGs]]
 deps = ["Random"]
-git-tree-sha1 = "83e6cce8324d49dfaf9ef059227f91ed4441a8e5"
+git-tree-sha1 = "95af145932c2ed859b63329952ce8d633719f091"
 uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
-version = "1.0.2"
+version = "1.0.3"
 
 [[deps.StackViews]]
 deps = ["OffsetArrays"]
-git-tree-sha1 = "46e589465204cd0c08b4bd97385e4fa79a0c770c"
+git-tree-sha1 = "be1cf4eb0ac528d96f5115b4ed80c26a8d8ae621"
 uuid = "cae243ae-269e-4f55-b966-ac2d0dc13c15"
-version = "0.1.1"
+version = "0.1.2"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
@@ -2187,9 +2160,9 @@ weakdeps = ["SparseArrays"]
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "1ff449ad350c9c4cbc756624d6f8a8c3ef56d3ed"
+git-tree-sha1 = "9d72a13a3f4dd3795a195ac5a44d7d6ff5f552ff"
 uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
-version = "1.7.0"
+version = "1.7.1"
 
 [[deps.StatsBase]]
 deps = ["AliasTables", "DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
@@ -2255,9 +2228,9 @@ version = "1.0.1"
 
 [[deps.Tables]]
 deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
-git-tree-sha1 = "598cd7c1f68d1e205689b1c2fe65a9f85846f297"
+git-tree-sha1 = "f2c1efbc8f3a609aadf318094f8fc5204bdaf344"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.12.0"
+version = "1.12.1"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -2276,10 +2249,10 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 version = "1.11.0"
 
 [[deps.TiffImages]]
-deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "ProgressMeter", "SIMD", "UUIDs"]
-git-tree-sha1 = "f21231b166166bebc73b99cea236071eb047525b"
+deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "PrecompileTools", "ProgressMeter", "SIMD", "UUIDs"]
+git-tree-sha1 = "02aca429c9885d1109e58f400c333521c13d48a0"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
-version = "0.11.3"
+version = "0.11.4"
 
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
@@ -2297,9 +2270,9 @@ uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
 version = "0.1.0"
 
 [[deps.URIs]]
-git-tree-sha1 = "cbbebadbcc76c5ca1cc4b4f3b0614b3e603b5000"
+git-tree-sha1 = "24c1c558881564e2217dcf7840a8b2e10caeb0f9"
 uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
-version = "1.5.2"
+version = "1.6.0"
 
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
@@ -2318,14 +2291,21 @@ version = "0.4.1"
 
 [[deps.Unitful]]
 deps = ["Dates", "LinearAlgebra", "Random"]
-git-tree-sha1 = "c0667a8e676c53d390a09dc6870b3d8d6650e2bf"
+git-tree-sha1 = "d2282232f8a4d71f79e85dc4dd45e5b12a6297fb"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
-version = "1.22.0"
-weakdeps = ["ConstructionBase", "InverseFunctions"]
+version = "1.23.1"
 
     [deps.Unitful.extensions]
     ConstructionBaseUnitfulExt = "ConstructionBase"
+    ForwardDiffExt = "ForwardDiff"
     InverseFunctionsUnitfulExt = "InverseFunctions"
+    PrintfExt = "Printf"
+
+    [deps.Unitful.weakdeps]
+    ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
+    Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.WebP]]
 deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
@@ -2435,9 +2415,9 @@ version = "2.0.3+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "068dfe202b0a05b8332f1e8e6b4080684b9c7700"
+git-tree-sha1 = "cd155272a3738da6db765745b89e466fa64d0830"
 uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
-version = "1.6.47+0"
+version = "1.6.49+0"
 
 [[deps.libsixel_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "libpng_jll"]

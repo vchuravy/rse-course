@@ -120,7 +120,7 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
 CairoMakie = "~0.15.0"
-Enzyme = "~0.13.46"
+Enzyme = "~0.13.51"
 ForwardDiff = "~1.0.1"
 PlutoTeachingTools = "~0.4.1"
 PlutoUI = "~0.7.65"
@@ -132,7 +132,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "890ab46ece55736e7ce4cb2daee74e555c96a69e"
+project_hash = "d39d2d2088bc428ba57a54719e446e6c6e55f95b"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -437,10 +437,10 @@ uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
 version = "1.0.5"
 
 [[deps.Enzyme]]
-deps = ["CEnum", "EnzymeCore", "Enzyme_jll", "GPUCompiler", "LLVM", "Libdl", "LinearAlgebra", "ObjectFile", "PrecompileTools", "Preferences", "Printf", "Random", "SparseArrays"]
-git-tree-sha1 = "d695c5fd956d98b3f38b9b1c12f22700a9c91549"
+deps = ["CEnum", "EnzymeCore", "Enzyme_jll", "GPUCompiler", "InteractiveUtils", "LLVM", "Libdl", "LinearAlgebra", "ObjectFile", "PrecompileTools", "Preferences", "Printf", "Random", "SparseArrays"]
+git-tree-sha1 = "de7f70d73805f4e1a32395afc9d580e4ffc62924"
 uuid = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-version = "0.13.46"
+version = "0.13.51"
 
     [deps.Enzyme.extensions]
     EnzymeBFloat16sExt = "BFloat16s"
@@ -459,9 +459,9 @@ version = "0.13.46"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [[deps.EnzymeCore]]
-git-tree-sha1 = "1eb59f40a772d0fbd4cb75e00b3fa7f5f79c975a"
+git-tree-sha1 = "8272a687bca7b5c601c0c24fc0c71bff10aafdfd"
 uuid = "f151be2c-9106-41f4-ab19-57ee4f262869"
-version = "0.8.9"
+version = "0.8.12"
 weakdeps = ["Adapt"]
 
     [deps.EnzymeCore.extensions]
@@ -469,9 +469,9 @@ weakdeps = ["Adapt"]
 
 [[deps.Enzyme_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "fd483a1d847401a21460090f3f358049b20fbcac"
+git-tree-sha1 = "97e0a9a3fa1c51ebd94dd076dd847c037b79fd79"
 uuid = "7cc45869-7501-5eee-bdea-0790c847d4ef"
-version = "0.0.180+0"
+version = "0.0.183+0"
 
 [[deps.ExactPredicates]]
 deps = ["IntervalArithmetic", "Random", "StaticArrays"]

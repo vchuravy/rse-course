@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.8
+# v0.20.13
 
 #> [frontmatter]
 #> chapter = "3"
@@ -36,9 +36,6 @@ begin
 	PlutoUI.TableOfContents(; depth=4)
 end
 
-# ╔═╡ 277dc532-4b7d-11f0-030e-955824d10ad2
-using MPI, Serialization, Statistics, StaticArrays
-
 # ╔═╡ f2ed84b7-4f12-4c8d-bc61-596c0d33d85c
 ChooseDisplayMode()
 
@@ -46,6 +43,9 @@ ChooseDisplayMode()
 md"""
 # Distributed computing with MPI.jl
 """
+
+# ╔═╡ 277dc532-4b7d-11f0-030e-955824d10ad2
+using MPI, Serialization, Statistics, StaticArrays
 
 # ╔═╡ 60e4af7d-3baa-477d-b63d-6c4c691a5dcc
 md"""
@@ -95,74 +95,6 @@ macro mpi(np, expr)
 		rm($control_io_path)
 		all(isnothing, v) ? nothing : v
 	end
-end
-
-# ╔═╡ 5470f099-c1e7-4aa9-871f-4fb2f72c162b
-@mpi np let
-	using Statistics
-
-	# Define a custom struct
-	# This contains the summary statistics (mean, variance, length) of a vector
-	struct SummaryStat
-		mean::Float64
-		var::Float64
-		n::Float64
-	end
-	function SummaryStat(X::AbstractArray)
-		m = mean(X)
-		v = varm(X,m, corrected=false)
-		n = length(X)
-		SummaryStat(m,v,n)
-	end
-
-	# Define a custom reduction operator
-	# this computes the pooled mean, pooled variance and total length
-	function pool(S1, S2)
-	    n = S1.n + S2.n
-	    m = (S1.mean*S1.n + S2.mean*S2.n) / n
-	    v = (S1.n * (S1.var + S1.mean * (S1.mean-m)) +
-	         S2.n * (S2.var + S2.mean * (S2.mean-m)))/n
-	    SummaryStat(m,v,n)
-	end
-
-	MPI.Init()
-	comm = MPI.COMM_WORLD
-	root = 0
-	
-	X = randn(10,3) .* [1,3,7]'
-
-	# Perform a scalar reduction
-	summ = MPI.Reduce(SummaryStat(X), pool, comm; root)
-
-	if MPI.Comm_rank(comm) == root
-    	@show summ.var
-	end
-
-	# Perform a vector reduction:
-	# the reduction operator is applied elementwise
-	col_summ = MPI.Reduce(mapslices(SummaryStat,X,dims=1), pool, comm; root)
-	
-	if MPI.Comm_rank(comm) == root
-	    col_var = map(summ -> summ.var, col_summ)
-	    @show col_var
-	end
-	nothing
-end
-
-# ╔═╡ 312d7d34-ff91-49c8-a6e8-980e7f75012a
-@mpi np let
-	using StaticArrays
-	
-	MPI.Init()
-	comm = MPI.COMM_WORLD
-
-	x = ones(SVector{3, Float64})
-	sum = MPI.Allreduce([x], +, comm)
-
-	if MPI.Comm_rank(comm) == 0
-		@show sum
-	end
-	nothing
 end
 
 # ╔═╡ fb31b292-e628-4cee-bd85-6f6c00b433f5
@@ -483,6 +415,15 @@ Better would be something like a communication tree!
 # ╔═╡ b603cab2-1d82-418c-9932-d85b07f8446f
 @bind np_bench Select([2, 4, 8, 12], default=4)
 
+# ╔═╡ caec4ec0-7f8c-47a5-a16c-4d884dbcf0fb
+avg_my_bcast = mean(x->x[1], bcast_times)
+
+# ╔═╡ af4838a3-6827-4aef-a8de-58ecba22c1f6
+avg_mpi_bcast = mean(x->x[2], bcast_times)
+
+# ╔═╡ ac49c9b5-d0cf-4de2-b62e-939243224d12
+avg_mpi_bcast / avg_my_bcast
+
 # ╔═╡ 9529bad3-d2f9-4b46-9124-12f1dc3d01a1
 bcast_times = @mpi np_bench let
 	function my_bcast!(data, comm; root=0)
@@ -535,15 +476,6 @@ bcast_times = @mpi np_bench let
 	MPI.Init()
 	benchmark(Float64, 400000, 10) # magical return to Pluto value
 end
-
-# ╔═╡ caec4ec0-7f8c-47a5-a16c-4d884dbcf0fb
-avg_my_bcast = mean(x->x[1], bcast_times)
-
-# ╔═╡ af4838a3-6827-4aef-a8de-58ecba22c1f6
-avg_mpi_bcast = mean(x->x[2], bcast_times)
-
-# ╔═╡ ac49c9b5-d0cf-4de2-b62e-939243224d12
-avg_mpi_bcast / avg_my_bcast
 
 # ╔═╡ 2e18fc74-333a-41a6-97ca-a83c31b6d621
 md"""
@@ -833,10 +765,78 @@ md"""
 ### Custom ops and custom data-types
 """
 
+# ╔═╡ 5470f099-c1e7-4aa9-871f-4fb2f72c162b
+@mpi np let
+	using Statistics
+
+	# Define a custom struct
+	# This contains the summary statistics (mean, variance, length) of a vector
+	struct SummaryStat
+		mean::Float64
+		var::Float64
+		n::Float64
+	end
+	function SummaryStat(X::AbstractArray)
+		m = mean(X)
+		v = varm(X,m, corrected=false)
+		n = length(X)
+		SummaryStat(m,v,n)
+	end
+
+	# Define a custom reduction operator
+	# this computes the pooled mean, pooled variance and total length
+	function pool(S1, S2)
+	    n = S1.n + S2.n
+	    m = (S1.mean*S1.n + S2.mean*S2.n) / n
+	    v = (S1.n * (S1.var + S1.mean * (S1.mean-m)) +
+	         S2.n * (S2.var + S2.mean * (S2.mean-m)))/n
+	    SummaryStat(m,v,n)
+	end
+
+	MPI.Init()
+	comm = MPI.COMM_WORLD
+	root = 0
+	
+	X = randn(10,3) .* [1,3,7]'
+
+	# Perform a scalar reduction
+	summ = MPI.Reduce(SummaryStat(X), pool, comm; root)
+
+	if MPI.Comm_rank(comm) == root
+    	@show summ.var
+	end
+
+	# Perform a vector reduction:
+	# the reduction operator is applied elementwise
+	col_summ = MPI.Reduce(mapslices(SummaryStat,X,dims=1), pool, comm; root)
+	
+	if MPI.Comm_rank(comm) == root
+	    col_var = map(summ -> summ.var, col_summ)
+	    @show col_var
+	end
+	nothing
+end
+
 # ╔═╡ c6ea28ed-7f99-4ceb-be03-81c575a9da71
 md"""
 #### Static Vectors
 """
+
+# ╔═╡ 312d7d34-ff91-49c8-a6e8-980e7f75012a
+@mpi np let
+	using StaticArrays
+	
+	MPI.Init()
+	comm = MPI.COMM_WORLD
+
+	x = ones(SVector{3, Float64})
+	sum = MPI.Allreduce([x], +, comm)
+
+	if MPI.Comm_rank(comm) == 0
+		@show sum
+	end
+	nothing
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1061,9 +1061,9 @@ version = "0.20.22"
 
 [[deps.MPICH_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
-git-tree-sha1 = "3aa3210044138a1749dbd350a9ba8680869eb503"
+git-tree-sha1 = "d72d0ecc3f76998aac04e446547259b9ae4c265f"
 uuid = "7cb0a576-ebde-5e09-9194-50597f1243b4"
-version = "4.3.0+1"
+version = "4.3.1+0"
 
 [[deps.MPIPreferences]]
 deps = ["Libdl", "Preferences"]
@@ -1073,9 +1073,9 @@ version = "0.1.11"
 
 [[deps.MPItrampoline_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
-git-tree-sha1 = "ff91ca13c7c472cef700f301c8d752bc2aaff1a8"
+git-tree-sha1 = "e214f2a20bdd64c04cd3e4ff62d3c9be7e969a59"
 uuid = "f1f71cc9-e9ae-5b93-9b94-4fe0e1ad3748"
-version = "5.5.3+0"
+version = "5.5.4+0"
 
 [[deps.MacroTools]]
 git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
@@ -1258,9 +1258,9 @@ uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
 version = "0.1.10"
 
 [[deps.URIs]]
-git-tree-sha1 = "cbbebadbcc76c5ca1cc4b4f3b0614b3e603b5000"
+git-tree-sha1 = "24c1c558881564e2217dcf7840a8b2e10caeb0f9"
 uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
-version = "1.5.2"
+version = "1.6.0"
 
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
