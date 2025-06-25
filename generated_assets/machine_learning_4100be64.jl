@@ -1,6 +1,19 @@
 ### A Pluto.jl notebook ###
 # v0.20.13
 
+#> [frontmatter]
+#> chapter = "4"
+#> section = "1"
+#> order = "11"
+#> title = "Automatic Differentiation and Machine Learning"
+#> date = "2025-06-18"
+#> tags = ["module4", "track_ad"]
+#> layout = "layout.jlhtml"
+#> 
+#>     [[frontmatter.author]]
+#>     name = "Valentin Churavy"
+#>     url = "https://vchuravy.dev"
+
 using Markdown
 using InteractiveUtils
 
@@ -19,6 +32,9 @@ begin
 			   Lines = (linewidth = 2,),
 			   markersize = 16)
 end
+
+# ╔═╡ a04b6c5d-0b24-439e-bf6c-f43502fc94b3
+using BenchmarkTools, LinearAlgebra
 
 # ╔═╡ ef0d284e-7593-4745-93e2-8b601d2220ca
 using Lux, Random, Optimisers
@@ -90,9 +106,6 @@ coeffs_guess = rand(-2.0:0.1:2.0, 4)
 
 # ╔═╡ 705627ba-5b7e-46c5-ae65-ce398aef407b
 m.(xs, coeffs_guess...)
-
-# ╔═╡ c2e5ac13-1da1-4b2f-8dc6-329808b0dcf0
-
 
 # ╔═╡ 9a8ee9ba-c278-4886-8b12-220a2d9045cd
 dm(mse, xs, ys, [coeffs_guess...])
@@ -168,8 +181,350 @@ md"""
 ## Reverse-Mode
 """
 
-# ╔═╡ 56df5b01-39ca-4d36-8411-138bfe762eab
-TODO()
+# ╔═╡ 5fa6d5a6-6371-434c-b817-11b0a74aa06a
+md"""
+## Forward- vs. reverse-mode AD
+
+What we have discussed previously is the basic idea of forward-mode AD. It is called this way since the information of the derivatives propagates in the same way as the usual computation. Let's now consider a typical optimization problem, e.g.,
+
+$$\min_x \| A x - b \|_2^2,$$
+
+where $A$ and $b$ are given. To use something like gradient descent, we need to compute the derivative with respect to $x$, i.e.,
+
+$$\nabla_x \| A x - b \|_2^2 = 2 (A x - b)^T A.$$
+
+Let's check this with a simple example.
+"""
+
+# ╔═╡ bdff23b9-cacf-496a-a455-679581408624
+let
+	A = [1.0 2.0; 3.0 4.0]
+	b = [5.0, 6.0]
+	f = (x1, x2) -> begin
+		y = A * [x1, x2] - b
+		return y[1]^2 + y[2]^2
+	end
+
+	x = randn(2)
+	result_ad = ForwardDiff.gradient(X->f(X...), x)
+	result = 2 * (A * x - b)' * A
+	
+	abs2(result_ad[1] - result[1]) + abs2(result_ad[2] - result[2])
+end
+
+# ╔═╡ 65196534-2621-4817-8be9-08eb7e8802da
+md"""
+Next, let's consider a non-square matrix $A$ and set $b = 0$ for simplicity.
+Then, we have
+
+$$\nabla_x \| A x \|_2^2 = 2 (A x)^T A = 2 x^T A^T A.$$
+
+If you want to calculate this gradient by hand, you have to choose whether you want to
+
+- first calculate $A^T A$ and then $x^T (A^T A)$
+- first calculate $x^T A^T$ and then $(x^T A^T) A$
+
+Which order would you choose?
+"""
+
+# ╔═╡ ed8f2bb5-422d-488c-b681-30e16bdffad1
+order_1(A, x) = x' * (A' * A)
+
+# ╔═╡ 2c0360fd-efda-495d-94f8-e1b2e0261ed5
+order_2(A, x) = (x' * A') * A
+
+# ╔═╡ 8fabd1bb-7a96-4f26-aca1-81c98c66dbe0
+md"### $4 \times 4$ matrix"
+
+# ╔═╡ 50958e31-2f65-4c77-a91a-d04047875f21
+A1 = randn(4, 4)
+
+# ╔═╡ 1926b275-6963-41f6-a4c8-51be1f7a131f
+x1 = randn(size(A1, 2))
+
+# ╔═╡ 8de8f7b8-ae50-4cd1-ace0-5ec9365559cd
+@benchmark order_1($A1, $x1)
+
+# ╔═╡ 3c7a4621-043e-4ce1-992f-796c074ac752
+@benchmark order_2($A1, $x1)
+
+# ╔═╡ a6443cd2-abf2-45ce-b335-d071780a85b4
+md"### $2 \times 8$ matrix"
+
+# ╔═╡ 5934b888-4172-4539-8d32-d0775eec2f58
+A3 = randn(2, 8)
+
+# ╔═╡ 7ecf8874-4d34-4c75-9f10-8dbc648bb968
+x3 = randn(size(A3, 2))
+
+# ╔═╡ def3e9ba-83e5-4592-93b6-e9e99428b996
+@benchmark order_1($A3, $x3)
+
+# ╔═╡ aae591ed-cb8e-42a5-aeee-e247b0be08ac
+@benchmark order_2($A3, $x3)
+
+# ╔═╡ be72bae7-5830-43ef-8794-08d533875808
+md"""
+### General introduction
+
+The difference between these orders is the basic idea of forward- vs. reverse-mode AD. To give you a rough idea, consider the chain rule applied to the function
+
+$$x \mapsto f\Bigl( g\bigl( h(x) \bigr) \Bigr),$$
+
+i.e.,
+
+$$\nabla_x f\Bigl( g\bigl( h(x) ) \bigr) \Bigr) = f'\Bigl( g\bigl( h(x) \bigr) \Bigr) \cdot g'\bigl( h(x) \bigr) \cdot h'(x).$$
+
+Forward-mode AD is like computing the derivatives from right to left like the usual data flow when computing $(f \circ g \circ h)(x)$. In contrast, reverse-mode AD is like computing the derivatives from left to right, i.e., in reverse order. To be able to do so, you need to store the indermediate values $h(x)$ and $g\bigl( h(x) \bigr)$.
+"""
+
+# ╔═╡ d2c1ce3f-9eee-4c67-8854-ee8bd6cd4142
+function forward(f, f′, g, g′, h, h′, x)
+	h_x = h(x)
+	h′_x = h′(x)
+
+	gh_x = g(h_x)
+	gh′_x = g′(h_x) * h′_x
+
+	fgh_x = f(gh_x)
+	fgh′_x = f′(gh_x) * gh′_x
+
+	return fgh_x, fgh′_x
+end
+
+# ╔═╡ cfabdd5d-c7f5-488c-9f9c-4ed7b4971322
+function reverse(f, f′, g, g′, h, h′, x)
+	h_x = h(x)
+	gh_x = g(h_x)
+	fgh_x = f(gh_x)
+
+	f′_ghx = f′(gh_x)
+	fg′_hx = f′_ghx * g′(h_x)
+	fgh′_x = fg′_hx * h′(x)
+
+	return fgh_x, fgh′_x
+end
+
+# ╔═╡ 547e1298-0faf-4c4d-bc2f-a8822d574ca2
+const A = randn(10, 10^2)
+
+# ╔═╡ e9b6cd4b-9c20-4cda-a49a-1f9fc6acbb76
+const b = randn(size(A, 1))
+
+# ╔═╡ 317a3301-0eb4-4823-9543-9c8977e83e0b
+h(x::AbstractVector) = A * x
+
+# ╔═╡ 6507c8b8-0a10-4363-bef3-492c7f1e3906
+h′(x::AbstractVector) = A
+
+# ╔═╡ b44240ad-32f6-46d6-851a-4f5583c4d651
+g(Ax::AbstractVector) = Ax - b
+
+# ╔═╡ c1d84a6f-88a6-4d55-a555-ca60c9c821e6
+g′(Ax::AbstractVector) = I
+
+# ╔═╡ c7a8bfe2-43d1-4bf6-b59e-666f78633b7a
+f(Ax_b::AbstractVector) = sum(abs2, Ax_b)
+
+# ╔═╡ 0731a23d-b490-4f53-a9ce-d256d15afb1c
+f′(Ax_b::AbstractVector) = 2 * Ax_b'
+
+# ╔═╡ 4e941d16-cfd3-4a08-8621-35aaa72445c1
+let
+	x = randn(size(A, 2))
+	fwd = forward(f, f′, g, g′, h, h′, x)
+	rev = reverse(f, f′, g, g′, h, h′, x)
+	fwd[1] - rev[1], norm(fwd[2] - rev[2])
+end
+
+# ╔═╡ e5014c4c-997e-4624-a47f-7adf7719b874
+let
+	x = randn(size(A, 2))
+	@benchmark forward($f, $f′, $g, $g′, $h, $h′, $x)
+end
+
+# ╔═╡ b53bf3c6-46ff-4685-a334-36d408b3f9e4
+let
+	x = randn(size(A, 2))
+	@benchmark reverse($f, $f′, $g, $g′, $h, $h′, $x)
+end
+
+# ╔═╡ dacc19ed-6a53-4213-a739-8ac99161cab8
+md"""
+### Thinking about Reverse-Mode
+"""
+
+# ╔═╡ 7e4c7dbc-153b-47c4-8ecd-5c7ebb5cbe02
+function simple_mlp(input, weight, bias)
+	tmp1 = input * weight
+	tmp2 = tmp1 + bias
+	return tmp2
+end
+
+# ╔═╡ 42429dda-077b-4723-a872-6287b2f36c64
+function dsimple_mlp(input, weight, bias)
+	tmp1 = input * weight
+	tmp2 = tmp1 + bias
+
+	# return tmp2
+	
+	# start by creating and zero'ing shadow variables for each differentiable input
+	dinput = 0.0
+	dweight = 0.0
+	dbias = 0.0
+
+	# start by creating and zero'ing shadow variables for each differentiable variable
+	dtmp1 = 0.0
+	dtmp2 = 0.0
+	
+	# derivative of return tmp2, set dtmp2 = 1.0
+	dtmp2 = 1.0
+
+	# derivative of tmp2 = tmp1 + bias
+	dtmp1 += dtmp2
+	dbias += dtmp2
+	dtmp2 = 0.0 # After a read of a shodow we always must zero
+
+	# derivative of tmp1 = input * weight
+	dinput += dtmp1 * weight
+	dweight += dtmp1 * input
+	dtmp1 = 0.0  # After a read of a shodow we always must zero
+
+	#we're done, return the gradient (derivative of all input variable)
+	return (dinput, dweight, dbias)
+end
+
+# ╔═╡ 362bc159-b61a-4ea0-905d-b83bf37b18ec
+dsimple_mlp(-2.0, 0.5, 0.3)
+
+# ╔═╡ 7eee941c-191e-4c79-9171-c410c70a1e4d
+import Enzyme: Reverse, Active, Duplicated
+
+# ╔═╡ db8087ac-d60e-45eb-a730-c2db00027f10
+Enzyme.autodiff(Reverse, simple_mlp, Active(-2.0), Active(0.5), Active(0.3))
+
+# ╔═╡ 452cd4bd-0b55-4478-91da-5bc9b42fab69
+function with_memory(x)
+	_x = x[1]
+	tmp1 = _x ^ 2
+	return tmp1
+end
+
+# ╔═╡ e4b21841-9aef-4280-b883-caa183326477
+function dwith_memory(x)
+	_x = x[1]
+	tmp1 = _x ^ 2
+	# return tmp1
+	
+	dx = Enzyme.make_zero(x)
+	_dx   = 0.0
+	dtmp1 = 0.0
+	
+	dtmp1 = 1.0
+
+	_dx += dtmp1 * 2 * _x
+	dtmp1 = 0.0
+
+	dx[1] += _dx # note the `accumulate` operation
+	return (dx,)
+end
+
+# ╔═╡ ac9b2467-115a-4b92-af4e-2fed07c49a51
+dwith_memory([2.0])
+
+# ╔═╡ 69540420-d1aa-4ac7-a7c6-95aaeea0c981
+function with_memory2(x, y)
+	tmp1 = x[1] ^ 2
+	y[1] = tmp1
+	return nothing
+end
+
+# ╔═╡ 2a1a554b-3a6e-4994-926b-17a1be34a8ba
+md"""
+This time let the user provide dx, dy
+"""
+
+# ╔═╡ ed52e361-1d2a-4cc1-a697-b34ec1062ef0
+function dwith_memory2((x, dx), (y, dy))
+	tmp1 = x[1] ^ 2
+	y[1] = tmp1
+
+	dtmp1 = 0.0
+
+	dtmp1 += dy[1]
+	dy[1] = 0.0
+
+	dx[1] += dtmp1 * 2 * x[1] # Note: Needs to prove the x is read-only and not-aliased with y
+	
+	return nothing
+end
+
+# ╔═╡ 14ea72b6-fd5a-4118-9d87-d3058b85f1b7
+let
+	dx = [0.0]
+	dy = [1.0]
+	dwith_memory2(([2.0], dx), ([0.0], dy))
+	dx, dy
+end
+
+# ╔═╡ 001d679b-15ea-4ed6-ac73-2bdedcc964b0
+let
+	dx = [0.0]
+	dy = [1.0]
+	Enzyme.autodiff(Reverse, with_memory2,
+					Duplicated([2.0], dx), Duplicated([0.0], dy))
+	dx, dy
+end
+
+# ╔═╡ a431d1b3-49a4-4c47-b86e-888207ab3006
+
+
+# ╔═╡ b5efe0a1-56bf-4d41-aeda-6ef5e28d43cb
+function with_control(x)
+	cond = x >= 0
+	if cond
+		tmp1 = x^2
+	else
+		tmp1 = x
+	end
+	return tmp1
+end
+
+# ╔═╡ a2b4e3b0-8eb8-4359-87e9-c9be18db3bea
+function dwith_control(x)
+	cond = x >= 0
+	if cond
+		tmp1 = x^2
+	else
+		tmp1 = x
+	end
+
+	dx    = 0.0
+	dtmp1 = 0.0
+
+	dtmp1 = 1.0
+
+	if cond
+		# d(x^2)/dx = 2x
+		dx = dtmp1 * 2 * x
+	else
+		# d(x)/dx = 1
+		dx = dtmp1 * 1
+	end
+	return (dx,)
+end
+
+# ╔═╡ 0f2150db-3b62-4e8e-bf07-8be5af06bef9
+dwith_control(-2.0)
+
+# ╔═╡ 3333bbfb-5eea-414d-9053-e2520edfbea6
+Enzyme.autodiff(Enzyme.Reverse, with_control, Enzyme.Active(-2.0))
+
+# ╔═╡ 6f0b5abc-aca3-4fe7-9ac5-ba15c6fe9d06
+dwith_control(2.0)
+
+# ╔═╡ f02100eb-bf4b-4cc9-a232-9dd203557e03
+Enzyme.autodiff(Enzyme.Reverse, with_control, Enzyme.Active(2.0))
 
 # ╔═╡ 959e6533-fc1c-4588-988f-b5f495918847
 md"""
@@ -345,10 +700,12 @@ tr_acc, te_acc = train(lux_model)
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 ImageShow = "4e3cecfd-b093-5904-9786-8bbb286a6a31"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
 MLDatasets = "eb30cadb-4394-5ae3-aed4-317e484a6458"
 MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
@@ -362,6 +719,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+BenchmarkTools = "~1.6.0"
 CairoMakie = "~0.15.0"
 Enzyme = "~0.13.51"
 ForwardDiff = "~1.0.1"
@@ -382,7 +740,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "ecfeff614395116fadc47a709e9b33b6e6ad378c"
+project_hash = "00d99a7d77de0bcaba155c2b3b5b02d1e571f30a"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "be7ae030256b8ef14a441726c4c37766b90b93a3"
@@ -603,6 +961,12 @@ version = "1.3.0"
 git-tree-sha1 = "aebf55e6d7795e02ca500a689d326ac979aaf89e"
 uuid = "9718e550-a3fa-408a-8086-8db961cd8217"
 version = "0.1.1"
+
+[[deps.BenchmarkTools]]
+deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "e38fbc49a620f5d0b660d7f543db1009fe0f8336"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.6.0"
 
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
@@ -1188,11 +1552,11 @@ git-tree-sha1 = "2670cf32dcf0229c9893b895a9afe725edb23545"
 uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 version = "0.5.9"
 
-[[deps.GettextRuntime_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll"]
-git-tree-sha1 = "45288942190db7c5f760f59c04495064eedf9340"
-uuid = "b0724c58-0f36-5564-988d-3bb0596ebc4a"
-version = "0.22.4+0"
+[[deps.Gettext_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
+git-tree-sha1 = "9b02998aba7bf074d14de89f9d37ca24a1a0b046"
+uuid = "78b55507-aeef-58d4-861c-77aaff3498b1"
+version = "0.21.0+0"
 
 [[deps.Giflib_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1201,10 +1565,10 @@ uuid = "59f7168a-df46-5410-90c8-f2779963d0ec"
 version = "5.2.3+0"
 
 [[deps.Glib_jll]]
-deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "35fbd0cefb04a516104b8e183ce0df11b70a3f1a"
+deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
+git-tree-sha1 = "fee60557e4f19d0fe5cd169211fdda80e494f4e8"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.84.3+0"
+version = "2.84.0+0"
 
 [[deps.Glob]]
 git-tree-sha1 = "97285bbd5230dd766e9ef6749b80fc617126d496"
@@ -1561,10 +1925,10 @@ uuid = "c1c5ebd0-6772-5130-a774-d5fcae4a789d"
 version = "3.100.2+0"
 
 [[deps.LERC_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "bf36f528eec6634efc60d7ec062008f171071434"
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "aaafe88dccbd957a8d82f7d05be9b69172e0cee3"
 uuid = "88015f11-f218-50d7-93a8-a6af411a945d"
-version = "3.0.0+1"
+version = "4.0.1+0"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Unicode"]
@@ -1694,9 +2058,9 @@ version = "2.41.0+0"
 
 [[deps.Libtiff_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "XZ_jll", "Zlib_jll", "Zstd_jll"]
-git-tree-sha1 = "2da088d113af58221c52828a80378e16be7d037a"
+git-tree-sha1 = "4ab7581296671007fc33f07a721631b8855f4b1d"
 uuid = "89763e89-9b03-5906-acba-b20f662cd828"
-version = "4.5.1+1"
+version = "4.7.1+0"
 
 [[deps.Libuuid_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2327,6 +2691,10 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
 
+[[deps.Profile]]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+version = "1.11.0"
+
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
 git-tree-sha1 = "13c5103482a8ed1536a54c08d0e742ae3dca2d42"
@@ -2879,6 +3247,12 @@ git-tree-sha1 = "cd1659ba0d57b71a464a29e64dbc67cfe83d54e7"
 uuid = "76eceee3-57b5-4d4a-8e66-0e911cebbf60"
 version = "1.6.1"
 
+[[deps.XML2_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Zlib_jll"]
+git-tree-sha1 = "b8b243e47228b4a3877f1dd6aee0c5d56db7fcf4"
+uuid = "02c8fc9c-b97f-50b9-bbe4-9be30ff0a78a"
+version = "2.13.6+1"
+
 [[deps.XZ_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "fee71455b0aaa3440dfdd54a9a36ccef829be7d4"
@@ -3023,9 +3397,9 @@ version = "1.3.7+2"
 
 [[deps.libwebp_jll]]
 deps = ["Artifacts", "Giflib_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libglvnd_jll", "Libtiff_jll", "libpng_jll"]
-git-tree-sha1 = "ccbb625a89ec6195856a50aa2b668a5c08712c94"
+git-tree-sha1 = "d2408cac540942921e7bd77272c32e58c33d8a77"
 uuid = "c5f90fcd-3b7e-5836-afba-fc50a0988cb2"
-version = "1.4.0+0"
+version = "1.5.0+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -3070,7 +3444,6 @@ version = "3.6.0+0"
 # ╟─c396da65-4531-4bc8-85a2-537e84c69a80
 # ╠═c34c543c-d69b-4c1d-8fc7-9460dec1996b
 # ╠═705627ba-5b7e-46c5-ae65-ce398aef407b
-# ╠═c2e5ac13-1da1-4b2f-8dc6-329808b0dcf0
 # ╠═9a8ee9ba-c278-4886-8b12-220a2d9045cd
 # ╠═2d9dc60f-f355-4df0-97d9-d82f42b36ab9
 # ╠═bbb939b5-e4a6-4744-857f-5bdddad1b06f
@@ -3080,7 +3453,57 @@ version = "3.6.0+0"
 # ╠═92811234-0a32-4205-94e9-8f531a9c8696
 # ╟─7eeaa506-46d3-4f70-904c-4eb49b97f631
 # ╟─eb09a0d7-ec33-4ec7-a944-c1b2143f0beb
-# ╠═56df5b01-39ca-4d36-8411-138bfe762eab
+# ╠═a04b6c5d-0b24-439e-bf6c-f43502fc94b3
+# ╟─5fa6d5a6-6371-434c-b817-11b0a74aa06a
+# ╠═bdff23b9-cacf-496a-a455-679581408624
+# ╟─65196534-2621-4817-8be9-08eb7e8802da
+# ╠═ed8f2bb5-422d-488c-b681-30e16bdffad1
+# ╠═2c0360fd-efda-495d-94f8-e1b2e0261ed5
+# ╟─8fabd1bb-7a96-4f26-aca1-81c98c66dbe0
+# ╠═50958e31-2f65-4c77-a91a-d04047875f21
+# ╠═1926b275-6963-41f6-a4c8-51be1f7a131f
+# ╠═8de8f7b8-ae50-4cd1-ace0-5ec9365559cd
+# ╠═3c7a4621-043e-4ce1-992f-796c074ac752
+# ╟─a6443cd2-abf2-45ce-b335-d071780a85b4
+# ╠═5934b888-4172-4539-8d32-d0775eec2f58
+# ╠═7ecf8874-4d34-4c75-9f10-8dbc648bb968
+# ╠═def3e9ba-83e5-4592-93b6-e9e99428b996
+# ╠═aae591ed-cb8e-42a5-aeee-e247b0be08ac
+# ╟─be72bae7-5830-43ef-8794-08d533875808
+# ╠═d2c1ce3f-9eee-4c67-8854-ee8bd6cd4142
+# ╠═cfabdd5d-c7f5-488c-9f9c-4ed7b4971322
+# ╠═547e1298-0faf-4c4d-bc2f-a8822d574ca2
+# ╠═e9b6cd4b-9c20-4cda-a49a-1f9fc6acbb76
+# ╠═317a3301-0eb4-4823-9543-9c8977e83e0b
+# ╠═6507c8b8-0a10-4363-bef3-492c7f1e3906
+# ╠═b44240ad-32f6-46d6-851a-4f5583c4d651
+# ╠═c1d84a6f-88a6-4d55-a555-ca60c9c821e6
+# ╠═c7a8bfe2-43d1-4bf6-b59e-666f78633b7a
+# ╠═0731a23d-b490-4f53-a9ce-d256d15afb1c
+# ╠═4e941d16-cfd3-4a08-8621-35aaa72445c1
+# ╠═e5014c4c-997e-4624-a47f-7adf7719b874
+# ╠═b53bf3c6-46ff-4685-a334-36d408b3f9e4
+# ╟─dacc19ed-6a53-4213-a739-8ac99161cab8
+# ╠═7e4c7dbc-153b-47c4-8ecd-5c7ebb5cbe02
+# ╠═42429dda-077b-4723-a872-6287b2f36c64
+# ╠═362bc159-b61a-4ea0-905d-b83bf37b18ec
+# ╠═7eee941c-191e-4c79-9171-c410c70a1e4d
+# ╠═db8087ac-d60e-45eb-a730-c2db00027f10
+# ╠═452cd4bd-0b55-4478-91da-5bc9b42fab69
+# ╠═e4b21841-9aef-4280-b883-caa183326477
+# ╠═ac9b2467-115a-4b92-af4e-2fed07c49a51
+# ╠═69540420-d1aa-4ac7-a7c6-95aaeea0c981
+# ╟─2a1a554b-3a6e-4994-926b-17a1be34a8ba
+# ╠═ed52e361-1d2a-4cc1-a697-b34ec1062ef0
+# ╠═14ea72b6-fd5a-4118-9d87-d3058b85f1b7
+# ╠═001d679b-15ea-4ed6-ac73-2bdedcc964b0
+# ╠═a431d1b3-49a4-4c47-b86e-888207ab3006
+# ╠═b5efe0a1-56bf-4d41-aeda-6ef5e28d43cb
+# ╠═a2b4e3b0-8eb8-4359-87e9-c9be18db3bea
+# ╠═0f2150db-3b62-4e8e-bf07-8be5af06bef9
+# ╠═3333bbfb-5eea-414d-9053-e2520edfbea6
+# ╠═6f0b5abc-aca3-4fe7-9ac5-ba15c6fe9d06
+# ╠═f02100eb-bf4b-4cc9-a232-9dd203557e03
 # ╟─959e6533-fc1c-4588-988f-b5f495918847
 # ╠═ef0d284e-7593-4745-93e2-8b601d2220ca
 # ╠═7154ad08-33a6-43f7-a72d-17a22c68d529
