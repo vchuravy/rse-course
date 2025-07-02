@@ -47,11 +47,17 @@ using Symbolics
 # ╔═╡ 51a63a0a-a11b-4f53-a197-9dffabf6ad0c
 using ShortCodes
 
+# ╔═╡ 82b7a36d-d9cf-4050-bdb5-1db892ff853e
+using SparseArrays
+
 # ╔═╡ d34ccc86-bd36-4afd-9e30-2489a2b88779
 using LinearAlgebra
 
 # ╔═╡ 9ef768ba-c5a1-481a-add0-340f0bef982f
 using Krylov
+
+# ╔═╡ 8d6aa174-ed55-4fa9-bc8e-efd1abbb8404
+using SparseConnectivityTracer
 
 # ╔═╡ feb264fa-e282-40e8-ac69-eb4763945966
 md"""
@@ -72,11 +78,6 @@ md"""
 # ╔═╡ 9f020c74-ce3b-4d6d-987f-40495cde0a61
 TODO()
 
-# ╔═╡ 0fca68d1-184e-461f-9dda-723cbb7ffc6d
-md"""
-## Jacobian
-"""
-
 # ╔═╡ 9b581c58-b184-4d06-a9a7-08ebef24cdb0
 md"""
 ## Jacobian
@@ -96,8 +97,11 @@ J = \begin{bmatrix}
     \frac{\partial f_m}{\partial x_n}
 \end{bmatrix}
 ```
+"""
 
-We can think of seeds as a vector $v$ that selects a column to extract from the Jacobian, by performing $Jv$ a Jacobian vector product. So using `autodiff` we can extract the Jacobian of a program.
+# ╔═╡ 27d74eac-700f-4325-9869-0c6f43463c8b
+md"""
+Let's take a function `F` from $\mathbb{R}^2\rightarrow\mathbb{R}^3$ as a concrete example.
 """
 
 # ╔═╡ 0b554dea-3ad2-414a-a7a7-c9e694002b76
@@ -118,7 +122,37 @@ md"""
 begin
 	@variables X[2]
 	ex_F = F(X)
-	Symbolics.jacobian(ex_F, X; scalarize=false)
+	ex_J = Symbolics.jacobian(ex_F, X; scalarize=false)
+end
+
+# ╔═╡ 200b7150-d062-497c-a0c0-ea12856d16a8
+md"""
+!!! note
+    Above we have the general form of the Jacobian of `F`, but more often than not we care about the Jacobian of `F` at a point `x`.
+"""
+
+# ╔═╡ f0514e8e-b97a-496f-ad9f-87300ed5c52d
+substitute.(ex_J, X=>[1.0, 1.0])
+
+# ╔═╡ 5cd872fe-71cc-46a8-88df-829c4de9c939
+function F2(X) 
+	[
+		X[1]^4 - 3;
+     	X[2] <= 0 ? X[2] : exp(X[2]) - 2; 
+	 	log(X[1]) - X[2]^2
+	]
+end
+
+# ╔═╡ 77c85b86-c0cc-443c-8aa2-58f0abac3214
+md"""
+!!! note
+    When we have functions with control-flow that depend on an input, the symbolic approach fails.
+"""
+
+# ╔═╡ 36c84cde-b7c2-43a5-bb0e-8fae0552f8e2
+begin
+	ex_F2 = F2(X)
+	ex_J2 = Symbolics.jacobian(ex_F2, X; scalarize=false)
 end
 
 # ╔═╡ 45c0c3f2-de06-4161-85fd-b8adaac56a75
@@ -128,6 +162,21 @@ md"""
 
 # ╔═╡ c5ba102c-b475-47c9-bd68-fb66473f96e0
 ForwardDiff.jacobian(F, [1.0, 1.0])
+
+# ╔═╡ 0aff3351-9e5f-4e67-80c7-487569b1263c
+ForwardDiff.jacobian(F2, [1.0, 1.0])
+
+# ╔═╡ a5698629-68b8-4b68-b8e5-d636c4062589
+md"""
+!!! note
+    Automatic differentiation always evaluates things at a point, we can ask for the Jacobian of a function with input dependent control-flow.
+"""
+
+# ╔═╡ 13a29b0c-0aa9-4884-9ceb-f17067ab5cd8
+ForwardDiff.jacobian(F, [1.0, -1.0])
+
+# ╔═╡ 148dc2b8-b478-45b8-8599-3f3b908040dd
+ForwardDiff.jacobian(F2, [1.0, -1.0])
 
 # ╔═╡ ab0067f3-bfae-4f42-ba39-9e1bfdedf1f7
 md"""
@@ -140,17 +189,57 @@ Enzyme.jacobian(Forward, F, [1.0, 1.0]) |> only
 # ╔═╡ 5fbe74c0-230d-4365-8282-2799b672494f
 Enzyme.jacobian(Reverse, F, [1.0, 1.0]) |> only
 
+# ╔═╡ 2b1c4518-82ee-400b-923c-038679bf655f
+md"""
+!!! note
+    Both Jacobian are equivalent, but the object computed by Reverse mode is the transpose.
+"""
+
+# ╔═╡ ee746ffa-54c9-4a89-adeb-89c9b7c9833e
+let
+	J = Enzyme.jacobian(Reverse, F, [1.0, 1.0]) |> only
+	v = [1.0, 0.0]
+	J*v
+end
+
 # ╔═╡ 11af8ae0-df28-438f-b8a7-2e235dcdef10
 md"""
 ### Mutation
 """
 
+# ╔═╡ 8a897616-cd77-45af-a541-13a76e9eb8e7
+begin
+	function G!(Y, X)
+		Y[1] = X[1]^4 - 3
+     	Y[2] = exp(X[2]) - 2
+	 	Y[3] = log(X[1]) - X[2]^2
+	end
+	function G(X)
+		Y = similar(X, 3)
+		G!(Y, X)
+		Y
+	end
+end
+
+# ╔═╡ cc515126-9e3d-48a8-b5d4-b29bb507aa4b
+ForwardDiff.jacobian(G, [1.0, 1.0])
+
 # ╔═╡ d1de4440-df3e-4475-b058-dd3cd56e536b
 ForwardDiff.jacobian!(zeros(3, 2), G!, zeros(3), [1.0, 1.0])
+
+# ╔═╡ 765975a1-7a8b-46b8-b11a-e2bc2b35b5f0
+J = Enzyme.jacobian(Reverse, G, [1.0, 1.0]) |> only
 
 # ╔═╡ 57087fe7-9eb1-4c9b-acb0-c6f3639bcf2c
 md"""
 ### Jacobian vector product
+"""
+
+# ╔═╡ 5e4d567b-3a53-44dc-ac3e-bfb792509d21
+md"""
+The Jacobian-vector product or directional derivative is a powerful primitive.
+
+We implicitly perform a $Jv$ operation at the point $u$. With Enzyme this is a direct application of `autodiff` in Forward mode.
 """
 
 # ╔═╡ 19ea9417-208f-4f2c-8351-39d787ec33c9
@@ -164,16 +253,18 @@ end
 # ╔═╡ 1450b827-bc0d-452f-9c5c-493a510395a4
 md"""
 #### Approximation
+
+In many texts you will find the directional derivatives approximated using a finite-difference operation.
 """
 
 # ╔═╡ 8576cbbd-4fe7-414e-b5a8-3c8d5ee11655
 md"""
+#### First-order finite difference 
+
 $\frac{F(u + \epsilon \cdot v) - F(u)}{\epsilon}$
 """
 
 # ╔═╡ bf1ec46d-35ac-4c67-b18c-67ddbbf85c13
-# https://www.aanda.org/articles/aa/full_html/2016/02/aa27339-15/aa27339-15.html
-
 # First-order Taylor series
 function JVP_Finite_Diff_1st(F, u, v, ϵ = sqrt(eps()))
     (F(u + ϵ .* v) - F(u)) ./ ϵ
@@ -181,6 +272,7 @@ end
 
 # ╔═╡ a6e1f10e-0072-4ce5-b8b9-80e46cc9cd9f
 md"""
+#### Second-order finite difference
 $\frac{F(u + \epsilon \cdot v) - F(u - \epsilon \cdot v)}{2\epsilon}$
 """
 
@@ -192,27 +284,20 @@ end
 
 # ╔═╡ 858b0569-b45b-4584-88c3-7f003f1f6ad3
 md"""
-Choosing $ϵ$
+#### Choosing $ϵ$
 
-For 1st order: $ϵ = \sqrt{\epsilon_{mach}}$
+!!! warn
+    A core challenge is to choose the right $ϵ$ for the problem at hand.
 
-For 2nd order: $ϵ = \sqrt[3]{\epsilon_{mach}/2}$
+##### Common
+- For 1st order: $ϵ = \sqrt{\epsilon_{mach}}$
+- For 2nd order: $ϵ = \sqrt[3]{\epsilon_{mach}/2}$
 
-For 1st order: $ϵ = \frac{\sqrt{(1 + ||u||)\epsilon_{mach}}}{||v||}$ after 
-$(DOI("10.1016/j.jcp.2003.08.010"))
-
-For 2nd order: $ϵ = \frac{\sqrt{(1 + ||u||)}}{||v||} \sqrt[3]{\epsilon_{mach}}$ after $(DOI("10.1016/j.cam.2011.09.003"))
-
-Trilinos NOX uses either:
-
-$λ = 10e-6$
-$ϵ = λ * (λ + \frac{||u||}{||v||})$
-
-or 
-
-$ϵ = λ * (\frac{10^{-12}}{λ} + \frac{|u \cdot v|}{|v \cdot v|})sign(u \cdot v)$
-
-See 4.2 in $(DOI("10.1051/0004-6361/201527339"))
+##### Input dependent
+- For 1st order: $ϵ = \frac{\sqrt{(1 + ||u||)\epsilon_{mach}}}{||v||}$ 
+  after $(DOI("10.1016/j.jcp.2003.08.010"))
+- For 2nd order: $ϵ = \frac{\sqrt{(1 + ||u||)}}{||v||} \sqrt[3]{\epsilon_{mach}}$ 
+  after $(DOI("10.1016/j.cam.2011.09.003"))
 """
 
 # ╔═╡ 5120e1b4-6ae1-4074-812e-ff34d9bad60e
@@ -223,7 +308,7 @@ JVP_Finite_Diff_2nd(F, [1.0 1.0], [1.0 0.0])
 
 # ╔═╡ ccfb8431-ef72-46b7-9e40-6005ea5f06be
 md"""
-### Example Truncated Weierstrass
+#### Example Truncated Weierstrass
 """
 
 # ╔═╡ 6d788dbe-b589-45ac-9e1c-56b42164c1c2
@@ -278,8 +363,8 @@ let
 	lines!(ax, ϵs, ϵ->rel_error((x)->f(x, N=3), (x)->f′(x, N=3), x, JVP_Finite_Diff_2nd, ϵ), label="CFD/2nd order")
 	lines!(ax, ϵs, ϵ->rel_error((x)->f(x, N=3), (x)->f′(x, N=3), x, JVP, ϵ), label="AD")
 	
-	vlines!(ax, [sqrt(eps())], label=L"$\sqrt(\epsilon_{mach})$", color="red")
-	vlines!(ax, [cbrt(eps()/2)], label=L"$\cbrt(\epsilon_{mach}/2)$", color="orange")
+	vlines!(ax, [sqrt(eps())], label=L"$\sqrt(\epsilon_{mach})$", color="red",ymin=-1)
+	vlines!(ax, [cbrt(eps()/2)], label=L"$\cbrt(\epsilon_{mach}/2)$", color="orange",ymin=-1)
 	axislegend(ax, position = :lt)
 
 	ax = Axis(fig[2,1], xscale=log10, yscale=log10, title="Relative error N=10", ylabel = "Relative error", xlabel="Difference step size")
@@ -289,19 +374,74 @@ let
 	lines!(ax, ϵs, ϵ->rel_error((x)->f(x, N=10), (x)->f′(x, N=10), x, JVP_Finite_Diff_2nd, ϵ), label="CFD/2nd order")
 	lines!(ax, ϵs, ϵ->rel_error((x)->f(x, N=10), (x)->f′(x, N=10), x, JVP, ϵ), label="AD")
 	
-	vlines!(ax, [sqrt(eps())], label=L"$\sqrt(\epsilon_{mach})$", color="red")
-	vlines!(ax, [cbrt(eps()/2)], label=L"$\cbrt(\epsilon_{mach}/2)$", color="orange")
+	vlines!(ax, [sqrt(eps())], label=L"$\sqrt(\epsilon_{mach})$", color="red", ymin=-1)
+	vlines!(ax, [cbrt(eps()/2)], label=L"$\cbrt(\epsilon_{mach}/2)$", color="orange", ymin=-1)
 	axislegend(ax, position = :lt)
 
 	
 	fig
 end
 
-# ╔═╡ c4049fa5-a19b-480f-9219-cde73da270a6
-TODO()
+# ╔═╡ 4d2c3b3e-f080-4c85-b269-cf9a44039df7
+md"""
+### Extracting a Jacobian
+"""
 
-# ╔═╡ b2e5e572-53d5-44c5-9d6a-b1cb6bc1cb53
+# ╔═╡ beebeee4-9ace-48cb-a199-054db91b0821
+ex_F
 
+# ╔═╡ fc94e961-7ef5-4063-afb3-831bdc244fb4
+question_box(md"""
+			 Are the zeros here real structural zeros, or are they computational zero?
+			 """)
+
+# ╔═╡ 23601c7e-7bba-4d0f-a735-d9cf68df0d19
+ex_J
+
+# ╔═╡ c17a28bd-5be0-4f0c-9e7e-0d5c96778c86
+md"""
+#### Inadmissability
+"""
+
+# ╔═╡ 13bf6c3a-1f3b-40d7-a7a0-d1e26fb9d613
+md"""
+!!! note
+    Why is there a NaN?
+"""
+
+# ╔═╡ 438475e4-84ed-47fc-a32b-28e85894880f
+ex_F
+
+# ╔═╡ f0557ad5-b3cf-4211-83b6-60341350f609
+md"""
+```
+Base.log(x::Dual) = Dual(log(x.value), x.deriv / x.value)
+Base.:-(x::Dual, y::Dual) = Dual(x.value - y.value,
+								 x.deriv - y.deriv)
+```
+"""
+
+# ╔═╡ 0b2a206c-1719-481d-8a72-b6ceb4a9ae5e
+0.0/0.0 # derivative of log(x=0.0)
+
+# ╔═╡ e6deffa6-b4ce-4e8a-8c38-02e8a8b728d3
+0.0/0.0 - 2.0
+
+# ╔═╡ ccd67810-f1ae-49c5-b11a-201a0ad8f812
+md"""
+!!! note
+    Finite differences can struggle with "inadmisable" values. Recall the definition of `F`. We calculate $log(X_1)$ If $X_1=0$ then the 2nd order method will go a little bit to the left and right of zero. `log(0-eps())` is not defined.
+"""
+
+# ╔═╡ 24a7c06d-8dd1-4016-a809-8816b7fa24e5
+ex_F
+
+# ╔═╡ 50c9b1ac-22de-41c6-a15b-8743f01c41d3
+md"""
+```
+log(0-eps())
+```
+"""
 
 # ╔═╡ 49ed86ea-8219-4bdd-a8aa-b656ffa24309
 md"""
@@ -366,19 +506,6 @@ md"""
 Sanity restored...
 """
 
-# ╔═╡ 036a56c0-8ef7-464a-912a-03937546a342
-
-
-# ╔═╡ 4d2c3b3e-f080-4c85-b269-cf9a44039df7
-md"""
-### Extracting a Jacobian with JvP
-"""
-
-# ╔═╡ d1d3245f-640e-4646-a3d8-7790b00d1a06
-md"""
-### Building a linear operator for matrix-free
-"""
-
 # ╔═╡ 458dd94e-8bf5-4a91-b56a-e11f40997000
 md"""
 ## Jacobian Operator
@@ -403,10 +530,87 @@ begin
 	Base.eltype(J::JacobianOperator) = eltype(J.in)
 end
 
+# ╔═╡ 7555281f-f08c-43f3-89ea-4e33fbc715cf
+function assemble_jacobian(F, u, JVP)
+	N = length(u)
+	v = zero(u)
+	out = JVP(F, u, v)
+	M = length(out)
+	J = SparseMatrixCSC{eltype(u), Int}(undef, M, N)
+	for j in 1:N
+		v .= 0
+		v[j] = 1
+		out = JVP(F, u, v)
+		for i in 1:M
+			if out[i] != 0
+				J[i, j] = out[i]
+			end
+		end
+	end
+	J
+end
+
+# ╔═╡ f086d449-9910-42ec-9cf8-22061b71554a
+assemble_jacobian(F, [1.0 1.0], JVP)
+
+# ╔═╡ 1bc022af-5cac-4126-bb57-32ee79ff3a03
+assemble_jacobian(F, [1.0 1.0], JVP_Finite_Diff_1st)
+
+# ╔═╡ c4c3a3e8-163c-4755-af61-e8f228aeedd6
+assemble_jacobian(F, [1.0 1.0], JVP_Finite_Diff_2nd)
+
+# ╔═╡ 2f5021bc-6ff8-499f-b4c7-9c10a9f6fad4
+assemble_jacobian(F, [1.0 0.0], JVP)
+
+# ╔═╡ a3a637e0-d70d-478e-92c1-9a2f1b55c208
+assemble_jacobian(F, [1.0 0.0], JVP_Finite_Diff_1st)
+
+# ╔═╡ b7f89c19-9ee9-4bdb-9cef-fa8d565e47e5
+assemble_jacobian(F, [1.0 0.0], JVP_Finite_Diff_2nd)
+
+# ╔═╡ a26d68f5-3a5a-4aa5-9923-3846d0291885
+assemble_jacobian(F, [0.0 1.0], JVP)
+
+# ╔═╡ d5443976-5370-483f-9d80-c9e99bbcc81c
+assemble_jacobian(F, [0.0 1.0], JVP_Finite_Diff_1st)
+
+# ╔═╡ a43b052e-feab-49a6-9097-2eb70513953a
+assemble_jacobian(F, [0.0 1.0], JVP_Finite_Diff_2nd)
+
 # ╔═╡ 7a838d91-ae25-484e-bbd6-ba7bee55d1d4
 begin
 	LinearAlgebra.adjoint(J::JacobianOperator) = Adjoint(J)
 	LinearAlgebra.transpose(J::JacobianOperator) = Transpose(J)
+end
+
+# ╔═╡ d61dbc33-6d1a-48ba-9489-693bb3700ae3
+let
+	J = Enzyme.jacobian(Reverse, F, [1.0, 1.0]) |> only
+	v = [1.0, 0.0, 0.0]
+	transpose(J) * v # vJ
+end
+
+# ╔═╡ b12a5cad-5f60-4473-9c64-7731e3d3e1ed
+begin
+	v = [1.0, 0.0, 0.0]
+	transpose(J)*v
+end
+
+# ╔═╡ cc0ca242-e5f9-4812-bd3b-d6a1ab6cbfc7
+let
+	out = zeros(3)
+	w = zeros(2)
+	autodiff(Reverse, G!, Duplicated(out, copy(v)), Duplicated([1.0, 1.0], w))
+	w
+end
+
+# ╔═╡ 0cf8867b-2ff6-4f6c-8504-7cf877b28f31
+let
+	out = zeros(3)
+	w = zeros(2)
+	autodiff(Reverse, G!, Const,
+			 Duplicated(out, copy(v)), Duplicated([1.0, 1.0], w))
+	w
 end
 
 # ╔═╡ 4624b3e8-be3b-4e27-92a4-9b071987e8e1
@@ -423,8 +627,8 @@ function LinearAlgebra.mul!(out, J::JacobianOperator, v)
     autodiff(
         Forward,
         maybe_duplicated(J.f, Enzyme.make_zero(J.f)), Const,
-        DuplicatedNoNeed(J.out, out),
-        DuplicatedNoNeed(J.in, v)
+        Duplicated(J.out, out),
+        Duplicated(J.in, v)
     )
     return nothing
 end
@@ -439,34 +643,10 @@ function LinearAlgebra.mul!(out, J′::Union{Adjoint{<:Any, <:JacobianOperator},
         maybe_duplicated(J.f, Enzyme.make_zero(J.f)), 
 		Const,
 		# Enzyme zeros input derivatives and that confuses the solvers.
-        DuplicatedNoNeed(J.out, copy(v)),
-        DuplicatedNoNeed(J.in, out)
+        Duplicated(J.out, copy(v)),
+        Duplicated(J.in, out)
     )
     return nothing
-end
-
-# ╔═╡ 7555281f-f08c-43f3-89ea-4e33fbc715cf
-function assemble_jacobian(F, u, JVP)
-	N = length(u)
-	opJ = LinearOperator(Float64, N, N, false, false,
-		(out, v) -> out .= JVP(F, u, v),
-		nothing, nothing)
-
-	v = zero(u)
-	temp = similar(v)
-	J = SparseMatrixCSC{eltype(u), Int}(undef, N, N)
-	for i in 1:N
-		v .= 0
-		temp .= 0
-		v[i] = 1
-		mul!(temp, opJ, v)
-		for j in 1:N
-			if temp[j] != 0
-				J[i, j] = temp[j]
-			end
-		end
-	end
-	J
 end
 
 # ╔═╡ d4657f7f-f992-4196-b6f9-da9b20e2bd2e
@@ -506,19 +686,6 @@ let
 	w
 end
 
-# ╔═╡ 6ec186a8-114b-4f51-9a28-0135e8dc04ac
-md"""
-### Coloring
-"""
-
-# ╔═╡ cf67df6d-02d0-4902-a165-1aaf54cbee9c
-TODO()
-
-# ╔═╡ aa5a816f-573e-402c-bbd7-2b4609190290
-md"""
-## Building a simpler Netwon-Krylov solver
-"""
-
 # ╔═╡ c4ddb84b-9439-4e68-8230-4758e2272e88
 md"""
 ## Newton-Krylov
@@ -530,33 +697,17 @@ Problems of the form $F(u) = 0$ can be solved with a Newton method, this particu
 We can use a Krylov solver "gmres" to solve the linear system $Ax=-b$ without "materializing" $A$. This is called a matrix-free method.
 """
 
-# ╔═╡ cc515126-9e3d-48a8-b5d4-b29bb507aa4b
-ForwardDiff.jacobian(G, [1.0, 1.0])
-
-# ╔═╡ 765975a1-7a8b-46b8-b11a-e2bc2b35b5f0
-J = Enzyme.jacobian(Reverse, G, [1.0, 1.0]) |> only
-
-# ╔═╡ b12a5cad-5f60-4473-9c64-7731e3d3e1ed
+# ╔═╡ bcf5e168-ff76-436e-84ba-fd73226a9232
 begin
-	v = [1.0, 0.0, 0.0]
-	transpose(J)*v
-end
-
-# ╔═╡ cc0ca242-e5f9-4812-bd3b-d6a1ab6cbfc7
-let
-	out = zeros(3)
-	w = zeros(2)
-	autodiff(Reverse, G!, Duplicated(out, copy(v)), Duplicated([1.0, 1.0], w))
-	w
-end
-
-# ╔═╡ 0cf8867b-2ff6-4f6c-8504-7cf877b28f31
-let
-	out = zeros(3)
-	w = zeros(2)
-	autodiff(Reverse, G!, Const,
-			 Duplicated(out, copy(v)), Duplicated([1.0, 1.0], w))
-	w
+	function G2!(y, x)
+	    y[1] = x[1]^2 + x[2]^2 - 2
+		y[2] = exp(x[1] - 1) + x[2]^2 - 2
+	end
+	function G2(x)
+		y = similar(x)
+		G2!(y, x)
+		return y
+	end
 end
 
 # ╔═╡ dcb6f8c4-bfae-4646-ae98-05eedc193167
@@ -566,18 +717,19 @@ let
 	
 	levels = [0.1, 0.25, 0.5:2:10..., 10.0:10:200..., 200:100:4000...]
 	
-	fig, ax = contour(xs, ys, (x, y) -> norm(G([x, y])); levels)
+	fig, ax = contour(xs, ys, (x, y) -> norm(G2([x, y])); levels)
 	fig
 end
 
 # ╔═╡ bb581fc3-57c4-4e27-90ab-56a8a88367f6
-function newton_krylov!(F, u;
+function newton_krylov!(F!, u;
 						tol_rel = 1.0e-6,
         				tol_abs = 1.0e-12,
 						max_niter = 50,
 						callback = x->nothing)
-	
-	res = F(u)
+
+	res = similar(u)
+	F!(res, u)
 	n_res = norm(res)
 	callback(u)
 
@@ -586,13 +738,13 @@ function newton_krylov!(F, u;
 	
 	while n_res > tol && iter <= max_niter
 		# Ax = -b
-		J = JacobianOperator(F, u, res)
+		J = JacobianOperator(F!, res, u)
 		x, stats = gmres(J, -res)
 
 		# Take a step in the newton direction
 		u .+= x
 
-		res = F(u)
+		F!(res, u)
 		n_res = norm(res)
 		callback(u)
 		if isinf(n_res) || isnan(n_res)
@@ -603,35 +755,11 @@ function newton_krylov!(F, u;
 	return u, (; solved = n_res <= tol, iter)
 end
 
-# ╔═╡ d0c4fc3c-6fb1-4dc8-858c-abf1493a1e5e
-function newton_krylov!(F, u, JVP=JVP)
-	# TODO: Control ϵ in JVP
-	# TODO: Control tol for Krylov step
-	# TODO: tol for newton step
-	N = length(u)
-	solver = CgSolver(N, N, typeof(u))
-	# solver = GmresSolver(N,N, 20, typeof(u))
-	J = LinearOperator(Float64, N, N, false, false,
-		(out, v) -> out .= JVP(F, u, v),
-		nothing, nothing)
-
-	for i in 1:50
-		res = F(u)
-		@info "Iteration" iter=i norm(res)
-		if norm(res) <= 1e-5 # after 
-			break
-		end
-		solve!(solver, J, -res)		
-		u .+= solver.x
-	end
-	return u
-end
-
 # ╔═╡ 7531960a-9a51-4950-abdc-112bea3e791e
 trace_1 = let x₀ = [2.0, 0.5]
     xs = Vector{Tuple{Float64, Float64}}(undef, 0)
     hist(x) = (push!(xs, (x[1], x[2])); nothing)
-    _ = newton_krylov!(G, x₀, callback = hist)
+    _ = newton_krylov!(G2!, x₀, callback = hist)
 	xs
 end
 
@@ -639,9 +767,12 @@ end
 trace_2 = let x₀ = [2.5, 3.0]
     xs = Vector{Tuple{Float64, Float64}}(undef, 0)
     hist(x) = (push!(xs, (x[1], x[2])); nothing)
-    newton_krylov!(G, x₀, callback = hist)
+    newton_krylov!(G2!, x₀, callback = hist)
     xs
 end
+
+# ╔═╡ 353fa149-a0ff-4923-a3f0-e115ecdfdf2d
+G2([trace_2[end]...])
 
 # ╔═╡ 3722f5d6-011c-4318-b512-36380269eebb
 let
@@ -650,33 +781,69 @@ let
 	
 	levels = [0.1, 0.25, 0.5:2:10..., 10.0:10:200..., 200:100:4000...]
 	
-	fig, ax = contour(xs, ys, (x, y) -> norm(G([x, y])); levels)
+	fig, ax = contour(xs, ys, (x, y) -> norm(G2([x, y])); levels)
 	lines!(ax, trace_1)
 	lines!(ax, trace_2)
 	fig
 end
 
-# ╔═╡ bcf5e168-ff76-436e-84ba-fd73226a9232
-function G(x)
-    [
-		x[1]^2 + x[2]^2 - 2,
-		exp(x[1] - 1) + x[2]^2 - 2
-	]
-end
+# ╔═╡ 6ec186a8-114b-4f51-9a28-0135e8dc04ac
+md"""
+## Coloring
+"""
 
-# ╔═╡ 8a897616-cd77-45af-a541-13a76e9eb8e7
-begin
-	function G!(Y, X)
-		Y[1] = X[1]^4 - 3
-     	Y[2] = exp(X[2]) - 2
-	 	Y[3] = log(X[1]) - X[2]^2
-	end
-	function G(X)
-		Y = similar(X, 3)
-		G!(Y, X)
-		Y
-	end
-end
+# ╔═╡ 4b7edccf-f98f-47c8-87b0-83e4258166b8
+md"""
+Matrix-free methods are powerful especially for systems that are:
+1. Large
+2. Unkown structure of the Jacobian
+
+But special care is needed to make sure that the number of Jacobian-Vector product evaluations is low. In particular for Netwon-Krylov one has to use inexact Newton-Krylov with an Eisenstatt-Walker condition.
+
+Matrix coloring is an alternative to reduce the cost of calculating the Jacobian at each iteration.
+"""
+
+# ╔═╡ 3b766814-0397-45f2-b59e-3b3659eb8859
+md"""
+!!! note
+	Adrian Hill and Guillaume Dalle have done some great work on this in the Julia AD landscape.
+
+1. https://iclr-blogposts.github.io/2025/blog/sparse-autodiff/
+2. https://arxiv.org/abs/2501.17737
+
+!!! warn
+    Remember the issues we had earlier with "structural sparsisty" and "input dependent computation". These issues are particularly perniscous for automatic sparsity detection.
+"""
+
+# ╔═╡ 88f3172f-d031-485d-a49d-0cb19d21ff37
+jacobian_sparsity(F, [1.0, 1.0], TracerSparsityDetector())
+
+# ╔═╡ 77923aa6-939b-400e-8e04-fcd3753f4cbc
+jacobian_sparsity(F, [1.0, 0.0], TracerSparsityDetector())
+
+# ╔═╡ 45e43630-09a5-4d1e-b7d7-cd72eca3d146
+jacobian_sparsity(F, [1.0, 0.0], TracerLocalSparsityDetector())
+
+# ╔═╡ d8797760-0090-42f5-b297-c119a2ac1727
+jacobian_sparsity(x->x[1]*x[2], [1.0, 0.0], TracerLocalSparsityDetector())
+
+# ╔═╡ 425ee2c7-82b2-4560-b538-1d5b768fd4cd
+jacobian_sparsity(x->x[1]*x[2], [0.0, 1.0], TracerLocalSparsityDetector())
+
+# ╔═╡ 4306dd2d-d831-4358-ad2e-c77ba1be101e
+jacobian_sparsity(x->x[1]*x[2], [1.0, 1.0], TracerLocalSparsityDetector())
+
+# ╔═╡ 50f0d2b8-c26c-495f-a606-88df639557bd
+jacobian_sparsity(x->x[1]*x[2], [0.0, 0.0], TracerSparsityDetector())
+
+# ╔═╡ fe9db70c-82ad-4fdf-91b7-8280f902fd72
+jacobian_sparsity(F2, [1.0, 1.0], TracerSparsityDetector())
+
+# ╔═╡ 23807f7b-a02b-485d-87cc-d7a9dfd4c684
+jacobian_sparsity(F2, [1.0, 1.0], TracerLocalSparsityDetector())
+
+# ╔═╡ 3c0b6d14-4f20-4f1e-aa22-57d1fe23f509
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -689,6 +856,8 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 ShortCodes = "f62ebe17-55c5-4640-972f-b59c0dd11ccf"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
@@ -699,6 +868,7 @@ Krylov = "~0.10.1"
 PlutoTeachingTools = "~0.4.1"
 PlutoUI = "~0.7.65"
 ShortCodes = "~0.3.6"
+SparseConnectivityTracer = "~0.6.21"
 Symbolics = "~6.43.0"
 """
 
@@ -708,7 +878,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "2abb6936c21345caf14768af75030ff03938f893"
+project_hash = "86f959d2fa9e94108ed5551f1a3a365862155eaf"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "be7ae030256b8ef14a441726c4c37766b90b93a3"
@@ -989,9 +1159,9 @@ version = "1.0.0"
 
 [[deps.Compat]]
 deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "8ae8d32e09f0dcf42a36b90d4e17f5dd2e4c4215"
+git-tree-sha1 = "3a3dfb30697e96a440e4149c8c51bf32f818c0f3"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.16.0"
+version = "4.17.0"
 weakdeps = ["Dates", "LinearAlgebra"]
 
     [deps.Compat.extensions]
@@ -1138,9 +1308,9 @@ version = "1.0.5"
 
 [[deps.Enzyme]]
 deps = ["CEnum", "EnzymeCore", "Enzyme_jll", "GPUCompiler", "InteractiveUtils", "LLVM", "Libdl", "LinearAlgebra", "ObjectFile", "PrecompileTools", "Preferences", "Printf", "Random", "SparseArrays"]
-git-tree-sha1 = "5823dadb69e368da86599f5103976f9b2b838113"
+git-tree-sha1 = "d58fef755b0bde0e4dace520d875b386f82b9ab1"
 uuid = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-version = "0.13.52"
+version = "0.13.54"
 
     [deps.Enzyme.extensions]
     EnzymeBFloat16sExt = "BFloat16s"
@@ -1338,9 +1508,9 @@ version = "0.2.0"
 
 [[deps.GPUCompiler]]
 deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
-git-tree-sha1 = "bbb7004345fb6141989835fc9f2f9e93bba3c806"
+git-tree-sha1 = "71a747c7c0137222dceb799b5643440e8eb6bfce"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "1.5.3"
+version = "1.6.0"
 
 [[deps.GeoFormatTypes]]
 git-tree-sha1 = "8e233d5167e63d708d41f87597433f59a0f213fe"
@@ -2339,6 +2509,26 @@ deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 version = "1.11.0"
 
+[[deps.SparseConnectivityTracer]]
+deps = ["ADTypes", "DocStringExtensions", "FillArrays", "LinearAlgebra", "Random", "SparseArrays"]
+git-tree-sha1 = "182990067a09adf950274f97f38f68c76f81d2d0"
+uuid = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
+version = "0.6.21"
+
+    [deps.SparseConnectivityTracer.extensions]
+    SparseConnectivityTracerDataInterpolationsExt = "DataInterpolations"
+    SparseConnectivityTracerLogExpFunctionsExt = "LogExpFunctions"
+    SparseConnectivityTracerNNlibExt = "NNlib"
+    SparseConnectivityTracerNaNMathExt = "NaNMath"
+    SparseConnectivityTracerSpecialFunctionsExt = "SpecialFunctions"
+
+    [deps.SparseConnectivityTracer.weakdeps]
+    DataInterpolations = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
+    LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
+    NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
+    NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
+    SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
 git-tree-sha1 = "41852b8679f78c8d8961eeadc8f62cef861a52e3"
@@ -2572,9 +2762,9 @@ version = "0.5.29"
 
 [[deps.Tracy]]
 deps = ["ExprTools", "LibTracyClient_jll", "Libdl"]
-git-tree-sha1 = "16439d004690d4086da35528f0c6b4d7006d6dae"
+git-tree-sha1 = "91dbaee0f50faa4357f7e9fc69442c7b6364dfe5"
 uuid = "e689c965-62c8-4b79-b2c5-8359227902fd"
-version = "0.1.4"
+version = "0.1.5"
 
     [deps.Tracy.extensions]
     TracyProfilerExt = "TracyProfiler_jll"
@@ -2802,28 +2992,41 @@ version = "3.6.0+0"
 # ╠═32046b92-0927-4c79-82ec-ffc4cf6d9500
 # ╟─c78a2897-7015-46d9-bfc0-9a31c3814050
 # ╠═9f020c74-ce3b-4d6d-987f-40495cde0a61
-# ╟─0fca68d1-184e-461f-9dda-723cbb7ffc6d
-# ╠═9b581c58-b184-4d06-a9a7-08ebef24cdb0
+# ╟─9b581c58-b184-4d06-a9a7-08ebef24cdb0
+# ╟─27d74eac-700f-4325-9869-0c6f43463c8b
 # ╠═0b554dea-3ad2-414a-a7a7-c9e694002b76
-# ╠═dc46096e-28bc-49c2-ae57-670f72521b36
+# ╟─dc46096e-28bc-49c2-ae57-670f72521b36
 # ╠═2b0564a9-422d-4ba6-b867-4a902b8f844c
 # ╠═5232357a-2d86-45e9-8591-7c4a379db12a
+# ╟─200b7150-d062-497c-a0c0-ea12856d16a8
+# ╠═f0514e8e-b97a-496f-ad9f-87300ed5c52d
+# ╠═5cd872fe-71cc-46a8-88df-829c4de9c939
+# ╟─77c85b86-c0cc-443c-8aa2-58f0abac3214
+# ╠═36c84cde-b7c2-43a5-bb0e-8fae0552f8e2
 # ╟─45c0c3f2-de06-4161-85fd-b8adaac56a75
 # ╠═c5ba102c-b475-47c9-bd68-fb66473f96e0
+# ╠═0aff3351-9e5f-4e67-80c7-487569b1263c
+# ╟─a5698629-68b8-4b68-b8e5-d636c4062589
+# ╠═13a29b0c-0aa9-4884-9ceb-f17067ab5cd8
+# ╠═148dc2b8-b478-45b8-8599-3f3b908040dd
 # ╟─ab0067f3-bfae-4f42-ba39-9e1bfdedf1f7
 # ╠═e27f6b76-aebf-4319-b9b6-f92ea7f48347
 # ╠═5fbe74c0-230d-4365-8282-2799b672494f
+# ╟─2b1c4518-82ee-400b-923c-038679bf655f
+# ╠═ee746ffa-54c9-4a89-adeb-89c9b7c9833e
+# ╠═d61dbc33-6d1a-48ba-9489-693bb3700ae3
 # ╟─11af8ae0-df28-438f-b8a7-2e235dcdef10
 # ╠═8a897616-cd77-45af-a541-13a76e9eb8e7
 # ╠═cc515126-9e3d-48a8-b5d4-b29bb507aa4b
 # ╠═d1de4440-df3e-4475-b058-dd3cd56e536b
 # ╠═765975a1-7a8b-46b8-b11a-e2bc2b35b5f0
 # ╟─57087fe7-9eb1-4c9b-acb0-c6f3639bcf2c
+# ╟─5e4d567b-3a53-44dc-ac3e-bfb792509d21
 # ╠═19ea9417-208f-4f2c-8351-39d787ec33c9
-# ╠═1450b827-bc0d-452f-9c5c-493a510395a4
-# ╠═8576cbbd-4fe7-414e-b5a8-3c8d5ee11655
+# ╟─1450b827-bc0d-452f-9c5c-493a510395a4
+# ╟─8576cbbd-4fe7-414e-b5a8-3c8d5ee11655
 # ╠═bf1ec46d-35ac-4c67-b18c-67ddbbf85c13
-# ╠═a6e1f10e-0072-4ce5-b8b9-80e46cc9cd9f
+# ╟─a6e1f10e-0072-4ce5-b8b9-80e46cc9cd9f
 # ╠═cfba8fa5-9a7f-46a5-9f19-e909f268f502
 # ╠═51a63a0a-a11b-4f53-a197-9dffabf6ad0c
 # ╟─858b0569-b45b-4584-88c3-7f003f1f6ad3
@@ -2833,15 +3036,37 @@ version = "3.6.0+0"
 # ╟─6d788dbe-b589-45ac-9e1c-56b42164c1c2
 # ╠═aff4afb2-6b42-4765-9100-3f142be71698
 # ╠═1cbfbf39-f916-4082-8a52-7a711739504f
-# ╠═14979edc-2c15-4bab-8890-6eaf97a225da
+# ╟─14979edc-2c15-4bab-8890-6eaf97a225da
 # ╠═abeb91fd-545c-4b1e-ad83-499155df9bf6
-# ╠═3c01bfdb-b44a-42e4-9438-04a00e457a20
-# ╠═c4049fa5-a19b-480f-9219-cde73da270a6
-# ╠═b2e5e572-53d5-44c5-9d6a-b1cb6bc1cb53
-# ╠═49ed86ea-8219-4bdd-a8aa-b656ffa24309
+# ╟─3c01bfdb-b44a-42e4-9438-04a00e457a20
+# ╟─4d2c3b3e-f080-4c85-b269-cf9a44039df7
+# ╠═82b7a36d-d9cf-4050-bdb5-1db892ff853e
+# ╠═7555281f-f08c-43f3-89ea-4e33fbc715cf
+# ╠═beebeee4-9ace-48cb-a199-054db91b0821
+# ╠═f086d449-9910-42ec-9cf8-22061b71554a
+# ╠═1bc022af-5cac-4126-bb57-32ee79ff3a03
+# ╠═c4c3a3e8-163c-4755-af61-e8f228aeedd6
+# ╟─fc94e961-7ef5-4063-afb3-831bdc244fb4
+# ╠═23601c7e-7bba-4d0f-a735-d9cf68df0d19
+# ╠═2f5021bc-6ff8-499f-b4c7-9c10a9f6fad4
+# ╠═a3a637e0-d70d-478e-92c1-9a2f1b55c208
+# ╠═b7f89c19-9ee9-4bdb-9cef-fa8d565e47e5
+# ╟─c17a28bd-5be0-4f0c-9e7e-0d5c96778c86
+# ╠═a26d68f5-3a5a-4aa5-9923-3846d0291885
+# ╟─13bf6c3a-1f3b-40d7-a7a0-d1e26fb9d613
+# ╠═438475e4-84ed-47fc-a32b-28e85894880f
+# ╟─f0557ad5-b3cf-4211-83b6-60341350f609
+# ╠═0b2a206c-1719-481d-8a72-b6ceb4a9ae5e
+# ╠═e6deffa6-b4ce-4e8a-8c38-02e8a8b728d3
+# ╠═d5443976-5370-483f-9d80-c9e99bbcc81c
+# ╠═a43b052e-feab-49a6-9097-2eb70513953a
+# ╟─ccd67810-f1ae-49c5-b11a-201a0ad8f812
+# ╠═24a7c06d-8dd1-4016-a809-8816b7fa24e5
+# ╟─50c9b1ac-22de-41c6-a15b-8743f01c41d3
+# ╟─49ed86ea-8219-4bdd-a8aa-b656ffa24309
 # ╠═b12a5cad-5f60-4473-9c64-7731e3d3e1ed
 # ╠═cc0ca242-e5f9-4812-bd3b-d6a1ab6cbfc7
-# ╠═0a623f3a-9fda-4590-aebb-ca56283dda41
+# ╟─0a623f3a-9fda-4590-aebb-ca56283dda41
 # ╠═775255f7-f322-4ee5-9e2f-48abf91ecf15
 # ╟─1258de24-fd40-4a67-b7c0-426dd610e008
 # ╠═13cf456c-3960-4101-a273-823c211660fb
@@ -2849,11 +3074,7 @@ version = "3.6.0+0"
 # ╠═c18ece26-e2f0-401b-a717-160a14c21d07
 # ╠═0cf8867b-2ff6-4f6c-8504-7cf877b28f31
 # ╟─e8d5c77b-3045-4d6e-bf2e-a1f6971828f3
-# ╠═036a56c0-8ef7-464a-912a-03937546a342
-# ╟─4d2c3b3e-f080-4c85-b269-cf9a44039df7
-# ╠═7555281f-f08c-43f3-89ea-4e33fbc715cf
-# ╟─d1d3245f-640e-4646-a3d8-7790b00d1a06
-# ╠═458dd94e-8bf5-4a91-b56a-e11f40997000
+# ╟─458dd94e-8bf5-4a91-b56a-e11f40997000
 # ╠═d34ccc86-bd36-4afd-9e30-2489a2b88779
 # ╠═5a8f68ab-31a9-4f2f-a9e7-aa7b34a2055d
 # ╠═01955dbb-3a65-4829-b4c1-ac9f51b152db
@@ -2865,17 +3086,28 @@ version = "3.6.0+0"
 # ╠═899e4ead-decb-4cc9-a855-3bad4b01cc8c
 # ╠═43eb2a0b-7acc-4ab6-83b4-2dbb3b378983
 # ╠═e97858d0-b394-4c85-8de0-71b6b61e49e9
-# ╟─6ec186a8-114b-4f51-9a28-0135e8dc04ac
-# ╠═cf67df6d-02d0-4902-a165-1aaf54cbee9c
-# ╠═aa5a816f-573e-402c-bbd7-2b4609190290
-# ╠═c4ddb84b-9439-4e68-8230-4758e2272e88
+# ╟─c4ddb84b-9439-4e68-8230-4758e2272e88
 # ╠═9ef768ba-c5a1-481a-add0-340f0bef982f
 # ╠═bcf5e168-ff76-436e-84ba-fd73226a9232
 # ╠═dcb6f8c4-bfae-4646-ae98-05eedc193167
 # ╠═bb581fc3-57c4-4e27-90ab-56a8a88367f6
-# ╠═d0c4fc3c-6fb1-4dc8-858c-abf1493a1e5e
 # ╠═7531960a-9a51-4950-abdc-112bea3e791e
 # ╠═1ce82922-2664-4a08-a47f-5e353e3701cf
+# ╠═353fa149-a0ff-4923-a3f0-e115ecdfdf2d
 # ╠═3722f5d6-011c-4318-b512-36380269eebb
+# ╟─6ec186a8-114b-4f51-9a28-0135e8dc04ac
+# ╟─4b7edccf-f98f-47c8-87b0-83e4258166b8
+# ╟─3b766814-0397-45f2-b59e-3b3659eb8859
+# ╠═8d6aa174-ed55-4fa9-bc8e-efd1abbb8404
+# ╠═88f3172f-d031-485d-a49d-0cb19d21ff37
+# ╠═77923aa6-939b-400e-8e04-fcd3753f4cbc
+# ╠═45e43630-09a5-4d1e-b7d7-cd72eca3d146
+# ╠═d8797760-0090-42f5-b297-c119a2ac1727
+# ╠═425ee2c7-82b2-4560-b538-1d5b768fd4cd
+# ╠═4306dd2d-d831-4358-ad2e-c77ba1be101e
+# ╠═50f0d2b8-c26c-495f-a606-88df639557bd
+# ╠═fe9db70c-82ad-4fdf-91b7-8280f902fd72
+# ╠═23807f7b-a02b-485d-87cc-d7a9dfd4c684
+# ╠═3c0b6d14-4f20-4f1e-aa22-57d1fe23f509
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

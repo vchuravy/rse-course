@@ -1,6 +1,19 @@
 ### A Pluto.jl notebook ###
 # v0.20.8
 
+#> [frontmatter]
+#> chapter = "4"
+#> section = "2"
+#> order = "12.1"
+#> title = "Lagrangian"
+#> tags = ["module4", "track_performance", "indepth"]
+#> layout = "layout.jlhtml"
+#> indepth_number = "4"
+#> 
+#>     [[frontmatter.author]]
+#>     name = "Valentin Churavy"
+#>     url = "https://vchuravy.dev"
+
 using Markdown
 using InteractiveUtils
 
