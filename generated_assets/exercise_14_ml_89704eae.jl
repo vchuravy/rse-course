@@ -7,7 +7,7 @@
 #> chapter = "4"
 #> section = "1"
 #> title = "Reverse mode AD"
-#> tags = ["module3", "track_parallel", "exercises"]
+#> tags = ["module4", "track_ad", "exercises"]
 #> license = "MIT"
 #> layout = "layout.jlhtml"
 #> description = "sample exercise"
