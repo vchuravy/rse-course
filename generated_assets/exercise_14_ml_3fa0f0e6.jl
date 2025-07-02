@@ -4,6 +4,8 @@
 #> [frontmatter]
 #> order = "11.2"
 #> exercise_number = "14"
+#> chapter = "4"
+#> section = "1"
 #> title = "Reverse mode AD"
 #> tags = ["module3", "track_parallel", "exercises"]
 #> license = "MIT"
