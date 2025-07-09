@@ -36,6 +36,12 @@ begin
 	using ShortCodes
 end
 
+# ╔═╡ 2d617f49-8dd4-45be-8e59-b80bc87afa93
+using JuliaSyntax
+
+# ╔═╡ b416ea3c-92d0-46b0-bbc0-99b7dfabe328
+using IRViz
+
 # ╔═╡ 2324f04a-f7a8-4fa5-85ca-034bdb1b0f03
 using BenchmarkTools
 
@@ -47,9 +53,6 @@ begin
 	using LLVM
 	using LLVM.Interop
 end
-
-# ╔═╡ 99cb0490-4015-4c63-b288-a2905f950585
-using IRViz
 
 # ╔═╡ 2f03b26e-08e1-4be8-81e3-1d97e9c46e97
 html"<button onclick='present()'>Toggle presentation mode</button>"
@@ -68,9 +71,215 @@ md"""
 # Compilation
 """
 
+# ╔═╡ 3dc0b5ff-2322-46eb-84a1-4074024ee8b6
+md"""
+1. Parsing
+2. Linearization
+3. Abstract-interpretation based type-inference
+4. High-level optimizations
+5. LLVM based optimizations
+6. Emission of native code
+"""
+
+# ╔═╡ da596e21-9b9b-4a39-92ba-67aa4eefa88a
+func = """
+function example(X)
+	acc = zero(eltype(X))
+	for x in X
+		acc += x
+	end
+	return acc
+end
+""";
+
+# ╔═╡ f9f1207a-e65a-4325-a0d4-948a4e2b4320
+md"""
+## Parsing
+"""
+
+# ╔═╡ 53371620-eb8f-46bb-870f-d8eb20e46489
+md"""
+!!! note
+    Parsing turns **text** into expressions.
+"""
+
+# ╔═╡ d8c0c48e-e950-4ce5-a15e-a6644e7f4c16
+expr = Meta.parse(func)
+
+# ╔═╡ 65f24ef9-d62d-43d4-879a-145b1301f58d
+ parsestmt(SyntaxNode, func)
+
+# ╔═╡ b09c9059-6f28-470c-a63b-d1857323a451
+parsestmt(Expr, func)
+
+# ╔═╡ e9f9cb37-d778-4e30-9f3b-8b7392a1eade
+md"""
+!!! note
+    To go from **Expr** to usable function we need to resolve symbols in a namespace and add the function to the system. `eval` will do that for us.
+"""
+
+# ╔═╡ 35e3b7a9-5393-4e1c-ab29-1f3603a4e5b7
+example = eval(expr)
+
+# ╔═╡ 30ceb52d-e96e-47aa-a993-fd9e5ac79d00
+example(ones(10))
+
+# ╔═╡ 70fd2d56-817c-43c1-975a-c7b0161e86a7
+md"""
+## Linearization
+"""
+
+# ╔═╡ 89d20363-b871-4ce2-95d1-a80a70a0419f
+md"""
+!!! note
+    `Expr` form an abstract-syntax-tree (AST). Julia macros are functions from `Expr` to `Expr`. To simplify things later we want to linearize that tree. In Julia we call this lowering.
+"""
+
+# ╔═╡ 9a7ee25e-2c3c-4b10-a4c6-be7196c83538
+CL = code_lowered(example, (Array{Float64},)) |> only
+
+# ╔═╡ 944fc32c-569f-4792-8976-ef5095db8e4c
+md"""
+!!! note
+    Lowered code is in single-static-assignment (SSA) form with memory.
+    `%8  = %7 === nothing` is a SSA statement, and `@_3` are variables (e.g. memory).
+"""
+
+# ╔═╡ 02812c13-f1cd-44dc-aec2-b64dd4e808fa
+md"""
+!!! note
+    The lowered code forms a control-flow-graph CFG, with a set of basic blocks.
+"""
+
+# ╔═╡ 109df061-0abe-4d2a-b083-c653066aaf05
+viz(CL)
+
+# ╔═╡ c6a01a34-161f-4da5-b359-775b064f96cf
+md"""
+!!! note 
+    Control-flow is implemented using `goto %n` and `goto %n if not %c` statements.
+    Julia's IR uses implicit fallthrough, so a basic-block ending in a `goto %n if not %c` statement has a second implicit successor in the subsequent basic block.
+"""
+
+# ╔═╡ 653049e7-f1ca-45b1-92c1-5a7fe9e381fa
+md"""
+## Abstract-interpretation based type-inference
+"""
+
+# ╔═╡ c8428a0c-6765-4a59-a0a7-1f426f052d4b
+md"""
+As soon as we have an AST we could have written an interpreter. Perhaps we would use the lowered form to make our lifes easier. 
+"""
+
+# ╔═╡ 04e4c1f6-f6c7-4b29-97f2-9de06ee4d71b
+import Core.Compiler as CC
+
+# ╔═╡ baa49d7b-62c3-4fee-8981-e89408806561
+function interpret_naively(CL, args)
+	code = CL.code
+	slots = Vector{Any}(undef, length(CL.slotnames))
+	stmts = Vector{Any}(undef, length(code)) # SSA
+
+	# copy args into vars
+	for (name, value) in args
+		id = findfirst(==(name), CL.slotnames)
+		slots[id] = value
+	end
+
+	resolve(val::CC.SSAValue) = stmts[val.id]
+	resolve(val::CC.SlotNumber) = slots[val.id]
+		
+	function local_eval(stmt)
+		if stmt isa GlobalRef
+			return eval(stmt)
+		elseif stmt isa CC.SSAValue || stmt isa CC.SlotNumber
+			return resolve(stmt)
+		elseif stmt isa Expr
+			head = stmt.head
+			if head == :call
+				resolve_args = map(local_eval, stmt.args)
+				f = first(resolve_args)
+				f_args = resolve_args[2:end]
+				if f isa Core.IntrinsicFunction || f isa Core.Builtin || 
+				   f === Base.iterate
+					return f(f_args...)
+				end
+				argtypes = ntuple(i->Core.Typeof(f_args[i]), length(f_args))
+				CL_f = code_lowered(f, argtypes) |> only
+				f_args′ = collect(zip(CL_f.slotnames[2:end], f_args))
+				try
+					return interpret_naively(CL_f, f_args′)
+				catch exc
+					@error "Interpretation failed" exception=exc f f_args
+					return f(f_args...)
+				end
+			elseif head == :(=)
+				@show stmt
+				error("= in rhs expression")
+			else
+				@show stmt
+				error("Unknown expression")
+			end
+		else
+			return stmt
+		end
+	end
+	
+	# interpreter
+	pc = 1
+	while true
+		stmt = code[pc]
+		if stmt isa GlobalRef || stmt isa CC.SSAValue || stmt isa CC.SlotNumber
+			stmts[pc] = local_eval(stmt)
+		elseif stmt isa Expr
+			head = stmt.head
+			if head == :(=)
+				lhs = stmt.args[1]
+				rhs = stmt.args[2]
+				@assert lhs isa CC.SlotNumber
+				val = local_eval(rhs)
+				slots[lhs.id] = val
+				stmts[pc] = val
+			else
+				stmts[pc] = local_eval(stmt)
+			end
+		elseif stmt isa CC.GotoIfNot
+			cond = local_eval(stmt.cond)
+			if !cond
+				pc = stmt.dest
+			else
+				pc += 1
+			end
+			continue
+		elseif stmt isa CC.GotoNode
+			pc = stmt.label
+			continue
+		elseif stmt isa CC.ReturnNode
+			return local_eval(stmt.val)
+		else
+			error("Unknown stmt")
+		end
+		pc += 1
+	end
+end
+
+# ╔═╡ ae37bb88-8bae-434f-b2fd-2ad1a31e9c06
+interpret_naively(CL, (:X => ones(3),))
+
+# ╔═╡ d58bb116-c069-453d-9866-abd63cfa86d8
+md"""
+Our interpreter isn't all that fast, but it mostly works! Of course if you want to support all of Julia life becomes a bit more complicated. Here I am skipping things like foreign function calls, and I fall-back onto the native execution scheme if I have no other options.
+"""
+
+# ╔═╡ 84f30340-ce40-4e63-8f70-7b57868a8919
+md"""
+!!! note
+    To accelerate execution we would need to cache lookups and perhaps perform optimizations such as inlining. We need to carefully consider under which assumptions we may do so!
+"""
+
 # ╔═╡ c482bc24-f1d2-46c7-8538-48c90d7e4394
 md"""
-## What makes a programming language dynamic?
+### What makes a programming language dynamic?
 
 1. Dynamic typing vs static typing
 2. Open world vs closed world
@@ -79,7 +288,7 @@ md"""
 
 # ╔═╡ 1dd808d9-84d8-4de3-85ea-73febfee62df
 md"""
-## Dynamic typing vs static typing
+### Dynamic typing vs static typing
 
 The **common** argument: JavaScript vs TypeScript -- reminds one a bit of Vim vs Emacs, or spaces vs tabs.
 
@@ -93,7 +302,7 @@ But is there all that is to it?
 
 # ╔═╡ 09939df5-6b00-4d55-9ddb-d87a25264a8e
 md"""
-## Some terminology
+### Some terminology
 
 - Types: A type (or in Object-Oriented programming a class) defines a set of values 
 ```julia
@@ -109,7 +318,7 @@ struct Peaches <: StoneFruit end
 
 # ╔═╡ bdf87ca9-ed6c-4d66-9b1c-b9db83453a4d
 md"""
-## Static typying
+### Static typying
 
 In statically typed languages a variable can only be assigned a type once.
 
@@ -137,7 +346,7 @@ in
 
 # ╔═╡ f3d799cf-9bc5-4fa1-b2ad-79473a8d17af
 md"""
-## Dynamic typying
+### Dynamic typying
 
 In a dynamically typed language type-checks are deferred until runtime. 
 """
@@ -153,12 +362,7 @@ end
 md"""
 !!! note
     We can still write analyzers that perform these checks ahead of execution.
-    JET.jl is one suche tool in Julia and Julia's own in built type-inference 
-    determines that `f` will always fail.
 """
-
-# ╔═╡ b89f5950-3f37-4310-9944-409de578a74a
-@report_call f()
 
 # ╔═╡ 983f57a5-a391-4e68-b891-755cb0e569fe
 md"""
@@ -172,7 +376,7 @@ g() = rand() ? 1 : 1.0
 
 # ╔═╡ 08d8db52-11b3-4281-b20f-23c038f5d9b3
 md"""
-## Strong vs weakly typed
+### Strong vs weakly typed
 Yet another delination is strong vs weakly typed. As an example `C` is a statically typed language, but values are weakly typed.
 
 ```c
@@ -186,7 +390,7 @@ void f(void* p) {
 
 # ╔═╡ 13d86040-eb93-422e-a522-570fb794353f
 md"""
-## Open world vs closed world
+### Open world vs closed world
 
 Many dynamic programing languages have the notion of `eval`.
 `Eval` allows one to add code at runtime. Julia is "define by running"
@@ -202,7 +406,7 @@ Closed-world semantics mean that the program is fixed before running.
 
 # ╔═╡ 75300e9f-8218-4267-ad8d-99b5a59fa104
 md"""
-## Interpretation vs Compilation
+### Interpretation vs Compilation
 
 !!! question
     Is Python interpreted
@@ -239,7 +443,7 @@ md"""
 
 # ╔═╡ ce93b6cc-9a05-42b6-be00-b617c36bab1a
 md"""
-## The curse of leaky abstractions
+### The curse of leaky abstractions
 
 In Python I can create a class and later modify the fields of an object of said class.
 
@@ -313,7 +517,7 @@ Types can also be parametric.
 
 # ╔═╡ 0301eb8a-9363-49fc-8a96-5d4c5b353cf3
 md"""
-## So how do we make dynamic programs run fast: 
+### So how do we make dynamic programs run fast: 
 
 **Julia: Avoiding runtime uncertainty**
 - Sophisticated type system
@@ -328,7 +532,7 @@ md"""
 
 # ╔═╡ 205495c4-4060-48ed-b498-3bd6746c86fa
 md"""
-## Type inference
+### Type inference
 
 In Julia, type inference is the process of propagating type information from arguments. This utilizes **Abstract Interpretation** as a technique.
 
@@ -467,7 +671,7 @@ We can use Julia's introspection tools to automatically query the system:
 
 # ╔═╡ c4fd2716-a18a-49af-a317-44c677e40bbe
 md"""
-## What information did we use?
+### What information did we use?
 
 Julia has `eval`. So what happens if someone changes the definition of say `+` while the code is running?
 
@@ -531,7 +735,10 @@ High-level optimizations:
 """
 
 # ╔═╡ fe94ed49-90cb-44ca-8308-60b76fe9ce93
-IR, rt = only(Base.code_ircode(mysum, (Vector{Float64},), optimize_until="compact 1"))
+begin
+	IR, rt = only(Base.code_ircode(mysum, (Vector{Float64},), optimize_until="compact 1"))
+	IR
+end
 
 # ╔═╡ 94757fc2-8858-499c-8d26-24844a89fc00
 Core.Compiler.ssa_inlining_pass!(
@@ -579,7 +786,7 @@ We also perform **legalization**. Turning the LLVM full or Julia specific concep
 
 """
 
-# ╔═╡ b7f12735-8c57-44c6-a922-acd2041c0216
+# ╔═╡ 371d7e91-eb88-4220-ad38-0bc74f55c806
 md"""
 ## Interpretation vs JIT vs JAOT vs AOT
 
@@ -644,27 +851,6 @@ md"""
     Julia is a fast, high-level dynamic programming language.
     It's not magic, but rather clever language design.
 
-"""
-
-# ╔═╡ 12a42930-8299-4711-8c76-bb66f8b3c953
-md"""
-## Closing words
-
-- Julia is my favorite LLVM frontend.
-- Co-design of library and compiler
-
-### Things we haven't talked about today
-- Multiple dispatch
-- GPU compilation
-- Performance engineering
-- Global language semantics vs local (boundschecking/fastmath)
-- Dynamic on the outside -- static hot loops
-- Value specialization
-- Non standard program semantics
-  - Automatic differentiation
-  - GPU programming
-  - Instrumentation / Program slicing
-- Compiler pipeline tuning for scientific computing
 """
 
 # ╔═╡ 3c86bb43-8e17-46b2-8b5d-edad10a1a659
@@ -894,6 +1080,9 @@ md"""
 # LICM
 """
 
+# ╔═╡ 99cb0490-4015-4c63-b288-a2905f950585
+
+
 # ╔═╡ 8f573fba-fa84-4adc-a6cc-d1fd83c9f1ce
 
 
@@ -920,6 +1109,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 IRViz = "fe03f759-463e-4126-a68f-1df7fb7a8375"
+JuliaSyntax = "70703baa-626e-46a2-a12c-08ffd08c73b4"
 LLVM = "929cbde3-209d-540e-8aea-75f648917ca0"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
@@ -929,6 +1119,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 [compat]
 BenchmarkTools = "~1.6.0"
 IRViz = "~1.0.0"
+JuliaSyntax = "~1.0.2"
 LLVM = "~9.4.2"
 PlutoTeachingTools = "~0.4.1"
 PlutoUI = "~0.7.68"
@@ -942,7 +1133,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "6ca7290ff4992e6ac03202b338ba180de9505e75"
+project_hash = "a90c40be4afba7614b65c990ffe16b2735b2ffda"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -1111,6 +1302,11 @@ version = "1.14.3"
 
     [deps.JSON3.weakdeps]
     ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+
+[[deps.JuliaSyntax]]
+git-tree-sha1 = "0d4b3dab95018bcf3925204475693d9f09dc45b8"
+uuid = "70703baa-626e-46a2-a12c-08ffd08c73b4"
+version = "1.0.2"
 
 [[deps.Kroki]]
 deps = ["Base64", "CodecZlib", "DocStringExtensions", "HTTP", "JSON", "Markdown", "Reexport"]
@@ -1465,6 +1661,32 @@ version = "17.4.0+2"
 # ╟─f1db15d4-9f18-11ee-029a-e51fbd66cfea
 # ╠═e1f06315-633b-42d0-94c7-98ad6ec15259
 # ╟─d92b6c00-b1b3-4d23-b8b9-b57e5fd3ffe5
+# ╟─3dc0b5ff-2322-46eb-84a1-4074024ee8b6
+# ╠═da596e21-9b9b-4a39-92ba-67aa4eefa88a
+# ╟─f9f1207a-e65a-4325-a0d4-948a4e2b4320
+# ╟─53371620-eb8f-46bb-870f-d8eb20e46489
+# ╠═d8c0c48e-e950-4ce5-a15e-a6644e7f4c16
+# ╠═2d617f49-8dd4-45be-8e59-b80bc87afa93
+# ╠═65f24ef9-d62d-43d4-879a-145b1301f58d
+# ╠═b09c9059-6f28-470c-a63b-d1857323a451
+# ╟─e9f9cb37-d778-4e30-9f3b-8b7392a1eade
+# ╠═35e3b7a9-5393-4e1c-ab29-1f3603a4e5b7
+# ╠═30ceb52d-e96e-47aa-a993-fd9e5ac79d00
+# ╟─70fd2d56-817c-43c1-975a-c7b0161e86a7
+# ╟─89d20363-b871-4ce2-95d1-a80a70a0419f
+# ╠═9a7ee25e-2c3c-4b10-a4c6-be7196c83538
+# ╟─944fc32c-569f-4792-8976-ef5095db8e4c
+# ╟─02812c13-f1cd-44dc-aec2-b64dd4e808fa
+# ╠═b416ea3c-92d0-46b0-bbc0-99b7dfabe328
+# ╠═109df061-0abe-4d2a-b083-c653066aaf05
+# ╟─c6a01a34-161f-4da5-b359-775b064f96cf
+# ╟─653049e7-f1ca-45b1-92c1-5a7fe9e381fa
+# ╟─c8428a0c-6765-4a59-a0a7-1f426f052d4b
+# ╠═04e4c1f6-f6c7-4b29-97f2-9de06ee4d71b
+# ╠═baa49d7b-62c3-4fee-8981-e89408806561
+# ╠═ae37bb88-8bae-434f-b2fd-2ad1a31e9c06
+# ╟─d58bb116-c069-453d-9866-abd63cfa86d8
+# ╟─84f30340-ce40-4e63-8f70-7b57868a8919
 # ╟─c482bc24-f1d2-46c7-8538-48c90d7e4394
 # ╟─1dd808d9-84d8-4de3-85ea-73febfee62df
 # ╟─09939df5-6b00-4d55-9ddb-d87a25264a8e
@@ -1472,8 +1694,7 @@ version = "17.4.0+2"
 # ╟─f3d799cf-9bc5-4fa1-b2ad-79473a8d17af
 # ╠═a056c2d2-961e-4b8f-98af-b24f2bfb660e
 # ╠═47e78f05-9751-43d8-8b75-a5603031c4a9
-# ╠═83a4d259-2842-4e1d-af29-70ecf0de2e19
-# ╠═b89f5950-3f37-4310-9944-409de578a74a
+# ╟─83a4d259-2842-4e1d-af29-70ecf0de2e19
 # ╠═23a7ea45-b772-472b-b763-e923bcce7a0f
 # ╟─983f57a5-a391-4e68-b891-755cb0e569fe
 # ╠═d77dbe9f-87d3-463e-b45b-c7f947b39f3b
@@ -1510,12 +1731,11 @@ version = "17.4.0+2"
 # ╟─8bd2c9a8-7c12-4a10-b28a-ca6c4cf86619
 # ╠═e7bae422-7ca6-4cfb-9278-7840a7be647f
 # ╟─0516e98c-0a78-43b2-9aec-9d6698032a6e
-# ╟─b7f12735-8c57-44c6-a922-acd2041c0216
+# ╟─371d7e91-eb88-4220-ad38-0bc74f55c806
 # ╟─e3862e23-8942-4c1e-98b0-e4f14b0be8de
 # ╠═7e8b6d19-3a9b-41f4-8bfa-3cadc7e69334
 # ╟─55b87adc-2bac-45ae-b8e2-f318502782f4
 # ╟─6b5e0098-631d-4a5d-9333-a2ab7c6e95f8
-# ╟─12a42930-8299-4711-8c76-bb66f8b3c953
 # ╟─3c86bb43-8e17-46b2-8b5d-edad10a1a659
 # ╠═2324f04a-f7a8-4fa5-85ca-034bdb1b0f03
 # ╠═9f29f87e-bfe3-49a3-9377-53bf67e067b6
@@ -1540,7 +1760,7 @@ version = "17.4.0+2"
 # ╠═4752da81-340a-4af4-af80-1d2e448d18da
 # ╠═b66a4a6f-7790-4329-8c3f-0a9372e57ef9
 # ╟─84dfeb58-6223-4152-ba0c-fda3fb54f206
-# ╠═19086a1f-e9f9-4ed5-b917-1c38cd8c7693
+# ╟─19086a1f-e9f9-4ed5-b917-1c38cd8c7693
 # ╠═0d928ac8-0c54-47df-9194-da6f0bf88fb5
 # ╟─4902e862-2d00-44a7-bcca-9694fd3a63ff
 # ╟─9564cb71-5cb1-44c8-8885-83b00496aa7b
