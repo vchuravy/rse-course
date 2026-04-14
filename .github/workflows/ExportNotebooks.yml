@@ -71,12 +71,18 @@ jobs:
               with:
                 path: generation_report.html
 
+            - name: 🔀 Combine semesters into single site
+              run: |
+                mkdir www
+                mv _site www/2025
+                mv extra_outputs/* www
+
             - name: 🚀 Deploy to GitHub Pages (main)
               if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               uses: JamesIves/github-pages-deploy-action@v4
               with:
                   BRANCH: gh-pages
-                  FOLDER: _site
+                  FOLDER: www
                   CLEAN_EXCLUDE: |
                     previews/*
 
@@ -85,5 +91,5 @@ jobs:
               uses: JamesIves/github-pages-deploy-action@v4
               with:
                   BRANCH: gh-pages
-                  FOLDER: _site
+                  FOLDER: www
                   TARGET_FOLDER: "previews/PR${{ github.event.number }}" # The website preview is going to be stored in the previews subfolder
