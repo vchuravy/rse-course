@@ -206,6 +206,53 @@ $(pluto_head)
                 """) : nothing)
             </div>"""))
         $(content)
+        $(let
+            ci = metadata["course_info"]
+            title = f("title", nothing)
+            if title !== nothing && !isempty(string(title))
+                year = let m = match(r"\d{4}", ci["semester"]); m !== nothing ? m.match : ci["semester"] end
+
+                authors = ci["authors"]  # Vector of Pairs  name => url
+
+                # BibTeX author field: "Last, First and Last, First"
+                author_bibtex = join(map(p -> begin
+                    parts = split(p.first)
+                    length(parts) >= 2 ? "$(last(parts)), $(join(parts[1:end-1], " "))" : p.first
+                end, authors), " and ")
+
+                # Inline display: "First Last, First Last"
+                author_display = join(map(p -> p.first, authors), ", ")
+
+                # BibTeX citation key: firstauthorlastname + year + urlslug
+                first_author_last = let
+                    parts = split(first(authors).first)
+                    lowercase(last(parts))
+                end
+                url_slug = replace(splitext(basename(page.url))[1], r"[^a-zA-Z0-9]" => "")
+                bibtex_key = "$(first_author_last)$(year):$(lowercase(url_slug))"
+
+                page_url = root_url * "/" * page.url
+
+                inline_cite = "$(author_display). ($(year)). $(title). In: $(ci["course_name"]). $(ci["institution"]). $(page_url)"
+
+                bibtex = """@incollection{$(bibtex_key),
+  author       = {$(author_bibtex)},
+  title        = {$(title)},
+  booktitle    = {$(ci["course_name"])},
+  year         = {$(year)},
+  organization = {$(ci["institution"])},
+  url          = {$(page_url)},
+}"""
+
+                @htl("""
+                <div class="citation">
+                    <h2>Cite this page</h2>
+                    <p>$(inline_cite)</p>
+                    <pre><code>$(bibtex)</code></pre>
+                </div>
+                """)
+            end
+        end)
         <div class="page-foot">
             <div class="copyright">
                 <a href="$(metadata["course_info"]["repo"])"><b>Edit this page on <img class="github-logo" src="https://unpkg.com/ionicons@5.1.2/dist/svg/logo-github.svg"></b></a><br>
