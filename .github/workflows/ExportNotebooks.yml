@@ -73,13 +73,13 @@ jobs:
 
             - name: 🔀 Combine semesters into single site
               run: |
+                mkdir www
                 # Seed www with existing gh-pages content to preserve past semesters
                 git fetch origin gh-pages
                 git worktree add _gh_pages origin/gh-pages
-                cp -r _gh_pages/. www/
+                cp -r _gh_pages/2025 www/
                 git worktree remove _gh_pages
                 # Overwrite only the current term
-                rm -rf www/2026
                 mv _site www/2026
                 mv extra_outputs/* www
 
