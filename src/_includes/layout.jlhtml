@@ -161,7 +161,7 @@ $(pluto_head)
                 <li><hr></li>
             <li class="sidebar-about">
                 <div class="semester-details">
-                    <a href="$(root_url)/semesters/">$(metadata["course_info"]["semester"])</a>
+                    <a href="$(root_url)/../semesters/">$(metadata["course_info"]["semester"])</a>
                     <div class="course-numbers"><span>$(metadata["course_info"]["code"])</span></div>
                 </div>
                 <div class="logos">
