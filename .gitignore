@@ -8,3 +8,5 @@ _cache
 _site
 generation_report.html
 src/week9/testCSVwrite.csv
+Manifest.toml
+Manifest-v*.toml
