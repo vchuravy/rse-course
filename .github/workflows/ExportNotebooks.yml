@@ -58,11 +58,7 @@ jobs:
                     ${{ runner.os }}-dotjulia-v1-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}
 
             - name: 🪴 Generate site
-              run: julia --project=pluto-deployment-environment -e '
-                  import Pkg;
-                  Pkg.instantiate();
-
-                  include("./generate.jl")'
+              run: julia generate.jl
 
             
             - name: 📰 Upload site generation report
