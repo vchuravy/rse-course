@@ -7,7 +7,7 @@ $(begin
     const metadata = let
         data_dir = joinpath(@__DIR__, "..", "_data")
         Dict(
-            splitext(basename(f))[1] => include(f)
+            splitext(basename(f))[1] => Base.include(@__MODULE__, f)
             for f in readdir(data_dir; join=true) if endswith(f, ".jl")
         )
     end
