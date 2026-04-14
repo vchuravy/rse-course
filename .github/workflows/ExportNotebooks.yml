@@ -79,8 +79,8 @@ jobs:
                 cp -r _gh_pages/. www/
                 git worktree remove _gh_pages
                 # Overwrite only the current term
-                rm -rf www/2025
-                mv _site www/2025
+                rm -rf www/2026
+                mv _site www/2026
                 mv extra_outputs/* www
 
             - name: 🚀 Deploy to GitHub Pages (main)
