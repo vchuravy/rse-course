@@ -2,6 +2,7 @@
 title: "Search results"
 tags: []
 layout: "md.jlmd"
+no_citation: true
 ---
 
 <script type="module" defer>window.init_search();</script>
