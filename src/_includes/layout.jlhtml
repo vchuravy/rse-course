@@ -219,6 +219,8 @@ $(pluto_head)
 
                 chapter = f("chapter", nothing)
                 section = f("section", nothing)
+                exercise_number = f("exercise_number", nothing)
+                indepth_number = f("indepth_number", nothing)
 
                 authors = ci["authors"]  # Vector of Pairs  name => url
 
@@ -236,15 +238,26 @@ $(pluto_head)
                     parts = split(first(authors).first)
                     lowercase(last(parts))
                 end
-                url_slug = replace(splitext(basename(page.url))[1], r"[^a-zA-Z0-9]" => "")
+                url_slug = replace(splitext(basename(rstrip(page.url, '/')))[1], r"[^a-zA-Z0-9]" => "")
                 bibtex_key = "$(first_author_last)$(year):$(lowercase(url_slug))"
 
                 page_url = get(ci, "website", root_url) * "/" * page.url
 
-                chapter_section = (chapter !== nothing && section !== nothing) ? "Chapter $(chapter).$(section). " : ""
-                inline_cite = "$(author_display). ($(year)). $(title). $(chapter_section)In: $(ci["course_name"]). $(ci["institution"]). $(page_url)"
+                # Unified sub-chapter label matching the page header
+                chapter_label = if chapter !== nothing && section !== nothing
+                    "Section $(chapter).$(section)"
+                elseif exercise_number !== nothing
+                    "Exercise $(exercise_number)"
+                elseif indepth_number !== nothing
+                    "In-depth $(indepth_number)"
+                else
+                    nothing
+                end
 
-                chapter_field = (chapter !== nothing && section !== nothing) ? "\n  chapter      = {$(chapter).$(section)}," : ""
+                chapter_inline = chapter_label !== nothing ? "$(chapter_label). " : ""
+                inline_cite = "$(author_display). ($(year)). $(title). $(chapter_inline)In: $(ci["course_name"]). $(ci["institution"]). $(page_url)"
+
+                chapter_field = chapter_label !== nothing ? "\n  chapter      = {$(chapter_label)}," : ""
                 date_field = date !== nothing ? "\n  date         = {$(date)}," : ""
                 bibtex = """@incollection{$(bibtex_key),
   author       = {$(author_bibtex)},

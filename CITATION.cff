@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use or reference this course, please cite it as below."
+type: software
+title: "Research Software Engineering with Julia"
+authors:
+  - family-names: Churavy
+    given-names: Valentin
+    orcid: https://orcid.org/0000-0002-9033-165X
+    website: https://vchuravy.dev
+institution:
+  name: University of Mainz
+year: 2026
+url: https://vchuravy.github.io/rse-course/2026
+repository-code: https://github.com/vchuravy/rse-course
+license: MIT
