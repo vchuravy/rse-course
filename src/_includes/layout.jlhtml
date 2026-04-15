@@ -38,6 +38,47 @@ $(let d = f("description", nothing)
         @htl("""<meta name="description" content=$(d) />""")
     end
 end)
+$(let
+    ci = metadata["course_info"]
+    title = f("title", nothing)
+    if title !== nothing && !isempty(string(title)) && !f("no_citation", false)
+        date = f("date", nothing)
+        # Highwire Press date format: YYYY/MM/DD
+        hw_date = date !== nothing ? replace(string(date), "-" => "/") : nothing
+
+        chapter   = f("chapter", nothing)
+        section   = f("section", nothing)
+        exercise  = f("exercise_number", nothing)
+        indepth   = f("indepth_number", nothing)
+
+        chapter_label = if chapter !== nothing && section !== nothing
+            "Section $(chapter).$(section)"
+        elseif exercise !== nothing
+            "Exercise $(exercise)"
+        elseif indepth !== nothing
+            "In-depth $(indepth)"
+        else
+            nothing
+        end
+
+        page_url = get(ci, "website", root_url) * "/" * page.url
+        tags = f("tags", String[])
+
+        [
+            @htl("""<meta name="citation_title" content=$(title) />"""),
+            map(ci["authors"]) do (name, _)
+                @htl("""<meta name="citation_author" content=$(name) />""")
+            end...,
+            @htl("""<meta name="citation_book_title" content=$(ci["course_name"]) />"""),
+            @htl("""<meta name="citation_publisher" content=$(ci["institution"]) />"""),
+            @htl("""<meta name="citation_language" content="en" />"""),
+            @htl("""<meta name="citation_public_url" content=$(page_url) />"""),
+            hw_date !== nothing ? @htl("""<meta name="citation_publication_date" content=$(hw_date) />""") : nothing,
+            chapter_label !== nothing ? @htl("""<meta name="citation_section" content=$(chapter_label) />""") : nothing,
+            isempty(tags) ? nothing : @htl("""<meta name="citation_keywords" content=$(join(tags, ", ")) />"""),
+        ]
+    end
+end)
 
 <link rel="root" href="$(root_url)" />
 
