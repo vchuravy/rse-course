@@ -209,7 +209,7 @@ $(pluto_head)
         $(let
             ci = metadata["course_info"]
             title = f("title", nothing)
-            if title !== nothing && !isempty(string(title))
+            if title !== nothing && !isempty(string(title)) && !f("no_citation", false)
                 date = f("date", nothing)
                 year = let
                     src = date !== nothing ? string(date) : ci["semester"]
