@@ -1,16 +1,7 @@
 $(begin
     import Pluto
 
-    # Load _data/*.jl files into a `metadata` dict, keyed by filename stem.
-    # This replicates the behaviour proposed in JuliaPluto/PlutoPages.jl#12
-    # until that PR (or equivalent) is merged upstream.
-    const metadata = let
-        data_dir = joinpath(@__DIR__, "..", "_data")
-        Dict(
-            splitext(basename(f))[1] => Base.include(@__MODULE__, f)
-            for f in readdir(data_dir; join=true) if endswith(f, ".jl")
-        )
-    end
+    const metadata = Base.include(@__MODULE__, joinpath(@__DIR__, "load_metadata.jl"))
 
     "The contents of `<head>` from a Pluto HTML export."
     const pluto_head = let
