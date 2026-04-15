@@ -8,5 +8,6 @@ Dict(
     ],
     "institution" => "University of Mainz",
     "institution_logo" => "jgu_logo.jpg",
-    "repo" => "https://github.com/vchuravy/rse-course"
+    "repo" => "https://github.com/vchuravy/rse-course",
+    "website" => "https://vchuravy.github.io/rse-course/2026",
 )

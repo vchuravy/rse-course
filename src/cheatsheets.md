@@ -3,6 +3,7 @@ title: "Resources"
 tags: ["welcome"]
 order: 3
 layout: "md.jlmd"
+no_citation: true
 ---
 
 # Resources

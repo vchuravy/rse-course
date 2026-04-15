@@ -19,6 +19,8 @@ permissions:
 jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
+        env:
+            CURRENT_SEMESTER: "2026"
         steps:
             - name: Checkout source
               uses: actions/checkout@v4
@@ -68,6 +70,7 @@ jobs:
                 path: generation_report.html
 
             - name: 🔀 Combine semesters into single site
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                 mkdir www
                 # Seed www with existing gh-pages content to preserve past semesters
@@ -76,22 +79,23 @@ jobs:
                 cp -r _gh_pages/2025 www/
                 git worktree remove _gh_pages
                 # Overwrite only the current term
-                mv _site www/2026
+                mv _site www/$CURRENT_SEMESTER
                 mv extra_outputs/* www
 
             - name: 🚀 Deploy to GitHub Pages (main)
               if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               uses: JamesIves/github-pages-deploy-action@v4
               with:
-                  BRANCH: gh-pages
-                  FOLDER: www
-                  CLEAN_EXCLUDE: |
+                  branch: gh-pages
+                  folder: www
+                  clean-exclude: |
                     previews/*
 
             - name: Deploy PR preview
               if: github.event_name == 'pull_request' && github.repository == github.event.pull_request.head.repo.full_name # if this build is a PR build and the PR is NOT from a fork
               uses: JamesIves/github-pages-deploy-action@v4
               with:
-                  BRANCH: gh-pages
-                  FOLDER: www
-                  TARGET_FOLDER: "previews/PR${{ github.event.number }}" # The website preview is going to be stored in the previews subfolder
+                  branch: gh-pages
+                  folder: _site
+                  target-folder: "previews/PR${{ github.event.number }}" # The website preview is going to be stored in the previews subfolder
+                  clean: false

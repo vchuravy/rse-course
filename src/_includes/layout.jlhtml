@@ -38,6 +38,61 @@ $(let d = f("description", nothing)
         @htl("""<meta name="description" content=$(d) />""")
     end
 end)
+$(let
+    ci = metadata["course_info"]
+    title = f("title", nothing)
+    if title !== nothing && !isempty(string(title)) && !f("no_citation", false)
+        date = f("date", nothing)
+        # Highwire Press date format: YYYY/MM/DD
+        hw_date = date !== nothing ? replace(string(date), "-" => "/") : nothing
+
+        chapter   = f("chapter", nothing)
+        section   = f("section", nothing)
+        exercise  = f("exercise_number", nothing)
+        indepth   = f("indepth_number", nothing)
+
+        chapter_label = if chapter !== nothing && section !== nothing
+            "Section $(chapter).$(section)"
+        elseif exercise !== nothing
+            "Exercise $(exercise)"
+        elseif indepth !== nothing
+            "In-depth $(indepth)"
+        else
+            nothing
+        end
+
+        page_url = get(ci, "website", root_url) * "/" * page.url
+        tags = f("tags", String[])
+
+        [
+            @htl("""<meta name="citation_title" content=$(title) />"""),
+            map(ci["authors"]) do (name, _)
+                @htl("""<meta name="citation_author" content=$(name) />""")
+            end...,
+            @htl("""<meta name="citation_book_title" content=$(ci["course_name"]) />"""),
+            @htl("""<meta name="citation_publisher" content=$(ci["institution"]) />"""),
+            @htl("""<meta name="citation_language" content="en" />"""),
+            @htl("""<meta name="citation_public_url" content=$(page_url) />"""),
+            hw_date !== nothing ? @htl("""<meta name="citation_publication_date" content=$(hw_date) />""") : nothing,
+            chapter_label !== nothing ? @htl("""<meta name="citation_section" content=$(chapter_label) />""") : nothing,
+            isempty(tags) ? nothing : @htl("""<meta name="citation_keywords" content=$(join(tags, ", ")) />"""),
+        ]
+    elseif "homepage" in f("tags", String[])
+        # Course-level (index) page has no per-page title; emit book-level tags
+        course_url = get(ci, "website", root_url)
+        year = let m = match(r"\d{4}", ci["semester"]); m !== nothing ? m.match : ci["semester"] end
+        [
+            @htl("""<meta name="citation_title" content=$(ci["course_name"]) />"""),
+            map(ci["authors"]) do (name, _)
+                @htl("""<meta name="citation_author" content=$(name) />""")
+            end...,
+            @htl("""<meta name="citation_publisher" content=$(ci["institution"]) />"""),
+            @htl("""<meta name="citation_language" content="en" />"""),
+            @htl("""<meta name="citation_public_url" content=$(course_url) />"""),
+            @htl("""<meta name="citation_publication_date" content=$(year) />"""),
+        ]
+    end
+end)
 
 <link rel="root" href="$(root_url)" />
 
@@ -206,6 +261,77 @@ $(pluto_head)
                 """) : nothing)
             </div>"""))
         $(content)
+        $(let
+            ci = metadata["course_info"]
+            title = f("title", nothing)
+            if title !== nothing && !isempty(string(title)) && !f("no_citation", false)
+                date = f("date", nothing)
+                year = let
+                    src = date !== nothing ? string(date) : ci["semester"]
+                    m = match(r"\d{4}", src)
+                    m !== nothing ? m.match : src
+                end
+
+                chapter = f("chapter", nothing)
+                section = f("section", nothing)
+                exercise_number = f("exercise_number", nothing)
+                indepth_number = f("indepth_number", nothing)
+
+                authors = ci["authors"]  # Vector of Pairs  name => url
+
+                # BibTeX author field: "Last, First and Last, First"
+                author_bibtex = join(map(p -> begin
+                    parts = split(p.first)
+                    length(parts) >= 2 ? "$(last(parts)), $(join(parts[1:end-1], " "))" : p.first
+                end, authors), " and ")
+
+                # Inline display: "First Last, First Last"
+                author_display = join(map(p -> p.first, authors), ", ")
+
+                # BibTeX citation key: firstauthorlastname + year + urlslug
+                first_author_last = let
+                    parts = split(first(authors).first)
+                    lowercase(last(parts))
+                end
+                url_slug = replace(splitext(basename(rstrip(page.url, '/')))[1], r"[^a-zA-Z0-9]" => "")
+                bibtex_key = "$(first_author_last)$(year):$(lowercase(url_slug))"
+
+                page_url = get(ci, "website", root_url) * "/" * page.url
+
+                # Unified sub-chapter label matching the page header
+                chapter_label = if chapter !== nothing && section !== nothing
+                    "Section $(chapter).$(section)"
+                elseif exercise_number !== nothing
+                    "Exercise $(exercise_number)"
+                elseif indepth_number !== nothing
+                    "In-depth $(indepth_number)"
+                else
+                    nothing
+                end
+
+                chapter_inline = chapter_label !== nothing ? "$(chapter_label). " : ""
+                inline_cite = "$(author_display). ($(year)). $(title). $(chapter_inline)In: $(ci["course_name"]). $(ci["institution"]). $(page_url)"
+
+                chapter_field = chapter_label !== nothing ? "\n  chapter      = {$(chapter_label)}," : ""
+                date_field = date !== nothing ? "\n  date         = {$(date)}," : ""
+                bibtex = """@incollection{$(bibtex_key),
+  author       = {$(author_bibtex)},
+  title        = {$(title)},
+  booktitle    = {$(ci["course_name"])},
+  year         = {$(year)},$(date_field)$(chapter_field)
+  organization = {$(ci["institution"])},
+  url          = {$(page_url)},
+}"""
+
+                @htl("""
+                <div class="citation">
+                    <h2>Cite this page</h2>
+                    <p>$(inline_cite)</p>
+                    <pre><code>$(bibtex)</code></pre>
+                </div>
+                """)
+            end
+        end)
         <div class="page-foot">
             <div class="copyright">
                 <a href="$(metadata["course_info"]["repo"])"><b>Edit this page on <img class="github-logo" src="https://unpkg.com/ionicons@5.1.2/dist/svg/logo-github.svg"></b></a><br>

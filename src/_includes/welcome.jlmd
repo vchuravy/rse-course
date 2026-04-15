@@ -16,5 +16,45 @@ $(isempty(get(metadata["homepage"], "disclaimer", "")) ? nothing : @htl("""<bloc
 <main class="homepage">
 <!-- $(Base.include(@__MODULE__, joinpath(@__DIR__, "..", "assets", "scripts", "get_highlights.jl")))
 $(Base.include(@__MODULE__, joinpath(@__DIR__, "..", "assets", "scripts", "get_subjects.jl"))) -->
-$(Base.include(@__MODULE__, joinpath(@__DIR__, "..", "assets", "scripts", "get_schedule.jl"))) 
+$(Base.include(@__MODULE__, joinpath(@__DIR__, "..", "assets", "scripts", "get_schedule.jl")))
 </main>
+
+$(let
+    ci = metadata["course_info"]
+    year = let m = match(r"\d{4}", ci["semester"]); m !== nothing ? m.match : ci["semester"] end
+    authors = ci["authors"]
+
+    author_bibtex = join(map(p -> begin
+        parts = split(p.first)
+        length(parts) >= 2 ? "$(last(parts)), $(join(parts[1:end-1], " "))" : p.first
+    end, authors), " and ")
+
+    author_display = join(map(p -> p.first, authors), ", ")
+
+    first_author_last = let
+        parts = split(first(authors).first)
+        lowercase(last(parts))
+    end
+    course_slug = replace(lowercase(ci["course_name"]), r"[^a-z0-9]" => "")
+    bibtex_key = "$(first_author_last)$(year):$(first(course_slug, 8))"
+
+    course_url = get(ci, "website", root_url)
+
+    inline_cite = "$(author_display). ($(year)). $(ci["course_name"]). $(ci["institution"]). $(course_url)"
+
+    bibtex = """@book{$(first_author_last)$(year):rsecourse,
+  author       = {$(author_bibtex)},
+  title        = {$(ci["course_name"])},
+  year         = {$(year)},
+  organization = {$(ci["institution"])},
+  url          = {$(course_url)},
+}"""
+
+    @htl("""
+    <div class="citation">
+        <h2>Cite this course</h2>
+        <p>$(inline_cite)</p>
+        <pre><code>$(bibtex)</code></pre>
+    </div>
+    """)
+end)

@@ -319,3 +319,41 @@ main {
     background-position: 0 0em;
     background-size: 2px auto;
 }
+
+/* CITATION */
+
+.citation {
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-block-end: 2rem;
+    padding: 1.5rem 2rem;
+    border-radius: 1rem;
+    border-left: 4px solid rgba(100, 100, 200, 0.4);
+    background: var(--sidebar-bg, #fafafa);
+    color: var(--sidebar-color, inherit);
+    font-family: system-ui, sans-serif;
+    font-size: 0.9rem;
+}
+
+.citation h2 {
+    margin-block-start: 0;
+    font-size: 1rem;
+    font-variant-caps: all-petite-caps;
+    opacity: 0.7;
+}
+
+.citation p {
+    margin-block-start: 0;
+}
+
+.citation pre {
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.citation code {
+    font-size: 0.82rem;
+    font-family: ui-monospace, monospace;
+}

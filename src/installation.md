@@ -3,6 +3,7 @@ title: "Software installation"
 tags: ["welcome"]
 order: 2
 layout: "md.jlmd"
+no_citation: true
 youtube_id: "OOjKEgbt8AI"
 ---
 

@@ -6,7 +6,7 @@
 #> section = "1"
 #> order = "1"
 #> title = "Research Software Engineering"
-#> date = "2025-04-16"
+#> date = "2026-04-15"
 #> tags = ["module1", "track_principles"]
 #> layout = "layout.jlhtml"
 #> 
