@@ -38,7 +38,7 @@ $(let
     course_slug = replace(lowercase(ci["course_name"]), r"[^a-z0-9]" => "")
     bibtex_key = "$(first_author_last)$(year):$(first(course_slug, 8))"
 
-    course_url = root_url
+    course_url = get(ci, "website", root_url)
 
     inline_cite = "$(author_display). ($(year)). $(ci["course_name"]). $(ci["institution"]). $(course_url)"
 

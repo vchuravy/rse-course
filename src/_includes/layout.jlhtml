@@ -210,7 +210,15 @@ $(pluto_head)
             ci = metadata["course_info"]
             title = f("title", nothing)
             if title !== nothing && !isempty(string(title))
-                year = let m = match(r"\d{4}", ci["semester"]); m !== nothing ? m.match : ci["semester"] end
+                date = f("date", nothing)
+                year = let
+                    src = date !== nothing ? string(date) : ci["semester"]
+                    m = match(r"\d{4}", src)
+                    m !== nothing ? m.match : src
+                end
+
+                chapter = f("chapter", nothing)
+                section = f("section", nothing)
 
                 authors = ci["authors"]  # Vector of Pairs  name => url
 
@@ -231,15 +239,18 @@ $(pluto_head)
                 url_slug = replace(splitext(basename(page.url))[1], r"[^a-zA-Z0-9]" => "")
                 bibtex_key = "$(first_author_last)$(year):$(lowercase(url_slug))"
 
-                page_url = root_url * "/" * page.url
+                page_url = get(ci, "website", root_url) * "/" * page.url
 
-                inline_cite = "$(author_display). ($(year)). $(title). In: $(ci["course_name"]). $(ci["institution"]). $(page_url)"
+                chapter_section = (chapter !== nothing && section !== nothing) ? "Chapter $(chapter).$(section). " : ""
+                inline_cite = "$(author_display). ($(year)). $(title). $(chapter_section)In: $(ci["course_name"]). $(ci["institution"]). $(page_url)"
 
+                chapter_field = (chapter !== nothing && section !== nothing) ? "\n  chapter      = {$(chapter).$(section)}," : ""
+                date_field = date !== nothing ? "\n  date         = {$(date)}," : ""
                 bibtex = """@incollection{$(bibtex_key),
   author       = {$(author_bibtex)},
   title        = {$(title)},
   booktitle    = {$(ci["course_name"])},
-  year         = {$(year)},
+  year         = {$(year)},$(date_field)$(chapter_field)
   organization = {$(ci["institution"])},
   url          = {$(page_url)},
 }"""
