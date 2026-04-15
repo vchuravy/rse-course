@@ -23,7 +23,7 @@ jobs:
             CURRENT_SEMESTER: "2026"
         steps:
             - name: Checkout source
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Install LIKWID
               run: |
@@ -44,7 +44,7 @@ jobs:
                   version: "1.12"
 
             - name: ⏱ Cache notebook states
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 path: _cache
                 key: ${{ runner.os }}-pluto_state_cache-v3-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}-${{ github.run_id }}
@@ -52,7 +52,7 @@ jobs:
                     ${{ runner.os }}-pluto_state_cache-v3-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}
 
             - name: ⏱ Cache .julia
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 path: ~/.julia
                 key: ${{ runner.os }}-dotjulia-v1-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}-${{ github.run_id }}
@@ -64,7 +64,7 @@ jobs:
 
             
             - name: 📰 Upload site generation report
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               if: always()
               with:
                 path: generation_report.html
