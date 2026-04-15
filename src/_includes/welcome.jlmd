@@ -36,7 +36,7 @@ $(let
         lowercase(last(parts))
     end
     course_slug = replace(lowercase(ci["course_name"]), r"[^a-z0-9]" => "")
-    bibtex_key = "$(first_author_last)$(year):$(first(split(course_slug), "")[1:min(8,end)])"
+    bibtex_key = "$(first_author_last)$(year):$(first(course_slug, 8))"
 
     course_url = root_url
 
