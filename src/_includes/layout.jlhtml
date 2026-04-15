@@ -1,5 +1,8 @@
 $(begin
     import Pluto
+
+    const metadata = Base.include(@__MODULE__, joinpath(@__DIR__, "load_metadata.jl"))
+
     "The contents of `<head>` from a Pluto HTML export."
     const pluto_head = let
         default = Pluto.generate_html(; 

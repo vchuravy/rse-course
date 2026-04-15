@@ -1,7 +1,10 @@
 ---
 layout: "layout.jlhtml"
 ---
-
+$(begin
+    const metadata = Base.include(@__MODULE__, joinpath(@__DIR__, "load_metadata.jl"))
+    nothing
+end)
 <link rel="stylesheet" href="$(root_url)/assets/styles/homepage.css" type="text/css" />
 
 <div id="title" class="banner">
