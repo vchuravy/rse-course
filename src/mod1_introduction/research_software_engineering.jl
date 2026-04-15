@@ -29,11 +29,14 @@ macro bind(def, element)
     #! format: on
 end
 
+# ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
+using PlutoUI, PlutoTeachingTools
+
+# ╔═╡ 08a29bb2-a294-4072-9ad9-0a47114399d0
+using CairoMakie
+
 # ╔═╡ 5f6deede-7e22-4ebf-ae1a-14d584595f17
 html"<button onclick='present()'>Toggle presentation mode</button>"
-
-# ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
-using PlutoUI
 
 # ╔═╡ aa46fef4-0c92-4947-ac64-f06ee31cb43f
 PlutoUI.TableOfContents(; depth=4)
@@ -89,6 +92,7 @@ md"""
 - https://fg-rse.gi.de/
 
 ### Conferences
+- [JuliaCon 2026 -- Here in Mainz](https://juliacon.org/2026)
 - [RSECon25](https://rsecon25.society-rse.org/)
 - https://de-rse.org/de/events
 
@@ -153,9 +157,9 @@ md"""
 ## The role of Git/Github
 
 - Git is a version-control system
-	- Keeps track of previous state of the project
-	  - Don't email tarballs!
-	- "Branches" can be used to keep track of concurrent developments
+  - Keeps track of previous state of the project
+    - Don't email tarballs!
+    - "Branches" can be used to keep track of concurrent developments
 - GitHub is a collaboration platform
   - Supports "pull-request"
   - Keeping track of "issues"
@@ -170,6 +174,42 @@ md"""
 ## What are you interested in? 
 
 
+"""
+
+# ╔═╡ 1f7ce1ce-ca2b-44bc-9b97-45fbcac28e0a
+"""
+1. Why are you in this class?
+2. What do you want to write code for?
+3. What do you want to learn about?
+""" |> question_box
+
+# ╔═╡ 05e34266-b4f3-431d-868d-8bb09b9c8b14
+md"""
+## The use of LLMs in programming
+"""
+
+# ╔═╡ 4ae7d12a-a90e-40a8-b6dd-949a353d3d9a
+md"""
+LLMs are tools that are more and more relevant for programming, but the brings some issues with them.
+
+1. Do you understand what your LLM is doing? 
+   - Does it generate code you can read/maintain/stand behind?
+2. LLM usage feels a bit like a slot-machine:
+   - Just one more prompt
+   - Prompt until it "works"
+3. LLMs are sycophant/programmed to please the user.
+
+Principled LLM usage can be helpful~ But you remain the author of the piece of code, you should review the output of your LLM. 
+
+
+!!! warning "Responsible usage of LLMs"
+    Read through:
+    - [Using LLMs at Oxide](https://rfd.shared.oxide.computer/rfd/0576)
+    - [LLVM AI tool policy: human in the loop](https://discourse.llvm.org/t/rfc-llvm-ai-tool-policy-human-in-the-loop/89159)
+
+
+!!! note "LLMs in the classroom"
+    You are here to learn something. Using an LLM to solve exercises or to write your project will stop you from deeply engaging with the material and learn the necessary skills. I can't stop you from using LLMs, but I will be grumpy if I start feeling like I am talking to your LLM through you...
 """
 
 # ╔═╡ ea0cc08c-3cfa-4c04-a6a2-129ab341a1a4
@@ -387,6 +427,11 @@ function f(a, b::Int)
 	return "second method"
 end
 
+# ╔═╡ ae95853e-7fd9-4a66-9e8d-f233b98c5b40
+function f(::Int64, ::Int64)
+   "third method"
+end
+
 # ╔═╡ a28e1bb4-3910-4f23-b29d-75f0411ce198
 f(1, "")
 
@@ -395,11 +440,6 @@ f("", 1)
 
 # ╔═╡ ef5d4bfc-7fc4-4466-949a-69880d7fd884
 f(1, 1)
-
-# ╔═╡ ae95853e-7fd9-4a66-9e8d-f233b98c5b40
-function f(::Int64, ::Int64)
-   "third method"
-end
 
 # ╔═╡ 6fc6fc92-7067-4d9b-9692-5c93ce25ea64
 mandel(complex(.3, -.6))
@@ -423,9 +463,6 @@ Imaginary component: $(@bind x_img PlutoUI.Slider(-1:0.01:1))
 
 # ╔═╡ 7ae1138f-520d-478c-857d-46092be4ae9b
 mandel(complex(x_real, x_img))
-
-# ╔═╡ 08a29bb2-a294-4072-9ad9-0a47114399d0
-using CairoMakie
 
 # ╔═╡ fe7fd936-a962-4f02-8f9f-2d79d1112e76
 md"""
@@ -455,10 +492,12 @@ heatmap(mandel.(plane))
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
 CairoMakie = "~0.15.9"
+PlutoTeachingTools = "~0.4.7"
 PlutoUI = "~0.7.80"
 """
 
@@ -466,9 +505,9 @@ PlutoUI = "~0.7.80"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.4"
+julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "4bb6120c4cd762c94d35941a98a6a2efa1b8064c"
+project_hash = "b19c0858595e8575991eac4db9f3f2c1d32fc9e1"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -916,6 +955,12 @@ git-tree-sha1 = "45288942190db7c5f760f59c04495064eedf9340"
 uuid = "b0724c58-0f36-5564-988d-3bb0596ebc4a"
 version = "0.22.4+0"
 
+[[deps.Ghostscript_jll]]
+deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Zlib_jll"]
+git-tree-sha1 = "38044a04637976140074d0b0621c1edf0eb531fd"
+uuid = "61579ee1-b43e-5ca0-a5da-69d92c66a64b"
+version = "9.55.1+0"
+
 [[deps.Giflib_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "6570366d757b50fabae9f4315ad74d2e40c0560a"
@@ -1186,6 +1231,24 @@ version = "18.1.8+0"
 git-tree-sha1 = "dda21b8cbd6a6c40d9d02a73230f9d70fed6918c"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.4.0"
+
+[[deps.Latexify]]
+deps = ["Format", "Ghostscript_jll", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "OrderedCollections", "Requires"]
+git-tree-sha1 = "44f93c47f9cd6c7e431f2f2091fcba8f01cd7e8f"
+uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
+version = "0.16.10"
+
+    [deps.Latexify.extensions]
+    DataFramesExt = "DataFrames"
+    SparseArraysExt = "SparseArrays"
+    SymEngineExt = "SymEngine"
+    TectonicExt = "tectonic_jll"
+
+    [deps.Latexify.weakdeps]
+    DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+    SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
+    tectonic_jll = "d7dd28d6-a5e6-559c-9131-7eb760cdacc5"
 
 [[deps.LazyModules]]
 git-tree-sha1 = "a560dd966b386ac9ae60bdd3a3d3a326062d3c3e"
@@ -1502,6 +1565,12 @@ deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random"
 git-tree-sha1 = "26ca162858917496748aad52bb5d3be4d26a228a"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.4"
+
+[[deps.PlutoTeachingTools]]
+deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoUI"]
+git-tree-sha1 = "90b41ced6bacd8c01bd05da8aed35c5458891749"
+uuid = "661c6b06-c737-4d37-b85c-46df65de6f69"
+version = "0.4.7"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
@@ -2093,6 +2162,9 @@ version = "4.1.0+0"
 # ╟─95dd4cbd-c9b9-4337-9dff-594c099952cf
 # ╟─ecaaf7eb-f748-4ab8-99e8-63c436f2045b
 # ╟─5f43567e-1645-4fdb-b0d6-f83e3ca6438f
+# ╟─1f7ce1ce-ca2b-44bc-9b97-45fbcac28e0a
+# ╟─05e34266-b4f3-431d-868d-8bb09b9c8b14
+# ╟─4ae7d12a-a90e-40a8-b6dd-949a353d3d9a
 # ╟─ea0cc08c-3cfa-4c04-a6a2-129ab341a1a4
 # ╟─fd9bdd0d-ecb5-4276-8b22-17a44774d7ba
 # ╟─de15845a-8747-45ab-be9a-faf2d398f940

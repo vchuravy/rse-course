@@ -15,12 +15,17 @@ main a img {
 
 # Course logistics
 
+## Lecture dates
+- Start: 15th of April
+- End: 8th of July
+- Lecture on the 3rd of June will be moved.
+
 ## Projects
 
-1. Choose project by **2025-05-14**
+1. Choose project by **2026-05-13**
     - Discuss idea first with me.
     - Half-page project proposal.
-2. Project presentations: **2025-07-16**
+2. Project presentations: **2027-07-08**
 3. Project should be relevant both to your work and topics discussed in class.
 4. Demonstrate best practices for research software development.
     - Testing
