@@ -8,7 +8,6 @@
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
 #> description = "Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code"
-#> date = "2026-04-22"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"

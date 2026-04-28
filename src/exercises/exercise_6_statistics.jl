@@ -7,7 +7,6 @@
 #> title = "Statistics"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
-#> date = "2026-04-22"
 #> description = "Some simple statistics"
 #> 
 #>     [[frontmatter.author]]

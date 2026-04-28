@@ -8,7 +8,6 @@
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
 #> description = "Define custom Julia types with structs and extend them via multiple dispatch"
-#> date = "2026-04-22"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
