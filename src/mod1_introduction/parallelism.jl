@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.13
+# v0.20.24
 
 #> [frontmatter]
 #> chapter = "1"
@@ -22,6 +22,15 @@ using PlutoUI, PlutoTeachingTools
 
 # ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
 using CairoMakie
+
+# ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
+using Hwloc
+
+# ╔═╡ e04ec567-f8c5-4eba-a657-2dc0e882ffd5
+using BenchmarkTools, LinearAlgebra
+
+# ╔═╡ 16bbccec-b1c5-426d-87f9-52d6aed30113
+using StaticArrays
 
 # ╔═╡ df284ffd-14eb-41eb-a4b8-94f4d7cee298
 ChooseDisplayMode()
@@ -112,7 +121,9 @@ md"""
 
 Given a function $f$ that consists of a parallel portion $p$  and a serial portion $s$. In 1967, Amdahl pointed out that the speedup is limited by the fraction of the serial part of the software that is not amenable to parallelization.
 
-$\text{Speedup} = \frac{1}{S + P/N}$
+where $s + p = 1$ (the serial and parallel fractions sum to 1).
+
+$\text{Speedup} = \frac{1}{s + p/N}$
 
 
 Amdahl’s law states that, for a fixed problem, the upper limit of speedup is determined by the serial fraction of the code.
@@ -132,7 +143,7 @@ let
 	lines!(ax, 1:16, (N)->speedup(.6, .4, N), label="60%")
 	lines!(ax, 1:16, (N)->speedup(.8, .2, N), label="80%")
 	lines!(ax, 1:16, (N)->speedup(1, 0, N), label="100%")
-	fig[1, 2] = Legend(fig, ax, "Serial", framevisible = false)
+	fig[1, 2] = Legend(fig, ax, "Serial fraction", framevisible = false)
 	fig
 end
 
@@ -148,7 +159,7 @@ md"""
 
 Given a program that can do $N$ work with $N$ compute units , we define $t_N$ as the total time the program takes.
 
-$\text{Efficiency} = \frac{t_1}{t_n}$
+$\text{Efficiency} = \frac{t_1}{t_N}$
 
 !!! note
 	The definition of $t_N$ includes the amount of **work** being scaled up!
@@ -169,16 +180,21 @@ with_terminal() do
 	Sys.cpu_summary()
 end
 
-# ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
-using Hwloc
-
 # ╔═╡ 0b1b3a0d-ee2a-4a97-98b7-e6a40da9465e
 with_terminal() do
 	Hwloc.topology()
 end
 
 # ╔═╡ 51a50068-7443-466d-ba01-8e53a191a8c7
-TODO("Explain Hyper-threading")
+md"""
+!!! note "Hyper-threading (SMT)"
+    Modern CPUs expose more logical cores than physical cores via **Simultaneous Multi-Threading** (SMT), marketed as Hyper-Threading by Intel. Each physical core runs two hardware threads that share the core's execution units, caches, and memory bandwidth.
+
+    - Useful for **memory-bound** workloads: while one thread stalls waiting for data, the other can make progress.
+    - Little or no benefit for **compute-bound** workloads: both threads compete for the same functional units.
+    - Julia and the OS see the logical (hyperthreaded) count; `Hwloc.topology()` above distinguishes physical vs. logical cores.
+    - For performance-sensitive parallel code, consider pinning threads to physical cores only (e.g. `JULIA_EXCLUSIVE=1` or limiting `--threads` to the physical core count).
+"""
 
 # ╔═╡ c8c5bf61-c6ca-495f-82f1-fbf84d29be57
 md"""
@@ -238,14 +254,11 @@ end
 # ╔═╡ 06361851-f0bc-4f4e-8d23-f656fcc5bfb1
 function bench(f, N = 10)
 	a = zeros(N)
-	Threads.@threads for i in 1:length(a)
+	Threads.@threads for i in eachindex(a)
 		a[i] = f()
 	end
 	a
 end
-
-# ╔═╡ e04ec567-f8c5-4eba-a657-2dc0e882ffd5
-using BenchmarkTools, LinearAlgebra
 
 # ╔═╡ 79a7fc85-16e2-4da8-9818-0d460c1ed107
 function bench_Serial(f, N = 10)
@@ -299,12 +312,9 @@ Potential answers:
 md"""
 As an example for linear algebra Julia uses OpenBLAS. OpenBLAS manages it's own thread-pool `BLAS.set_num_threads`.
 
-We can run into contention issues when we use Julia own parallelism using tasks
+We can run into contention issues when we use Julia's own parallelism using tasks
 and system libraries.
 """
-
-# ╔═╡ 16bbccec-b1c5-426d-87f9-52d6aed30113
-using StaticArrays
 
 # ╔═╡ 64c73702-e5ac-4105-a546-81f5d5cfaaf6
 function myfun_improved()
@@ -360,7 +370,7 @@ md"""
 ##### Core
 - GPUCompiler.jl: Takes native Julia code and compiles it directly to GPUs
 - GPUArrays.jl: High-level array based common functionality
-- KerneAbstractions.jl: Vendor-agnostic kernel programming language
+- KernelAbstractions.jl: Vendor-agnostic kernel programming language
 - Adapt.jl: Translate complex structs across the host-device boundary
 
 ##### Vendor specific
@@ -600,7 +610,7 @@ md"""
 """
 
 # ╔═╡ 893182e7-d085-4e39-bd99-1235b2cba104
-TODO("mention colab.research.google.co")
+TODO("mention colab.research.google.com")
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """

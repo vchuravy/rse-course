@@ -2,12 +2,14 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "3.1"
-#> exercise_number = "7"
-#> title = "Shared-memory parallelism"
-#> tags = ["module1", "track_parallel", "exercises"]
+#> chapter = "1"
+#> section = "2"
+#> order = "2.7"
+#> title = "Types, Structs, and Mutable Structs"
+#> date = "2026-04-28"
+#> tags = ["module1", "track_principles", "indepth"]
 #> layout = "layout.jlhtml"
-#> description = "Practice shared-memory parallelism in Julia using Threads.@spawn for recursive parallelism and concurrent map"
+#> indepth_number = "1"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -16,183 +18,262 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
-using PlutoTeachingTools, PlutoUI
+# ╔═╡ a0000001-0000-4000-8000-000000000001
+using PlutoUI, PlutoTeachingTools
 
-# ╔═╡ 0331dc20-fa0b-4b7f-badc-a2040795f15a
-using LinearAlgebra, Random
-
-# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
-using BenchmarkTools
-
-# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
-ChooseDisplayMode()
-
-# ╔═╡ 3e5c3c97-4401-41d4-a701-d9b24f9acdc6
+# ╔═╡ a0000002-0000-4000-8000-000000000002
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
+# ╔═╡ a0000003-0000-4000-8000-000000000003
 md"""
-# Exercise: Shared-memory parallelism
+# Types, Structs, and Mutable Structs in Julia
 
-Julia's multi-threading model lets you spawn lightweight tasks that the scheduler maps
-onto available CPU cores. In this exercise you will use `Threads.@spawn` to parallelise
-a recursive algorithm and a map operation.
+Julia's type system is one of its most powerful features. Understanding it unlocks
+multiple dispatch, performance, and the ability to design clean, composable abstractions.
+
+This notebook covers:
+- Julia's type hierarchy
+- Defining composite types with `struct` (immutable) and `mutable struct`
+- Parametric (generic) types
+- How types connect to multiple dispatch
 """
 
-# ╔═╡ 64e33738-e7b0-4a7a-893c-69b0b48b6215
+# ╔═╡ a0000004-0000-4000-8000-000000000004
 md"""
-This notebook uses **$(Threads.nthreads()) threads**
-"""
+## Julia's Type Hierarchy
 
-# ╔═╡ 2d039f15-fe74-4296-8e26-53cce9dde7c6
-md"""
-## Part 1 — Parallel fibonacci
+Every value in Julia has a concrete type. Types are arranged in a tree rooted at `Any`.
 
-Remember:
-
-```julia
-t = Threads.@spawn begin # `@spawn` returns right away
-    3 + 3
-end
-
-fetch(t) # `fetch` waits for the task to finish
 ```
+Any
+ ├── Number
+ │    ├── Real
+ │    │    ├── Integer  (abstract)
+ │    │    │    ├── Int64, Int32, …  (concrete)
+ │    │    └── AbstractFloat  (abstract)
+ │    │         ├── Float64, Float32, …  (concrete)
+ │    └── Complex
+ └── AbstractString  (abstract)
+      └── String  (concrete)
+```
+
+**Abstract types** organise the hierarchy but cannot be instantiated.
+**Concrete types** are what values actually are.
 """
 
-# ╔═╡ cbbfe10c-2131-42a0-8db7-06e7518508d9
-function fib(n)
-	if n <= 1
-        return n
+# ╔═╡ a0000005-0000-4000-8000-000000000005
+typeof(42), typeof(3.14), typeof("hello")
+
+# ╔═╡ a0000006-0000-4000-8000-000000000006
+supertype(Float64), supertype(AbstractFloat), supertype(Real)
+
+# ╔═╡ a0000007-0000-4000-8000-000000000007
+isa(42, Integer), isa(42, Number), isa(42, AbstractFloat)
+
+# ╔═╡ a0000008-0000-4000-8000-000000000008
+tip(md"""
+`isa(x, T)` tests whether `x` is an instance of type `T` or any of its subtypes.
+The `::` operator does the same check in a type annotation or pattern-match context.
+""")
+
+# ╔═╡ a0000009-0000-4000-8000-000000000009
+md"""
+## Defining Custom Types with `struct`
+
+`struct` creates an **immutable** composite type.  Once a value is constructed its
+fields cannot be reassigned.
+"""
+
+# ╔═╡ a000000a-0000-4000-8000-00000000000a
+begin
+    struct Point
+        x::Float64
+        y::Float64
     end
-	return fib(n-1) + fib(n-2)
+
+    # Custom constructor: build a Point from polar coordinates
+    function Point(r::Real, θ::Real, ::Val{:polar})
+        Point(r * cos(θ), r * sin(θ))
+    end
 end
 
-# ╔═╡ 89858748-ebe6-4d00-b09c-6cb1064e101f
-fib(12)
+# ╔═╡ a000000b-0000-4000-8000-00000000000b
+p = Point(3.0, 4.0)
 
-# ╔═╡ 03228a70-2298-4dcd-96e8-2be48603b860
-# TODO: Implement pfib
+# ╔═╡ a000000c-0000-4000-8000-00000000000c
+p.x, p.y           # field access with dot notation
 
-# ╔═╡ 031dc47b-8a1c-48a2-abe6-de88050ae1c7
-let
-	if !@isdefined(pfib)
-		func_not_defined(:pfib)
-	elseif pfib(12) !== fib(12)
-		keep_working(md"Your solution and the reference solution disagree!")
-	else
-		correct()
-	end
-end
+# ╔═╡ a000000d-0000-4000-8000-00000000000d
+typeof(p)
 
-# ╔═╡ 4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
-answer_box(hint(
+# ╔═╡ a000000e-0000-4000-8000-00000000000e
+fieldnames(Point)
+
+# ╔═╡ a000000f-0000-4000-8000-00000000000f
 md"""
+A struct gets a default constructor matching its field list.
+You can add your own constructors as needed.
+"""
+
+# ╔═╡ a0000011-0000-4000-8000-000000000011
+Point(1.0, π/4, Val(:polar))
+
+# ╔═╡ a0000012-0000-4000-8000-000000000012
+tip(md"""
+**Why immutable by default?**
+
+- The compiler can allocate small structs on the **stack** (or inline them), avoiding heap pressure entirely.
+- Immutable values are easy to reason about: passing a `Point` to a function cannot change your original.
+- They are **thread-safe** with no locking needed.
+
+Immutability is a local guarantee: a `struct` field that is itself mutable (e.g. an `Array`) can still be mutated through that field.
+""")
+
+# ╔═╡ a0000013-0000-4000-8000-000000000013
+md"""
+### Trying to mutate an immutable struct
+"""
+
+# ╔═╡ a0000014-0000-4000-8000-000000000014
+# setfield! on an immutable struct throws an error
+try
+    p.x = 99.0
+catch e
+    e
+end
+
+# ╔═╡ a0000015-0000-4000-8000-000000000015
+md"""
+## Mutable Structs
+
+When you need to update fields in-place, use `mutable struct`.
+"""
+
+# ╔═╡ a0000016-0000-4000-8000-000000000016
+mutable struct Counter
+    count::Int
+    label::String
+end
+
+# ╔═╡ a0000017-0000-4000-8000-000000000017
+c = Counter(0, "events")
+
+# ╔═╡ a0000019-0000-4000-8000-000000000019
+tip(md"""
+`mutable struct` values are **heap-allocated** and accessed through a pointer, which means:
+
+- Field updates work: `c.count += 1` ✓
+- They have **identity**: two `Counter` objects with the same field values are *different* objects (unlike immutable structs, where equal values are interchangeable).
+- The compiler has less freedom to optimise (cannot inline, may cause GC pressure).
+
+**Rule of thumb:** start with `struct`. Switch to `mutable struct` only if in-place mutation is genuinely needed — e.g. accumulation, caches, or objects that model stateful resources.
+""")
+
+# ╔═╡ a000001a-0000-4000-8000-00000000001a
+md"""
+## Parametric (Generic) Types
+
+Types can take **type parameters**, making them generic:
+"""
+
+# ╔═╡ a000001b-0000-4000-8000-00000000001b
+struct Vec2{T}
+    x::T
+    y::T
+end
+
+# ╔═╡ a000001c-0000-4000-8000-00000000001c
+Vec2(1, 2), Vec2(1.0, 2.0), Vec2(1//2, 3//4)
+
+# ╔═╡ a000001d-0000-4000-8000-00000000001d
+md"""
+Julia infers `T` from the constructor arguments.  You can also constrain `T`:
+"""
+
+# ╔═╡ a000001e-0000-4000-8000-00000000001e
+struct Vec2Real{T <: Real}
+    x::T
+    y::T
+end
+
+# ╔═╡ a000001f-0000-4000-8000-00000000001f
+Vec2Real(1, 2), Vec2Real(1.0f0, 2.0f0)
+
+# ╔═╡ a0000020-0000-4000-8000-000000000020
+tip(md"""
+Parametric types are **not** covariant: `Vec2{Float64}` is **not** a subtype of `Vec2{Real}`,
+even though `Float64 <: Real`.
+
 ```julia
-function pfib(n)
-	if n <= 1
-		return n
-	end
-	t = Threads.@spawn pfib(n-2)
-	return pfib(n-1) + fetch(t)::Int
-end
+Vec2{Float64} <: Vec2{Real}   # false
+Vec2{Float64} <: Vec2{<:Real} # true  (using a union bound)
 ```
-"""
-))
 
-# ╔═╡ 5d888f29-0204-4388-ab81-53aefafd5092
+This avoids unsound behaviour that you'd get with covariant containers (a classic pitfall in Java/C#).
+""")
+
+# ╔═╡ a0000021-0000-4000-8000-000000000021
+Vec2{Float64} <: Vec2{Real}, Vec2{Float64} <: Vec2{<:Real}
+
+# ╔═╡ a0000022-0000-4000-8000-000000000022
 md"""
-## Part 2 — Multi-threaded map
+## Connecting Types to Multiple Dispatch
+
+Types are the mechanism that drives Julia's multiple dispatch.
+You write methods specialised on types, and Julia selects the most specific one.
 """
 
-# ╔═╡ 0c8cfee6-5edb-4400-b7cd-753c2975a1e4
-function tmap(fn, itr)
-    # for each i ∈ itr, spawn a task to compute fn(i)
-    tasks = map(i -> Threads.@spawn(fn(i)), itr)
-    # fetch and return all the results
-    return fetch.(tasks)
-end
-
-# ╔═╡ b2aecd04-115e-4aef-90d9-077aa886e70e
-Ms = [rand(100,100) for i in 1:(8 * Threads.nthreads())];
-
-# ╔═╡ 4297ac26-de6b-4041-940e-531184860d84
+# ╔═╡ a0000023-0000-4000-8000-000000000023
 begin
-	BLAS.set_num_threads(Sys.CPU_THREADS) # Fix number of BLAS threads
-	# BLAS.set_num_threads(1)
-	blas_edge = nothing
+    import Base: +, show
+    +(a::Point, b::Point) = Point(a.x + b.x, a.y + b.y)
+    show(io::IO, p::Point) = print(io, "($(p.x), $(p.y))")
 end
 
-# ╔═╡ 1fe0391a-7cee-4b9a-a775-3b78335f475c
+# ╔═╡ a0000018-0000-4000-8000-000000000018
 begin
-	blas_edge
-	serial_map_svdals_b = @benchmark map(svdvals, $Ms) samples=10 evals=3
+    c.count += 1
+    c.count += 1
+    c.count += 1
+    c
 end
 
-# ╔═╡ cb042477-6a3e-4940-b3e6-38511936d370
-begin
-	blas_edge
-	threaded_map_svdals_b = @benchmark tmap(svdvals, $Ms) samples=10 evals=3
-end
+# ╔═╡ a0000026-0000-4000-8000-000000000026
+Point(1.0, 2.0) + Point(3.0, 4.0)
 
-# ╔═╡ 3923ae23-1000-49ab-b5a2-c31567822e5d
-(minimum(serial_map_svdals_b.times) / minimum(threaded_map_svdals_b.times)) / Threads.nthreads() * 100 # parallel efficiency
-
-# ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
+# ╔═╡ a0000027-0000-4000-8000-000000000027
 md"""
-!!! note
-     Vary the number of threads the BLAS library uses.
-     (See the cell above with `BLAS.set_num_threads()`)
+Because `+` now has a method for `Point`, the entire numeric ecosystem that uses `+`
+(e.g. `sum`, broadcasting, linear algebra) **just works** for `Point` values.
 """
 
-# ╔═╡ d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6
+# ╔═╡ a0000028-0000-4000-8000-000000000028
+sum([Point(1.0, 0.0), Point(0.0, 1.0), Point(2.0, 3.0)])
+
+# ╔═╡ a0000029-0000-4000-8000-000000000029
 md"""
-### Task — chunked map
+## Summary
 
-`tmap` above spawns one task per element. For large arrays with cheap per-element work
-the task-spawning overhead can dominate. Implement `tmap_chunked(fn, itr, chunk_size)`
-that splits `itr` into chunks of `chunk_size` elements and spawns one task per chunk.
+| Feature | `struct` | `mutable struct` |
+|---------|----------|-----------------|
+| Field mutation | ✗ | ✓ |
+| Stack / inline allocation | ✓ (small structs) | ✗ (heap only) |
+| Identity semantics | value (by content) | reference (by identity) |
+| Thread safety | inherently safe | requires care |
+| Compiler optimisations | full | limited |
 
-*Hint:* `Iterators.partition(itr, chunk_size)` splits an iterable into fixed-size pieces.
+Start with `struct`. Add `mutable` only when the mutation is the point.
 """
-
-# ╔═╡ e2f3a4b5-c6d7-4e8f-9a0b-b2c3d4e5f6a7
-# TODO: Implement tmap_chunked
-
-# ╔═╡ f3a4b5c6-d7e8-4f9a-ab1c-c3d4e5f6a7b8
-let
-	if !@isdefined(tmap_chunked)
-		func_not_defined(:tmap_chunked)
-	elseif tmap_chunked(x -> x^2, 1:10, 3) != map(x -> x^2, collect(1:10))
-		keep_working(md"`tmap_chunked(x -> x^2, 1:10, 3)` should equal `[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]`.")
-	else
-		correct()
-	end
-end
-
-# ╔═╡ a4b5c6d7-e8f9-4a0b-bc1d-d4e5f6a7b8c9
-answer_box(hint(md"""
-```julia
-function tmap_chunked(fn, itr, chunk_size)
-    chunks = Iterators.partition(itr, chunk_size)
-    tasks = map(chunk -> Threads.@spawn(map(fn, collect(chunk))), chunks)
-    vcat(fetch.(tasks)...)
-end
-```
-"""))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
-BenchmarkTools = "~1.6.0"
-PlutoUI = "~0.7"
+PlutoTeachingTools = "~0.4.7"
+PlutoUI = "~0.7.80"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -201,7 +282,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "c7ddad1e8b318d8adb139bcd1dfee9fb31e937bb"
+project_hash = "b4c18bbc242930204ae5cca25c12954846038fac"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -221,12 +302,6 @@ version = "1.11.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
-[[deps.BenchmarkTools]]
-deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "7fecfb1123b8d0232218e2da0c213004ff15358d"
-uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.6.3"
-
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
 git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
@@ -236,16 +311,6 @@ weakdeps = ["StyledStrings"]
 
     [deps.ColorTypes.extensions]
     StyledStringsExt = "StyledStrings"
-
-[[deps.Compat]]
-deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "9d8a54ce4b17aa5bdce0ea5c34bc5e7c340d16ad"
-uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.18.1"
-weakdeps = ["Dates", "LinearAlgebra"]
-
-    [deps.Compat.extensions]
-    CompatLinearAlgebraExt = "LinearAlgebra"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -311,18 +376,6 @@ deps = ["Artifacts", "Preferences"]
 git-tree-sha1 = "0533e564aae234aff59ab625543145446d8b6ec2"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
 version = "1.7.1"
-
-[[deps.JSON]]
-deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
-git-tree-sha1 = "3e846e18560a65dcef26febd2ede0160c6831c1c"
-uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "1.5.1"
-
-    [deps.JSON.extensions]
-    JSONArrowExt = ["ArrowTypes"]
-
-    [deps.JSON.weakdeps]
-    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -434,12 +487,6 @@ git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.8.1"
 
-[[deps.Parsers]]
-deps = ["Dates", "PrecompileTools", "UUIDs"]
-git-tree-sha1 = "5d5e0a78e971354b1c7bff0655d11fdc1b0e12c8"
-uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.8.4"
-
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -463,12 +510,6 @@ git-tree-sha1 = "fbc875044d82c113a9dee6fc14e16cf01fd48872"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 version = "0.7.80"
 
-[[deps.PrecompileTools]]
-deps = ["Preferences"]
-git-tree-sha1 = "07a921781cab75691315adc645096ed5e370cb77"
-uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
-version = "1.3.3"
-
 [[deps.Preferences]]
 deps = ["TOML"]
 git-tree-sha1 = "8b770b60760d4451834fe79dd483e318eee709c4"
@@ -478,11 +519,6 @@ version = "1.5.2"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-version = "1.11.0"
-
-[[deps.Profile]]
-deps = ["StyledStrings"]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Random]]
@@ -520,22 +556,6 @@ version = "1.11.1"
 
     [deps.Statistics.weakdeps]
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-
-[[deps.StructUtils]]
-deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "86f5831495301b2a1387476cb30f86af7ab99194"
-uuid = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
-version = "2.8.0"
-
-    [deps.StructUtils.extensions]
-    StructUtilsMeasurementsExt = ["Measurements"]
-    StructUtilsStaticArraysCoreExt = ["StaticArraysCore"]
-    StructUtilsTablesExt = ["Tables"]
-
-    [deps.StructUtils.weakdeps]
-    Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-    StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-    Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
@@ -597,30 +617,43 @@ version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═75b9bee9-7d03-4c90-b828-43e9e946517b
-# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
-# ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
-# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
-# ╟─64e33738-e7b0-4a7a-893c-69b0b48b6215
-# ╟─2d039f15-fe74-4296-8e26-53cce9dde7c6
-# ╠═cbbfe10c-2131-42a0-8db7-06e7518508d9
-# ╠═89858748-ebe6-4d00-b09c-6cb1064e101f
-# ╠═03228a70-2298-4dcd-96e8-2be48603b860
-# ╟─031dc47b-8a1c-48a2-abe6-de88050ae1c7
-# ╟─4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
-# ╟─5d888f29-0204-4388-ab81-53aefafd5092
-# ╠═0331dc20-fa0b-4b7f-badc-a2040795f15a
-# ╠═91f3684d-ed56-4ee2-b914-79ab4b6ed87a
-# ╠═0c8cfee6-5edb-4400-b7cd-753c2975a1e4
-# ╠═b2aecd04-115e-4aef-90d9-077aa886e70e
-# ╠═4297ac26-de6b-4041-940e-531184860d84
-# ╠═1fe0391a-7cee-4b9a-a775-3b78335f475c
-# ╠═cb042477-6a3e-4940-b3e6-38511936d370
-# ╠═3923ae23-1000-49ab-b5a2-c31567822e5d
-# ╟─c88229ac-c421-41e5-8db8-c62afdb54322
-# ╟─d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6
-# ╠═e2f3a4b5-c6d7-4e8f-9a0b-b2c3d4e5f6a7
-# ╟─f3a4b5c6-d7e8-4f9a-ab1c-c3d4e5f6a7b8
-# ╟─a4b5c6d7-e8f9-4a0b-bc1d-d4e5f6a7b8c9
+# ╠═a0000001-0000-4000-8000-000000000001
+# ╟─a0000002-0000-4000-8000-000000000002
+# ╟─a0000003-0000-4000-8000-000000000003
+# ╟─a0000004-0000-4000-8000-000000000004
+# ╠═a0000005-0000-4000-8000-000000000005
+# ╠═a0000006-0000-4000-8000-000000000006
+# ╠═a0000007-0000-4000-8000-000000000007
+# ╟─a0000008-0000-4000-8000-000000000008
+# ╟─a0000009-0000-4000-8000-000000000009
+# ╠═a000000a-0000-4000-8000-00000000000a
+# ╠═a000000b-0000-4000-8000-00000000000b
+# ╠═a000000c-0000-4000-8000-00000000000c
+# ╠═a000000d-0000-4000-8000-00000000000d
+# ╠═a000000e-0000-4000-8000-00000000000e
+# ╟─a000000f-0000-4000-8000-00000000000f
+# ╠═a0000011-0000-4000-8000-000000000011
+# ╟─a0000012-0000-4000-8000-000000000012
+# ╟─a0000013-0000-4000-8000-000000000013
+# ╠═a0000014-0000-4000-8000-000000000014
+# ╟─a0000015-0000-4000-8000-000000000015
+# ╠═a0000016-0000-4000-8000-000000000016
+# ╠═a0000017-0000-4000-8000-000000000017
+# ╠═a0000018-0000-4000-8000-000000000018
+# ╟─a0000019-0000-4000-8000-000000000019
+# ╟─a000001a-0000-4000-8000-00000000001a
+# ╠═a000001b-0000-4000-8000-00000000001b
+# ╠═a000001c-0000-4000-8000-00000000001c
+# ╟─a000001d-0000-4000-8000-00000000001d
+# ╠═a000001e-0000-4000-8000-00000000001e
+# ╠═a000001f-0000-4000-8000-00000000001f
+# ╟─a0000020-0000-4000-8000-000000000020
+# ╠═a0000021-0000-4000-8000-000000000021
+# ╟─a0000022-0000-4000-8000-000000000022
+# ╠═a0000023-0000-4000-8000-000000000023
+# ╠═a0000026-0000-4000-8000-000000000026
+# ╟─a0000027-0000-4000-8000-000000000027
+# ╠═a0000028-0000-4000-8000-000000000028
+# ╟─a0000029-0000-4000-8000-000000000029
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
