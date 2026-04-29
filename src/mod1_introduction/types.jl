@@ -169,6 +169,41 @@ tip(md"""
 **Rule of thumb:** start with `struct`. Switch to `mutable struct` only if in-place mutation is genuinely needed — e.g. accumulation, caches, or objects that model stateful resources.
 """)
 
+# ╔═╡ b000001a-0000-4000-8000-000000000001
+md"""
+## Callable Structs (Functors)
+
+A struct can be made **callable** by defining a method on an instance.  This is how
+Julia implements the functor pattern — an object that behaves like a function while
+carrying state.
+"""
+
+# ╔═╡ b000001b-0000-4000-8000-000000000002
+md"""
+First, compare how closures capture state in plain functions:
+"""
+
+# ╔═╡ b0000020-0000-4000-8000-000000000007
+md"""
+The same idea expressed as a callable struct — all state is explicit in the fields:
+"""
+
+# ╔═╡ b0000023-0000-4000-8000-00000000000a
+tip(md"""
+**Why callable structs over closures?**
+
+- The struct fields are **named and typed**.
+- You can define **multiple call signatures** on the same type via dispatch.
+
+A canonical real-world example is neural-network layers in Flux/Lux: each layer is a callable struct that holds parameters (weights) as fields.
+""")
+
+# ╔═╡ b0000024-0000-4000-8000-00000000000b
+md"""
+`dump` lets you inspect the internal layout of any value — useful when exploring
+unfamiliar struct types:
+"""
+
 # ╔═╡ a000001a-0000-4000-8000-00000000001a
 md"""
 ## Parametric (Generic) Types
@@ -237,6 +272,38 @@ begin
     c.count += 1
     c
 end
+
+# ╔═╡ b000001c-0000-4000-8000-000000000003
+function make_adder(n)
+    x -> x + n      # anonymous function closes over n
+end
+
+# ╔═╡ b000001d-0000-4000-8000-000000000004
+add5 = make_adder(5)
+
+# ╔═╡ b000001e-0000-4000-8000-000000000005
+add5(10)
+
+# ╔═╡ b000001f-0000-4000-8000-000000000006
+add5 |> dump      # shows the captured field
+
+# ╔═╡ b0000021-0000-4000-8000-000000000008
+begin
+    struct Adder
+        n::Int
+    end
+    # Define call syntax: Adder(3)(10) == 13
+    (a::Adder)(x) = x + a.n
+end
+
+# ╔═╡ b0000022-0000-4000-8000-000000000009
+Adder(5)(10)
+
+# ╔═╡ b0000026-0000-4000-8000-00000000000d
+dump(Adder(5))
+
+# ╔═╡ b0000025-0000-4000-8000-00000000000c
+dump(1 + 2im)     # Complex is itself an immutable struct with re and re fields
 
 # ╔═╡ a0000026-0000-4000-8000-000000000026
 Point(1.0, 2.0) + Point(3.0, 4.0)
@@ -641,6 +708,19 @@ version = "17.7.0+0"
 # ╠═a0000017-0000-4000-8000-000000000017
 # ╠═a0000018-0000-4000-8000-000000000018
 # ╟─a0000019-0000-4000-8000-000000000019
+# ╟─b000001a-0000-4000-8000-000000000001
+# ╟─b000001b-0000-4000-8000-000000000002
+# ╠═b000001c-0000-4000-8000-000000000003
+# ╠═b000001d-0000-4000-8000-000000000004
+# ╠═b000001e-0000-4000-8000-000000000005
+# ╠═b000001f-0000-4000-8000-000000000006
+# ╟─b0000020-0000-4000-8000-000000000007
+# ╠═b0000021-0000-4000-8000-000000000008
+# ╠═b0000022-0000-4000-8000-000000000009
+# ╟─b0000023-0000-4000-8000-00000000000a
+# ╟─b0000024-0000-4000-8000-00000000000b
+# ╠═b0000025-0000-4000-8000-00000000000c
+# ╠═b0000026-0000-4000-8000-00000000000d
 # ╟─a000001a-0000-4000-8000-00000000001a
 # ╠═a000001b-0000-4000-8000-00000000001b
 # ╠═a000001c-0000-4000-8000-00000000001c

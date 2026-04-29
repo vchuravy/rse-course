@@ -261,16 +261,16 @@ function bench(f, N = 10)
 end
 
 # ╔═╡ 79a7fc85-16e2-4da8-9818-0d460c1ed107
-function bench_Serial(f, N = 10)
+function bench_serial(f, N = 10)
 	a = zeros(N)
-	for i in 1:length(a)
+	for i in eachindex(a)
 		a[i] = f()
 	end
 	a
 end
 
 # ╔═╡ 12872821-0b70-45dd-9faf-715c1cfe64c6
-@time bench_Serial(myfun, 1000)
+@time bench_serial(myfun, 1000)
 
 # ╔═╡ 74dc14cf-e24f-4a28-8dbf-04b79b51c1d7
 @time bench(myfun, 1000)
@@ -284,7 +284,7 @@ question_box(md"What are potential issues with `myfun`")
 # ╔═╡ 23da347a-6814-4ba9-8437-d6a4056d682e
 answer_box(
 md"""
-- Lot's of memory allocation in the hot loop
+- Lots of memory allocation in the hot loop
 - How is `det` implemented? \
   `@which det(zeros(3,3))` -> `det(lufact(A))`
 - `det` calls into BLAS
@@ -310,10 +310,26 @@ Potential answers:
 
 # ╔═╡ eaafb75b-4a1c-47ce-9085-38e1e7d4d712
 md"""
-As an example for linear algebra Julia uses OpenBLAS. OpenBLAS manages it's own thread-pool `BLAS.set_num_threads`.
+As an example for linear algebra Julia uses OpenBLAS. OpenBLAS manages its own thread-pool via `BLAS.set_num_threads`.
 
 We can run into contention issues when we use Julia's own parallelism using tasks
-and system libraries.
+and system libraries. When Julia launches $N$ tasks and each task calls into OpenBLAS,
+OpenBLAS will in turn spin up its own $M$ threads — resulting in $N \times M$ threads
+competing for the same physical cores. This over-subscription leads to excessive context
+switching and can make a parallel program *slower* than its serial counterpart.
+
+One mitigation is to tell OpenBLAS to use a single thread when you are already
+parallelising at a higher level:
+
+```julia
+using LinearAlgebra
+BLAS.set_num_threads(1)
+```
+
+!!! note
+    When we work with small matrices, the overhead of calling BLAS can be avoided.
+    `myfun_improved` below uses `StaticArrays` for small, fixed-size arrays.
+    Since the compiler knows the size at compile time, it can inline and unroll the computation.
 """
 
 # ╔═╡ 64c73702-e5ac-4105-a546-81f5d5cfaaf6
@@ -330,7 +346,7 @@ end
  @benchmark bench(myfun_improved, 1000) samples=10 evals=3
 
 # ╔═╡ a6e0179a-31e0-4644-8178-3456a4909602
-@benchmark bench_Serial(myfun_improved, 1000) samples=10 evals=3
+@benchmark bench_serial(myfun_improved, 1000) samples=10 evals=3
 
 # ╔═╡ 971b0fc4-cf03-44e6-a515-fdb74a36003f
 md"""
@@ -445,8 +461,8 @@ end
 
 
 
-a = rand(N)
-b = rand(N)
+a = rand(Float32, N)
+b = rand(Float32, N)
 c = similar(a)
 
 	
@@ -610,7 +626,10 @@ md"""
 """
 
 # ╔═╡ 893182e7-d085-4e39-bd99-1235b2cba104
-TODO("mention colab.research.google.com")
+md"""
+!!! tip "Trying GPU code without local hardware"
+    [Google Colab](https://colab.research.google.com) now supports Julia natively. Change the runtime type to **Julia** (Runtime → Change runtime type → Julia) and enable a free GPU. No shell setup required.
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2264,7 +2283,7 @@ version = "3.6.0+0"
 # ╠═6327d081-fabd-4b9d-9627-01f18a537409
 # ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
 # ╠═0b1b3a0d-ee2a-4a97-98b7-e6a40da9465e
-# ╠═51a50068-7443-466d-ba01-8e53a191a8c7
+# ╟─51a50068-7443-466d-ba01-8e53a191a8c7
 # ╟─c8c5bf61-c6ca-495f-82f1-fbf84d29be57
 # ╠═90feafed-4d87-48c9-9d9b-44418883c5a9
 # ╠═06361851-f0bc-4f4e-8d23-f656fcc5bfb1
@@ -2284,6 +2303,7 @@ version = "3.6.0+0"
 # ╠═ec60c217-cb1d-4227-8e30-cead67424572
 # ╠═a6e0179a-31e0-4644-8178-3456a4909602
 # ╟─971b0fc4-cf03-44e6-a515-fdb74a36003f
+# ╟─893182e7-d085-4e39-bd99-1235b2cba104
 # ╟─7d0e35dd-3222-4d7d-8b87-3ff28da984df
 # ╟─baa49acf-f012-4ccd-a60e-e8f84e067ab2
 # ╟─df27cce9-efb6-4302-a7d5-50090f5af848
@@ -2301,6 +2321,5 @@ version = "3.6.0+0"
 # ╟─d5a629ca-e258-426e-a5d4-2f7f22fe683c
 # ╟─5cdd4e72-835f-4123-91d0-a5da8bf8f365
 # ╟─77b0375d-e4eb-45c7-bb5c-daba682b25e9
-# ╠═893182e7-d085-4e39-bd99-1235b2cba104
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
