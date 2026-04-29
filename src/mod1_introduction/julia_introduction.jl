@@ -96,6 +96,26 @@ let
 	"Hello, $(name)! 1 + 1 = $(1 + 1)"
 end
 
+# ╔═╡ 778214be-edce-4098-a91a-efd2fcffef68
+md"""
+```julia
+f(x) = x + 2
+```
+
+$(sin(3))
+"""
+
+# ╔═╡ f44a555d-1769-46e7-8cc1-ab604350ecf7
+md"""
+### String concatination
+"""
+
+# ╔═╡ 898d4ccb-0fd4-408d-aa0d-aa50e36f49fe
+"ab" * "cd"
+
+# ╔═╡ c319135b-7483-4882-b156-5b51dcd9f9f0
+"b"^4
+
 # ╔═╡ ca1c3d9e-3db7-11f1-93cf-6305ada48f15
 md"""
 ### Variables
@@ -155,6 +175,9 @@ Use `supertype` and `subtypes` to explore.
 # ╔═╡ ca1c3efc-3db7-11f1-9c33-43df32382324
 supertype(Float64)
 
+# ╔═╡ 6e3342e4-70e4-46cc-9100-b6fbef4fb8ff
+typeof(1.0 + 2.0im)
+
 # ╔═╡ ca1c3f1a-3db7-11f1-8cc8-0f48c1476b95
 md"""
 ### Type annotations
@@ -163,12 +186,20 @@ You can annotate types for clarity or to restrict dispatch:
 """
 
 # ╔═╡ 18bcdbc4-2f4e-4afe-ba81-19c976ae9278
+"""
+	double(x::Number)
+
+Doubles all numbers
+"""
 function double(x::Number)
     return 2 * x
 end
 
 # ╔═╡ 117f6f60-46ce-4f57-a2f6-3ee670828e62
 double(3), double(3.14)
+
+# ╔═╡ b4668fd9-9b76-4ddb-bf0a-14d1d96441ce
+@doc double # In the REPL use ?double
 
 # ╔═╡ ca1c3f6a-3db7-11f1-bf16-2f8de32e611c
 md"""
@@ -199,8 +230,94 @@ square(5)
 # Anonymous functions
 cube = x -> x^3
 
+# ╔═╡ 64ed1354-ac88-44c6-9b2e-01d0eafeaaca
+if rand() <= 0.5
+	other = x -> x^2
+else
+	other = x -> x^4
+end
+
+# ╔═╡ 86e2865a-722f-4d0b-aa5b-54c19a4b149e
+other(3.0)
+
 # ╔═╡ 0b525985-21ea-419d-b538-79d88d9ec249
 cube(3)
+
+# ╔═╡ 54317c55-77bc-4262-8664-cdc43927d203
+md"""
+### Positional and Keyword Arguments
+
+Julia function arguments come in two flavours, separated by `;` in the definition:
+
+```
+function f(pos1, pos2=default; kw1, kw2=default)
+```
+
+- **Before the `;`** — *positional* arguments: matched by position, may have defaults.
+- **After the `;`** — *keyword* arguments: always passed by name at the call site.
+"""
+
+# ╔═╡ cc000001-0000-4000-8000-000000000001
+md"""
+#### Positional arguments with defaults
+"""
+
+# ╔═╡ cc000002-0000-4000-8000-000000000002
+function power(x, n=2)
+    x ^ n
+end
+
+# ╔═╡ cc000003-0000-4000-8000-000000000003
+power(3), power(3, 3), power(2, 10)
+
+# ╔═╡ cc000004-0000-4000-8000-000000000004
+md"""
+#### Keyword arguments
+"""
+
+# ╔═╡ cc000005-0000-4000-8000-000000000005
+function greet_kw(name; greeting="Hello", punctuation="!")
+    "$(greeting), $(name)$(punctuation)"
+end
+
+# ╔═╡ cc000006-0000-4000-8000-000000000006
+greet_kw("Julia")
+
+# ╔═╡ cc000007-0000-4000-8000-000000000007
+greet_kw("Julia", greeting="Ciao", punctuation=".")
+
+# ╔═╡ cc000008-0000-4000-8000-000000000008
+# Keyword arguments can be passed in any order
+greet_kw("Julia", punctuation="?", greeting="Hey")
+
+# ╔═╡ cc000009-0000-4000-8000-000000000009
+tip(md"""
+**Key rules:**
+
+- Keyword arguments *must* be named at the call site — you cannot pass them positionally.
+- A named tuple `(; k=v, ...)` can be splatted into keyword arguments with `f(; nt...)`.
+- Use `; kwargs...` to collect arbitrary keyword arguments into a named tuple.
+""")
+
+# ╔═╡ cc00000a-0000-4000-8000-00000000000a
+function show_kwargs(; kwargs...)
+    kwargs
+end
+
+# ╔═╡ cc00000b-0000-4000-8000-00000000000b
+show_kwargs(x=1, y=2, z=3)
+
+# ╔═╡ cc00000c-0000-4000-8000-00000000000c
+# Named tuple splatted as keyword arguments
+opts = (; greeting="Bonjour", punctuation="…")
+
+# ╔═╡ cc00000d-0000-4000-8000-00000000000d
+greet_kw("Julia"; opts...)
+
+# ╔═╡ 8c70ca4c-fa12-4388-ad02-ad8ce1e7d4a5
+md"""
+### Return values
+"""
 
 # ╔═╡ ca1c401c-3db7-11f1-84e8-9d4e857b7fe5
 md"""
@@ -209,11 +326,26 @@ Functions can return multiple values via tuples:
 
 # ╔═╡ 97d40135-8e1e-459d-b6ab-86cd13eb315b
 function minmax(a, b)
-    return min(a, b), max(a, b)
+    return (min(a, b), max(a, b))
 end
 
 # ╔═╡ cd53380c-665c-4cb6-8e8b-5f05c205ae6e
 lo, hi = minmax(7, 3)
+
+# ╔═╡ c2006678-51ae-4c2b-bbaa-59f661b69709
+(3.0, 5.0)
+
+# ╔═╡ a5154b06-9cfb-4dd8-bb86-0c26fa0d991b
+(; x= 3.0, y=5.0)
+
+# ╔═╡ ab1adf6c-55d6-484f-9ff5-3f0757d86b84
+function g(x)
+    y = x*2
+	()->y
+end
+
+# ╔═╡ 437f0528-870e-43bc-aa99-a245a573e676
+g(2) |> dump
 
 # ╔═╡ ca1c406e-3db7-11f1-be1d-15a7b583c925
 md"""
@@ -226,12 +358,22 @@ Multiple dispatch is Julia's defining feature. Functions can have many *methods*
 begin
 	describe(x::Integer) = "$(x) is an integer"
 	describe(x::AbstractFloat) = "$(x) is a float"
+	describe(x::Number) = "$(x) is a Number"
 	describe(x::String) = "\"$(x)\" is a string"
 	describe(x) = "$(x) is something else"
 end
 
 # ╔═╡ 458fc006-f073-4318-9350-8253ad073934
 describe(42), describe(3.14), describe("hello"), describe(true)
+
+# ╔═╡ 9793a78a-19ab-4a83-aa8b-61918791b7dc
+Integer <: Number
+
+# ╔═╡ 1caa6ff8-e138-4e8a-889d-76fda9496421
+String <: Number
+
+# ╔═╡ 8f89b8a2-6f56-4255-bc9b-e95f94ec4e2f
+describe(1+2im)
 
 # ╔═╡ ca1c40fa-3db7-11f1-82be-635f0c95977a
 md"""
@@ -240,6 +382,30 @@ Use `methods` to list all methods of a function:
 
 # ╔═╡ ca1c4118-3db7-11f1-816f-7f60280f5dad
 methods(describe)
+
+# ╔═╡ b1abf0bc-154d-4c98-aa2c-1ce325ae88c1
+begin
+	dispatch(x::Any, y::Float64) = "y is Float64"
+	dispatch(x::Int, y::Any) = "x is Int"
+	dispatch(x::Int, y::Float64) = "x is Int, y is Float64"
+	dispatch(x::Any, y::Any) = "Fallthrough"
+end
+
+# ╔═╡ e6e510a5-e0ba-466c-9b98-da47e4c50891
+Tuple{Int, Float64} <: Tuple{Any, Float64}
+
+# ╔═╡ 4342b9fd-2634-4f51-a2ae-46dfb890542d
+Tuple{Int, Float64} <: Tuple{Int, Any}
+
+# ╔═╡ 2909ffc4-a3bf-4aa0-a150-54386b07d0f5
+dispatch(1, 1.0)
+
+# ╔═╡ 866f75b0-0635-418d-8e9d-10996b93f510
+md"""
+## Structs and Types
+
+See the [**indepth notebook**](/mod1_introduction/types/) for a deep dive into `struct`, `mutable struct`, parametric types, and callable structs.
+"""
 
 # ╔═╡ ca1c4136-3db7-11f1-bc44-6384c5f6e890
 md"""
@@ -254,8 +420,16 @@ Arrays are central to scientific computing. Julia arrays are column-major (like 
 # ╔═╡ 2bfa4db0-87c4-4334-99fa-3c697cb732bd
 v = [1, 2, 3, 4, 5]          # column vector
 
+# ╔═╡ 34ec34f8-d83f-46fe-8e5f-2b092b5d33ff
+typeof(v)
+
 # ╔═╡ 08a9ed1f-ac03-43d7-9c60-c6214749febe
-M = [1 2 3; 4 5 6; 7 8 9]    # 3×3 matrix
+M = [1 2 3;
+	 4 5 6;
+	 7 8 9]    # 3×3 matrix
+
+# ╔═╡ 495d161e-5630-47b9-b3a9-4b827131471a
+typeof(M)
 
 # ╔═╡ ca1c41c2-3db7-11f1-aa1a-3b2455d953ab
 md"""
@@ -263,7 +437,10 @@ md"""
 """
 
 # ╔═╡ ca1c41ea-3db7-11f1-b351-73a1062b9c9e
-v .^ 2          # square each element
+M .^ 2          # square each element
+
+# ╔═╡ fac666f6-df62-4ea1-9b48-913d9f865056
+M .^ M
 
 # ╔═╡ 99d71db8-03c3-4421-8b17-86a42815f201
 md"""
@@ -272,7 +449,13 @@ md"""
 """
 
 # ╔═╡ f62c6710-7a9e-4368-ac45-482b8f10d2b3
-collect(1:10) .* collect(1:10)' 
+collect(1:10) .* collect(1:10)'
+
+# ╔═╡ 6ea7c288-4ce3-46ea-ae8d-c1c0ad6d24a7
+size(collect(1:10))
+
+# ╔═╡ ed381706-fb83-4456-9785-c89172191bd5
+size(collect(1:10)')
 
 # ╔═╡ 33d10789-a746-4a79-b827-7f618a00f301
 md"""
@@ -280,10 +463,16 @@ md"""
 """
 
 # ╔═╡ 5994a688-0941-46f1-addf-1fa99bfd9a50
-map(x->x^2, 1:10)
+map((x,y)->x^y, 1:10, 1:3)
 
 # ╔═╡ eb6d0b8f-7bb6-4813-a605-82686854f51d
-reduce(+, 1:100)
+reduce(-, 1:5)
+
+# ╔═╡ 8e2c6aed-89ec-4abe-993f-6b8f3d46bd14
+foldl(+, 1:5)
+
+# ╔═╡ 7217fa95-6ee9-452e-a42c-6732c7fcf3f7
+foldr(+, 1:5)
 
 # ╔═╡ 400dcebb-8d17-4417-8c22-25894220cf8c
 sum(1:100)
@@ -349,9 +538,19 @@ begin
 	total = 0
 	for i in 1:10
 	    total += i
+
+		if iseven(i)
+			break
+		end
 	end
 	total
 end
+
+# ╔═╡ 154d4c02-d304-4c90-b935-d7817d61cf1c
+# while cond
+# 	# do something
+# 	cond = false
+# end
 
 # ╔═╡ ca1c42da-3db7-11f1-884c-873d52639f08
 md"""
@@ -363,6 +562,9 @@ md"""
 
 # ╔═╡ e7ec8c28-8278-409c-9640-1d5a02cee42b
 [x for x in 1:10 if iseven(x)]
+
+# ╔═╡ aa651185-deac-4fe8-98f0-3cb2bc2d68de
+
 
 # ╔═╡ ca1c4320-3db7-11f1-9192-ad3d1487a912
 md"""
@@ -509,6 +711,14 @@ begin
 	zs = [log10(rosenbrock(x, y)) for x in xs, y in ys]
 end;
 
+# ╔═╡ 43973059-6ada-4ba2-b00c-1f9b90228593
+md"""
+y0: $(@bind y_0 PlutoUI.Slider(ys, show_value=true))
+"""
+
+# ╔═╡ 1d49d636-62c1-4c47-b3d4-cd5c7bb954c9
+lines(xs, x->rosenbrock(x, y_0))
+
 # ╔═╡ 4f8aa606-bdbb-489a-a8f3-1e10970b87e7
 surface(xs, ys, zs, axis=(type=Axis3,))
 
@@ -534,6 +744,9 @@ md"""
 
 # ╔═╡ ca1c4438-3db7-11f1-8a42-69ed012bf861
 @which describe(42)
+
+# ╔═╡ 914de0c9-cba4-473f-8cdc-c90e708aae45
+@doc +
 
 # ╔═╡ ca1c444c-3db7-11f1-9915-b168da69a59a
 md"""
@@ -2228,6 +2441,10 @@ version = "4.1.0+0"
 # ╠═ca1c3d3a-3db7-11f1-a660-c3add29abad7
 # ╟─ca1c3d58-3db7-11f1-9042-653f0f4ae4c1
 # ╠═ca1c3d76-3db7-11f1-9aa4-73e89883bc62
+# ╠═778214be-edce-4098-a91a-efd2fcffef68
+# ╟─f44a555d-1769-46e7-8cc1-ab604350ecf7
+# ╠═898d4ccb-0fd4-408d-aa0d-aa50e36f49fe
+# ╠═c319135b-7483-4882-b156-5b51dcd9f9f0
 # ╟─ca1c3d9e-3db7-11f1-93cf-6305ada48f15
 # ╠═ca1c3dd0-3db7-11f1-9580-dd90bf9080fd
 # ╟─ca1c3df0-3db7-11f1-a96e-f913bda2aeb3
@@ -2237,9 +2454,11 @@ version = "4.1.0+0"
 # ╠═ca1c3e8e-3db7-11f1-8525-65fbedbca02f
 # ╟─ca1c3eac-3db7-11f1-bcdc-b9b7c95d7ad0
 # ╠═ca1c3efc-3db7-11f1-9c33-43df32382324
+# ╠═6e3342e4-70e4-46cc-9100-b6fbef4fb8ff
 # ╟─ca1c3f1a-3db7-11f1-8cc8-0f48c1476b95
 # ╠═18bcdbc4-2f4e-4afe-ba81-19c976ae9278
 # ╠═117f6f60-46ce-4f57-a2f6-3ee670828e62
+# ╠═b4668fd9-9b76-4ddb-bf0a-14d1d96441ce
 # ╟─ca1c3f6a-3db7-11f1-bf16-2f8de32e611c
 # ╟─ca1c3f8a-3db7-11f1-99ea-9de3e6f79186
 # ╠═dd40d05f-e748-4541-8e26-b0846c23e28f
@@ -2247,26 +2466,62 @@ version = "4.1.0+0"
 # ╠═9a02da36-45e8-42f8-a161-c95a567e6470
 # ╠═9c538c5d-d5c3-4325-8013-9545374830a2
 # ╠═9a8f66f6-f4c6-43e2-a419-dbfc1758774c
+# ╠═64ed1354-ac88-44c6-9b2e-01d0eafeaaca
+# ╠═86e2865a-722f-4d0b-aa5b-54c19a4b149e
 # ╠═0b525985-21ea-419d-b538-79d88d9ec249
+# ╟─54317c55-77bc-4262-8664-cdc43927d203
+# ╟─cc000001-0000-4000-8000-000000000001
+# ╠═cc000002-0000-4000-8000-000000000002
+# ╠═cc000003-0000-4000-8000-000000000003
+# ╟─cc000004-0000-4000-8000-000000000004
+# ╠═cc000005-0000-4000-8000-000000000005
+# ╠═cc000006-0000-4000-8000-000000000006
+# ╠═cc000007-0000-4000-8000-000000000007
+# ╠═cc000008-0000-4000-8000-000000000008
+# ╟─cc000009-0000-4000-8000-000000000009
+# ╠═cc00000a-0000-4000-8000-00000000000a
+# ╠═cc00000b-0000-4000-8000-00000000000b
+# ╠═cc00000c-0000-4000-8000-00000000000c
+# ╠═cc00000d-0000-4000-8000-00000000000d
+# ╟─8c70ca4c-fa12-4388-ad02-ad8ce1e7d4a5
 # ╟─ca1c401c-3db7-11f1-84e8-9d4e857b7fe5
 # ╠═97d40135-8e1e-459d-b6ab-86cd13eb315b
 # ╠═cd53380c-665c-4cb6-8e8b-5f05c205ae6e
+# ╠═c2006678-51ae-4c2b-bbaa-59f661b69709
+# ╠═a5154b06-9cfb-4dd8-bb86-0c26fa0d991b
+# ╠═ab1adf6c-55d6-484f-9ff5-3f0757d86b84
+# ╠═437f0528-870e-43bc-aa99-a245a573e676
 # ╟─ca1c406e-3db7-11f1-be1d-15a7b583c925
 # ╠═ca1c40b4-3db7-11f1-ad4a-6be427c86673
 # ╠═458fc006-f073-4318-9350-8253ad073934
+# ╠═9793a78a-19ab-4a83-aa8b-61918791b7dc
+# ╠═1caa6ff8-e138-4e8a-889d-76fda9496421
+# ╠═8f89b8a2-6f56-4255-bc9b-e95f94ec4e2f
 # ╟─ca1c40fa-3db7-11f1-82be-635f0c95977a
 # ╠═ca1c4118-3db7-11f1-816f-7f60280f5dad
+# ╠═b1abf0bc-154d-4c98-aa2c-1ce325ae88c1
+# ╠═e6e510a5-e0ba-466c-9b98-da47e4c50891
+# ╠═4342b9fd-2634-4f51-a2ae-46dfb890542d
+# ╠═2909ffc4-a3bf-4aa0-a150-54386b07d0f5
+# ╟─866f75b0-0635-418d-8e9d-10996b93f510
 # ╟─ca1c4136-3db7-11f1-bc44-6384c5f6e890
 # ╟─ca1c4152-3db7-11f1-98fb-85d41e8a4a49
 # ╠═2bfa4db0-87c4-4334-99fa-3c697cb732bd
+# ╠═34ec34f8-d83f-46fe-8e5f-2b092b5d33ff
 # ╠═08a9ed1f-ac03-43d7-9c60-c6214749febe
+# ╠═495d161e-5630-47b9-b3a9-4b827131471a
 # ╟─ca1c41c2-3db7-11f1-aa1a-3b2455d953ab
 # ╠═ca1c41ea-3db7-11f1-b351-73a1062b9c9e
+# ╠═fac666f6-df62-4ea1-9b48-913d9f865056
 # ╟─99d71db8-03c3-4421-8b17-86a42815f201
 # ╠═f62c6710-7a9e-4368-ac45-482b8f10d2b3
+# ╠═6ea7c288-4ce3-46ea-ae8d-c1c0ad6d24a7
+# ╠═ed381706-fb83-4456-9785-c89172191bd5
 # ╟─33d10789-a746-4a79-b827-7f618a00f301
 # ╠═5994a688-0941-46f1-addf-1fa99bfd9a50
 # ╠═eb6d0b8f-7bb6-4813-a605-82686854f51d
+# ╠═8e2c6aed-89ec-4abe-993f-6b8f3d46bd14
+# ╠═7217fa95-6ee9-452e-a42c-6732c7fcf3f7
 # ╠═400dcebb-8d17-4417-8c22-25894220cf8c
 # ╠═b432e9a5-a843-4ab4-8cbe-1e9f51936fcd
 # ╠═b010a5cc-b702-4531-a21b-e8f55bdce734
@@ -2283,9 +2538,11 @@ version = "4.1.0+0"
 # ╠═f40d8809-3ff1-4fcf-9081-c9306a9866dd
 # ╠═d995e1e5-29f8-48c6-a8b5-5889e0e22339
 # ╠═ca1c42ba-3db7-11f1-91e6-319d6f35f8af
+# ╠═154d4c02-d304-4c90-b935-d7817d61cf1c
 # ╟─ca1c42da-3db7-11f1-884c-873d52639f08
 # ╠═ca1c430c-3db7-11f1-8f61-555b159aff10
 # ╠═e7ec8c28-8278-409c-9640-1d5a02cee42b
+# ╠═aa651185-deac-4fe8-98f0-3cb2bc2d68de
 # ╟─ca1c4320-3db7-11f1-9192-ad3d1487a912
 # ╟─17653e06-2e2c-45af-9686-69c27caff339
 # ╟─f9a129c4-b715-488c-868f-55eda2b5df55
@@ -2294,17 +2551,20 @@ version = "4.1.0+0"
 # ╟─b2598ee7-a7e8-478b-b735-3b474f7e5973
 # ╠═e3e8cd76-2367-429c-8943-cf88a5f6a6de
 # ╠═34683d3b-6737-4be7-b88d-833beadd1d3d
-# ╟─bed5ab9a-c3da-48bb-ace5-42e24d18d942
-# ╠═bb9dac84-8bcd-4c5a-86fe-249ef49984e4
+# ╟─bb9dac84-8bcd-4c5a-86fe-249ef49984e4
 # ╠═99c19823-6b1a-4803-9ab9-a657dce8fdca
+# ╟─bed5ab9a-c3da-48bb-ace5-42e24d18d942
 # ╟─3a329c60-ac3e-4a65-9f1e-120236c461fe
 # ╟─1f3f1e6d-4cd1-48bb-8cf7-08e189bc25d9
+# ╠═43973059-6ada-4ba2-b00c-1f9b90228593
+# ╠═1d49d636-62c1-4c47-b3d4-cd5c7bb954c9
 # ╠═bb437900-5931-4e0d-a122-30a0c6a37f1c
 # ╠═4f8aa606-bdbb-489a-a8f3-1e10970b87e7
 # ╠═f578f265-5d64-4c84-a01b-4b93d6fa0e33
 # ╟─ca1c43ac-3db7-11f1-9d7c-d357610eaf76
 # ╟─ca1c43d4-3db7-11f1-90d2-03642555eb10
 # ╠═ca1c4438-3db7-11f1-8a42-69ed012bf861
+# ╠═914de0c9-cba4-473f-8cdc-c90e708aae45
 # ╟─ca1c444c-3db7-11f1-9915-b168da69a59a
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

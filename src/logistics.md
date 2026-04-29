@@ -25,7 +25,7 @@ main a img {
 1. Choose project by **2026-05-13**
     - Discuss idea first with me.
     - Half-page project proposal.
-2. Project presentations: **2027-07-08**
+2. Project presentations: **2026-07-08**
 3. Project should be relevant both to your work and topics discussed in class.
 4. Demonstrate best practices for research software development.
     - Testing
