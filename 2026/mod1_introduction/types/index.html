@@ -1,22 +1,22 @@
 <!DOCTYPE html><html lang="en">
 <head>
 
-<title>Class logistics — Research Software Engineering with Julia </title>
+<title>Types, Structs, and Mutable Structs — Research Software Engineering with Julia </title>
 
+<meta name="citation_title" content='Types, Structs, and Mutable Structs' /><meta name="citation_author" content='Valentin Churavy' /><meta name="citation_book_title" content='Research Software Engineering with Julia' /><meta name="citation_publisher" content='University of Mainz' /><meta name="citation_language" content="en" /><meta name="citation_public_url" content='https://vchuravy.github.io/rse-course/2026/mod1_introduction/types/' /><meta name="citation_publication_date" content='2026/04/28' /><meta name="citation_section" content='Section 1.2' /><meta name="citation_keywords" content='module1, track_principles, indepth' />
 
+<link rel="root" href="../.." />
 
-<link rel="root" href=".." />
+<link rel="icon" href="../../assets/favicon.ico" />
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 
-<link rel="icon" href="../assets/favicon.ico" />
-<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/styles/index.css" type="text/css" />
+<link rel="stylesheet" href="../../assets/styles/layout.css" type="text/css" />
+<script src="../../assets/scripts/sidebar.js" type="module"></script>
 
-<link rel="stylesheet" href="../assets/styles/index.css" type="text/css" />
-<link rel="stylesheet" href="../assets/styles/layout.css" type="text/css" />
-<script src="../assets/scripts/sidebar.js" type="module"></script>
-
-<link rel="pp-search-data" href="../pp_search_data.json" />
+<link rel="pp-search-data" href="../../pp_search_data.json" />
 <script src="https://cdn.jsdelivr.net/npm/lunr@2.3.9/lunr.min.js" integrity="sha256-DFDZACuFeAqEKv/7Vnu1Tt5ALa58bcWZegGGFNgET8g=" crossorigin="anonymous" defer></script>
-<script src="../assets/scripts/search.js" type="module" defer></script>
+<script src="../../assets/scripts/search.js" type="module" defer></script>
 
 <script src="https://cdn.jsdelivr.net/npm/lite-youtube-embed@0.3.0/src/lite-yt-embed.js" integrity="sha256-sDRYYtDc+jNi2rrJPUS5kGxXXMlmnOSCq5ek5tYAk/M=" crossorigin="anonymous" defer></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lite-youtube-embed@0.3.0/src/lite-yt-embed.css" integrity="sha256-lv6SEl7Dhri7d86yiHCTuSWFb9CYROQFewxZ7Je0n5k=" crossorigin="anonymous">
@@ -90,7 +90,7 @@ window.pluto_recording_audio_url = undefined;
         <ul>
             <li class="sidebar-about">
                 <div class="course-title">
-                    <h1><a href=".."><span>Research Software Engineering with Julia</span></a></h1>
+                    <h1><a href="../.."><span>Research Software Engineering with Julia</span></a></h1>
                     <h2><span></span></h2>
                 </div>
                 <div class="authors">
@@ -99,7 +99,7 @@ window.pluto_recording_audio_url = undefined;
             </li>
             <li>
                 <div class="search-bar">
-                    <form action="../search" method="GET">
+                    <form action="../../search" method="GET">
                         <input type="search" name="q" placeholder="Search...">
                         <input type=submit value="🔎">
                     </form>
@@ -119,29 +119,29 @@ window.pluto_recording_audio_url = undefined;
         <li>
 <h3>Welcome</h3>
 <ul>
-<li class='active lecture tag_welcome'><a href='../logistics/'><span class="entry-number"></span> Class logistics</a></li><li class=' lecture tag_welcome'><a href='../installation/'><span class="entry-number"></span> Software installation</a></li><li class=' lecture tag_welcome'><a href='../cheatsheets/'><span class="entry-number"></span> Resources</a></li>
+<li class=' lecture tag_welcome'><a href='../../logistics/'><span class="entry-number"></span> Class logistics</a></li><li class=' lecture tag_welcome'><a href='../../installation/'><span class="entry-number"></span> Software installation</a></li><li class=' lecture tag_welcome'><a href='../../cheatsheets/'><span class="entry-number"></span> Resources</a></li>
 </ul>
 </li>
 <li>
 <h3>Module 1: Introduction</h3>
 <ul>
-<li class=' lecture tag_module1 tag_track_principles'><a href='../mod1_introduction/research_software_engineering/'><span class="entry-number">1.1</span> Research Software Engineering</a></li><li class=' lecture tag_module1 tag_track_principles'><a href='../mod1_introduction/julia_introduction/'><span class="entry-number">1.2</span> Introduction to Julia</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../exercises/exercise_1_functions_unicode/' title='Practice writing Julia functions and using Unicode identifiers'><span class="entry-number">Exercise 1:</span> Functions and Unicode</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../exercises/exercise_2_multiple_dispatch/' title='Explore Julia&apos;s multiple dispatch system by adding methods to functions'><span class="entry-number">Exercise 2:</span> Multiple Dispatch</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../exercises/exercise_3_type_stability/' title='Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code'><span class="entry-number">Exercise 3:</span> Type Stability</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../exercises/exercise_4_broadcasting/' title='Practice Julia&apos;s broadcasting syntax and array comprehensions for element-wise operations'><span class="entry-number">Exercise 4:</span> Broadcasting and Array Comprehensions</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../exercises/exercise_5_structs/' title='Define custom Julia types with structs and extend them via multiple dispatch'><span class="entry-number">Exercise 5:</span> Structs and Custom Types</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../exercises/exercise_6_statistics/' title='Explore a real dataset: filter DataFrames, compute summary statistics, and create labelled plots'><span class="entry-number">Exercise 6:</span> Statistics</a></li><li class=' indepth tag_module1 tag_track_principles tag_indepth'><a href='../mod1_introduction/types/'><span class="entry-number">In-depth 1:</span> Types, Structs, and Mutable Structs</a></li><li class=' lecture tag_module1 tag_track_parallel'><a href='../mod1_introduction/parallelism/'><span class="entry-number">1.3</span> Parallelism</a></li><li class=' exercise tag_module1 tag_track_parallel tag_exercises'><a href='../exercises/exercise_7_multithreading/' title='Practice shared-memory parallelism in Julia using Threads.@spawn for recursive parallelism and concurrent map'><span class="entry-number">Exercise 7:</span> Shared-memory parallelism</a></li><li class=' exercise tag_module1 tag_track_parallel tag_exercises'><a href='../exercises/exercise_8_accelerated/' title='Write portable GPU kernels using KernelAbstractions.jl, targeting CUDA, Metal, oneAPI, and CPU backends'><span class="entry-number">Exercise 8:</span> Introduction to accelerated computing</a></li>
+<li class=' lecture tag_module1 tag_track_principles'><a href='../../mod1_introduction/research_software_engineering/'><span class="entry-number">1.1</span> Research Software Engineering</a></li><li class=' lecture tag_module1 tag_track_principles'><a href='../../mod1_introduction/julia_introduction/'><span class="entry-number">1.2</span> Introduction to Julia</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../../exercises/exercise_1_functions_unicode/' title='Practice writing Julia functions and using Unicode identifiers'><span class="entry-number">Exercise 1:</span> Functions and Unicode</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../../exercises/exercise_2_multiple_dispatch/' title='Explore Julia&apos;s multiple dispatch system by adding methods to functions'><span class="entry-number">Exercise 2:</span> Multiple Dispatch</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../../exercises/exercise_3_type_stability/' title='Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code'><span class="entry-number">Exercise 3:</span> Type Stability</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../../exercises/exercise_4_broadcasting/' title='Practice Julia&apos;s broadcasting syntax and array comprehensions for element-wise operations'><span class="entry-number">Exercise 4:</span> Broadcasting and Array Comprehensions</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../../exercises/exercise_5_structs/' title='Define custom Julia types with structs and extend them via multiple dispatch'><span class="entry-number">Exercise 5:</span> Structs and Custom Types</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='../../exercises/exercise_6_statistics/' title='Explore a real dataset: filter DataFrames, compute summary statistics, and create labelled plots'><span class="entry-number">Exercise 6:</span> Statistics</a></li><li class='active indepth tag_module1 tag_track_principles tag_indepth'><a href='../../mod1_introduction/types/'><span class="entry-number">In-depth 1:</span> Types, Structs, and Mutable Structs</a></li><li class=' lecture tag_module1 tag_track_parallel'><a href='../../mod1_introduction/parallelism/'><span class="entry-number">1.3</span> Parallelism</a></li><li class=' exercise tag_module1 tag_track_parallel tag_exercises'><a href='../../exercises/exercise_7_multithreading/' title='Practice shared-memory parallelism in Julia using Threads.@spawn for recursive parallelism and concurrent map'><span class="entry-number">Exercise 7:</span> Shared-memory parallelism</a></li><li class=' exercise tag_module1 tag_track_parallel tag_exercises'><a href='../../exercises/exercise_8_accelerated/' title='Write portable GPU kernels using KernelAbstractions.jl, targeting CUDA, Metal, oneAPI, and CPU backends'><span class="entry-number">Exercise 8:</span> Introduction to accelerated computing</a></li>
 </ul>
 </li>
 
                 <li><hr></li>
             <li class="sidebar-about">
                 <div class="semester-details">
-                    <a href="../../semesters/">2026</a>
+                    <a href="../../../semesters/">2026</a>
                     <div class="course-numbers"><span></span></div>
                 </div>
                 <div class="logos">
                     <picture title="University of Mainz">
-                        <img src="../assets/jgu_logo.jpg">
+                        <img src="../../assets/jgu_logo.jpg">
                     </picture>
                     <picture title="Julia Programming Language">
-                        <source srcset="../assets/julia-logo-dark.svg" media="(prefers-color-scheme: dark)" />
-                        <img src="../assets/julia-logo-color.svg">
+                        <source srcset="../../assets/julia-logo-dark.svg" media="(prefers-color-scheme: dark)" />
+                        <img src="../../assets/julia-logo-color.svg">
                     </picture>
                 </div>
             </li>
@@ -150,52 +150,28 @@ window.pluto_recording_audio_url = undefined;
         </nav>
         <div id="pages-content">
            <div class="lecture-header" >
-    
-    <h1>Class logistics</h1>
+    <p class="number">In-depth 1</p>
+    <h1>Types, Structs, and Mutable Structs</h1>
     
     
 </div>
-        <div class="pages-markdown">
-<main>
-<style>
-main a img {
-    width: 5rem;
-    margin: 1rem;
-}
-</style>
-<h1 id="course-logistics"><a href="#course-logistics" class="anchor"></a>Course logistics</h1>
-<h2 id="lecture-dates"><a href="#lecture-dates" class="anchor"></a>Lecture dates</h2>
-<ul>
-<li>Start: 15th of April</li>
-<li>End: 8th of July</li>
-<li>Lecture on the 3rd of June will be moved.</li>
-</ul>
-<h2 id="projects"><a href="#projects" class="anchor"></a>Projects</h2>
-<ol>
-<li>Choose project by <strong>2026-05-13</strong>
-<ul>
-<li>Discuss idea first with me.</li>
-<li>Half-page project proposal.</li>
-</ul>
-</li>
-<li>Project presentations: <strong>2026-07-08</strong></li>
-<li>Project should be relevant both to your work and topics discussed in class.</li>
-<li>Demonstrate best practices for research software development.
-<ul>
-<li>Testing</li>
-<li>Reproducibility</li>
-<li>Documentation</li>
-<li>Accessibility</li>
-</ul>
-</li>
-<li>Develop “in the open” on Github.</li>
-</ol>
-<h3 id="grades"><a href="#grades" class="anchor"></a>Grades</h3>
-<p>If you need a grade for this class, in addition to the project presentation, you will need to submit a short project report (2 pages) and your repository with instruction on how to reproduce your results.</p>
-</main>
+        <pluto-editor statefile='../../generated_assets/types_470ce03c.plutostate' notebookfile='../../generated_assets/types_8d73a4f5.jl' disable-ui=''></pluto-editor>
+
+        <div class="citation">
+    <h2>Cite this page</h2>
+    <p>Valentin Churavy. (2026). Types, Structs, and Mutable Structs. Section 1.2. In: Research Software Engineering with Julia. University of Mainz. https://vchuravy.github.io/rse-course/2026/mod1_introduction/types/</p>
+    <pre><code>@incollection{churavy2026:types,
+  author       = {Churavy, Valentin},
+  title        = {Types, Structs, and Mutable Structs},
+  booktitle    = {Research Software Engineering with Julia},
+  year         = {2026},
+  date         = {2026-04-28},
+  chapter      = {Section 1.2},
+  organization = {University of Mainz},
+  url          = {https://vchuravy.github.io/rse-course/2026/mod1_introduction/types/},
+}</code></pre>
 </div>
 
-        
         <div class="page-foot">
             <div class="copyright">
                 <a href="https://github.com/vchuravy/rse-course"><b>Edit this page on <img class="github-logo" src="https://unpkg.com/ionicons@5.1.2/dist/svg/logo-github.svg"></b></a><br>

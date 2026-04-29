@@ -2,13 +2,12 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "2.3"
-#> exercise_number = "3"
-#> title = "Type Stability"
+#> order = "2.1"
+#> exercise_number = "1"
+#> title = "Functions and Unicode"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
-#> description = "Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code"
-#> date = "2026-04-22"
+#> description = "Practice writing Julia functions and using Unicode identifiers"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -17,192 +16,212 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ aa110011-3a90-11f0-4f07-69f099994798
+# ╔═╡ a1b2c3d4-1a90-11f0-2f05-47d877772576
 using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ bb220022-3a90-11f0-4f07-69f099994798
-using BenchmarkTools
-
-# ╔═╡ cc330033-3a90-11f0-4f07-69f099994798
-ChooseDisplayMode()
-
-# ╔═╡ dd440044-3a90-11f0-4f07-69f099994798
+# ╔═╡ c3d4e5f6-1a90-11f0-2f05-47d877772576
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ ee550055-3a90-11f0-4f07-69f099994798
+# ╔═╡ d4e5f6a7-1a90-11f0-2f05-47d877772576
 md"""
-# Exercise: Type Stability
+# Exercise: Functions and Unicode
 
-A function is *type-stable* if the compiler can determine the return type (and the types of
-all local variables) from the types of the inputs alone, without running the code.
-
-Type-unstable functions force the compiler to emit slower, boxed code that handles
-multiple possible types at runtime.
+Julia supports full Unicode in identifiers, making it easy to write mathematics that reads like a textbook.
 """
 
-# ╔═╡ ff660066-3a90-11f0-4f07-69f099994798
+# ╔═╡ e5f6a7b8-1a90-11f0-2f05-47d877772576
 md"""
-## Motivating example
+## Part 1 — Circle area
 
-`baz` returns different types depending on the branch taken; `bar` always returns `Float64`.
-Run the benchmarks and inspect `Base.return_types` to see the difference.
+Write a function `circle_area(r)` that returns the area of a circle with radius `r`.
+
+- Use the built-in constant `π` (type `\pi` then press Tab to get the Unicode symbol).
+- Do **not** hard-code an approximation like `3.14159`.
 """
 
-# ╔═╡ 00771177-3a90-11f0-4f07-69f099994798
-function baz()
-    s = rand()
-    if s > 2/3
-        return 0.666667   # Float64
-    elseif s > 1/3
-        return 1//3       # Rational{Int64}
-    else
-        return 0          # Int64
-    end
-end
+# ╔═╡ f6a7b8c9-1a90-11f0-2f05-47d877772576
+# Write circle_area here
 
-# ╔═╡ 11882288-3a90-11f0-4f07-69f099994798
-function bar()
-    s = rand()
-    if s > 2/3
-        return 0.666667
-    elseif s > 1/3
-        return 0.3333333
-    else
-        return 0.0
-    end
-end
-
-# ╔═╡ 22993399-3a90-11f0-4f07-69f099994798
-@benchmark baz()
-
-# ╔═╡ 33aa44aa-3a90-11f0-4f07-69f099994798
-@benchmark bar()
-
-# ╔═╡ 44bb55bb-3a90-11f0-4f07-69f099994798
-Base.return_types(baz), Base.return_types(bar)
-
-# ╔═╡ 55cc66cc-3a90-11f0-4f07-69f099994798
-md"""
-## Part 1 — Fixing `my_sum`
-
-The function below is type-unstable because the accumulator `output` starts as an `Int`
-but the array elements are `Float64`.
-
-```julia
-function my_sum(A)
-    output = 0      # Int!
-    for x in A
-        output += x
-    end
-    return output
-end
-```
-
-1. Copy `my_sum` into a cell and run `@code_warntype my_sum(rand(10))`.
-   Variables highlighted in red/yellow are type-unstable.
-2. Write a fixed version called `my_sum2` using `zero(eltype(A))` to initialise
-   the accumulator.
-3. Benchmark both with `@benchmark` on `rand(10^6)`.
-"""
-
-# ╔═╡ 66dd77dd-3a90-11f0-4f07-69f099994798
-# Paste my_sum here, then write my_sum2 below it
-
-# ╔═╡ 77ee88ee-3a90-11f0-4f07-69f099994798
+# ╔═╡ a7b8c9d0-1a90-11f0-2f05-47d877772576
 let
-	if !@isdefined(my_sum2)
-		func_not_defined(:my_sum2)
+	if !@isdefined(circle_area)
+		func_not_defined(:circle_area)
+	elseif !(circle_area(1.0) ≈ π)
+		keep_working(md"`circle_area(1.0)` should equal `π`.")
+	elseif !(circle_area(2.0) ≈ 4π)
+		keep_working(md"`circle_area(2.0)` should equal `4π`.")
 	else
-		A = rand(100)
-		result = my_sum2(A)
-		if !(result isa Float64)
-			keep_working(md"`my_sum2` should return a `Float64` for a `Float64` array — check your accumulator initialisation.")
-		elseif !(result ≈ sum(A))
-			keep_working(md"`my_sum2` gives the wrong result — it should equal `sum(A)`.")
+		correct()
+	end
+end
+
+# ╔═╡ b8c9d0e1-1a90-11f0-2f05-47d877772576
+answer_box(hint(md"""
+```julia
+circle_area(r) = π * r^2
+```
+"""))
+
+# ╔═╡ c9d0e1f2-1a90-11f0-2f05-47d877772576
+md"""
+## Part 2 — Quadratic formula
+
+Write a function `quadratic(a, b, c)` that returns **both** roots of $ax^2 + bx + c = 0$ as a tuple, using the quadratic formula:
+
+$$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+
+Use `√` (type `\sqrt` then Tab) or `sqrt` for the square root.
+
+Check: `quadratic(1, -3, 2)` should return the roots `2.0` and `1.0` (in either order).
+"""
+
+# ╔═╡ d0e1f2a3-1a90-11f0-2f05-47d877772576
+# Write quadratic here
+
+# ╔═╡ e1f2a3b4-1a90-11f0-2f05-47d877772576
+let
+	if !@isdefined(quadratic)
+		func_not_defined(:quadratic)
+	else
+		r1, r2 = quadratic(1, -3, 2)
+		expected = Set([1.0, 2.0])
+		if !(Set([r1, r2]) == expected)
+			keep_working(md"`quadratic(1, -3, 2)` should return the roots `1.0` and `2.0`.")
 		else
 			correct()
 		end
 	end
 end
 
-# ╔═╡ 88ff99ff-3a90-11f0-4f07-69f099994798
+# ╔═╡ f2a3b4c5-1a90-11f0-2f05-47d877772576
 answer_box(hint(md"""
 ```julia
-function my_sum2(A)
-    output = zero(eltype(A))   # Float64 for a Float64 array
-    for x in A
-        output += x
-    end
-    return output
+function quadratic(a, b, c)
+    disc = √(b^2 - 4a*c)
+    (-b + disc) / (2a), (-b - disc) / (2a)
 end
 ```
-
-`@code_warntype my_sum(rand(10))` highlights `output` in red because the compiler
-infers `Union{Float64, Int64}`. After the fix the inferred type is just `Float64`.
 """))
 
-# ╔═╡ 99001100-3a90-11f0-4f07-69f099994798
+# ╔═╡ a3b4c5d6-1a90-11f0-2f05-47d877772576
 md"""
-## Part 2 — Newton's square root
+## Part 3 — Unicode variable names
 
-Make the following function type-stable. The bug: `output` is initialised to `1` (an `Int`)
-regardless of the type of `x`.
+Rewrite the snippet below so that the variable names use proper Greek letters
+(`α`, `β`, `γ` via `\alpha`, `\beta`, `\gamma` + Tab).
+
+Then define a function `linear_combo(α, β)` that returns `α * β + α^2`.
 
 ```julia
-function my_sqrt(x)
-    output = 1
-    for i in 1:1000
-        output = 0.5 * (output + x / output)
-    end
-    output
-end
+alpha = 0.5
+beta  = 1.5
+gamma = alpha * beta + alpha^2
 ```
-
-After fixing it, verify that `my_sqrt(2.0) ≈ sqrt(2.0)` and that
-`my_sqrt(Float32(2)) isa Float32`.
 """
 
-# ╔═╡ aa112233-3a90-11f0-4f07-69f099994798
-# Write your type-stable my_sqrt here
+# ╔═╡ b4c5d6e7-1a90-11f0-2f05-47d877772576
+# Write linear_combo here (and optionally the α, β, γ variables)
 
-# ╔═╡ bb223344-3a90-11f0-4f07-69f099994798
+# ╔═╡ c5d6e7f8-1a90-11f0-2f05-47d877772576
 let
-	if !@isdefined(my_sqrt)
-		func_not_defined(:my_sqrt)
-	elseif !(my_sqrt(2.0) ≈ sqrt(2.0))
-		keep_working(md"`my_sqrt(2.0)` should be approximately `sqrt(2.0)`.")
-	elseif !(my_sqrt(Float32(2)) isa Float32)
-		keep_working(md"`my_sqrt(Float32(2))` should return a `Float32`, not a `$(typeof(my_sqrt(Float32(2))))`.")
+	if !@isdefined(linear_combo)
+		func_not_defined(:linear_combo)
+	elseif !(linear_combo(0.5, 1.5) ≈ 0.5 * 1.5 + 0.5^2)
+		keep_working(md"`linear_combo(0.5, 1.5)` should equal `0.5 * 1.5 + 0.5^2 = 1.0`.")
 	else
 		correct()
 	end
 end
 
-# ╔═╡ cc334455-3a90-11f0-4f07-69f099994798
+# ╔═╡ d6e7f8a9-1a90-11f0-2f05-47d877772576
 answer_box(hint(md"""
 ```julia
-function my_sqrt(x)
-    output = one(x)           # same type as x
-    for i in 1:1000
-        output = (output + x / output) / 2
-    end
-    output
-end
+α = 0.5
+β = 1.5
+γ = α * β + α^2
+
+linear_combo(α, β) = α * β + α^2
+linear_combo(0.5, 1.5)   # 1.0
+```
+"""))
+
+# ╔═╡ fe462959-e84f-4ba4-823a-5b5140fa8416
+md"""
+## Part 3 — Playing darts to estimate Pi
+
+You and some friends are playing darts. You all are very bad at darts. Each throw is guaranteed to hit the square board depicted below, but otherwise each throw will land in a completely random position within the square. To entertain yourself during this pathetic display, you decide to use this as an opportunity to estimate the irrational number $(π)
+
+Because each throw falls randomly within the square, you realize that the probability of a dart landing within the circle is given by the ratio of the circle’s area to the square’s area:
+
+```math
+P_{circle} = \frac{Area_{circle}}{Area_{square}} = \frac{\pi r^2}{(2r)^2}
 ```
 
-`one(x)` returns the multiplicative identity with the same type as `x`, keeping the
-accumulator type-stable throughout the loop.
+Furthermore, we can interpret $P_{circle}$ as being approximated by the fraction of darts thrown that land in the circle. Thus, we find:
+
+```math
+\frac{N_{circle}}{N_{total}} \approx \frac{\pi r^2}{(2r)^2} = \frac{\pi}{4}
+```
+
+where $N_{total}$ is the total number of darts thrown, and is $N_{circle}$ the number of darts that land within the circle. Thus simply by keeping tally of where the darts land, you can begin to estimate the value of π!
+
+"""
+
+# ╔═╡ a40dcfdd-c0a9-4a44-9e1f-f73af9e610a5
+md"""
+Write code that simulates the dart throwing and tallying process. For simplicity, you can assume that the board is centered at  $(0,0)$, and that $r=1$ (the radius of the circle). Use `rand` to randomly generate the positions on the board where the darts land. Do this for $N$ darts in total. For each dart thrown determine whether or not it landed within the circle, and update your estimate of π according to the formula: $N_{circle}/N_{total} = \pi/4$
+
+Keep in mind that each dart can land in $(x∈[-1,1], y∈[-1,1])$ and that a dart that lands $(x,y)$at falls within the circle if
+
+$\sqrt{x^2 +y^2} < 1$
+"""
+
+# ╔═╡ aee71697-601d-46ea-8e7a-03978707c8db
+# write a estimate_pi(N) function here
+
+# ╔═╡ 71283db4-aec9-4c3a-b04f-653dd771ff29
+let
+	if !@isdefined(estimate_pi)
+		func_not_defined(:estimate_pi)
+	elseif !(round(estimate_pi(100_000),digits=1) == round(π,digits=1))
+		keep_working(md"`estimate_pi(100_000)` should equal `round(π,digits=1)`.")
+	elseif !(round(estimate_pi(100_000_000),digits=2) == round(π,digits=2))
+		keep_working(md"`estimate_pi(100_000_000)` should equal `round(π,digits=2)`.")
+	else
+		correct()
+	end
+end
+
+# ╔═╡ 8b37efdb-b4cd-4fbc-9f33-62bee67da371
+round(π,digits=4)
+
+# ╔═╡ ead7abcd-192d-4c61-93ce-0872bc16c05f
+answer_box(hint(md"""
+```julia
+function estimate_pi(N=10_000)
+	total = 0
+	circle = 0
+
+	for _ in 1:N
+		x = 2 * rand() - 1
+		y = 2 * rand() - 1
+		if sqrt(x^2 + y^2) < 1
+			circle += 1
+		end
+		total += 1
+	end
+	4*circle/total
+end
+```
 """))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-BenchmarkTools = "~1.6"
 PlutoTeachingTools = "~0.4"
 PlutoUI = "~0.7"
 """
@@ -213,7 +232,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "60157c176b9eecd8ca9bf5ce0ec9c32e98e36bf8"
+project_hash = "298d939e2def5605c9bbf33e4a51404869962d9d"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -233,12 +252,6 @@ version = "1.11.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
-[[deps.BenchmarkTools]]
-deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "7fecfb1123b8d0232218e2da0c213004ff15358d"
-uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.6.3"
-
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
 git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
@@ -248,16 +261,6 @@ weakdeps = ["StyledStrings"]
 
     [deps.ColorTypes.extensions]
     StyledStringsExt = "StyledStrings"
-
-[[deps.Compat]]
-deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "9d8a54ce4b17aa5bdce0ea5c34bc5e7c340d16ad"
-uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.18.1"
-weakdeps = ["Dates", "LinearAlgebra"]
-
-    [deps.Compat.extensions]
-    CompatLinearAlgebraExt = "LinearAlgebra"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -323,18 +326,6 @@ deps = ["Artifacts", "Preferences"]
 git-tree-sha1 = "0533e564aae234aff59ab625543145446d8b6ec2"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
 version = "1.7.1"
-
-[[deps.JSON]]
-deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
-git-tree-sha1 = "67c6f1f085cb2671c93fe34244c9cccde30f7a26"
-uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "1.5.0"
-
-    [deps.JSON.extensions]
-    JSONArrowExt = ["ArrowTypes"]
-
-    [deps.JSON.weakdeps]
-    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -446,12 +437,6 @@ git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.8.1"
 
-[[deps.Parsers]]
-deps = ["Dates", "PrecompileTools", "UUIDs"]
-git-tree-sha1 = "7d2f8f21da5db6a806faf7b9b292296da42b2810"
-uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.8.3"
-
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -475,12 +460,6 @@ git-tree-sha1 = "fbc875044d82c113a9dee6fc14e16cf01fd48872"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 version = "0.7.80"
 
-[[deps.PrecompileTools]]
-deps = ["Preferences"]
-git-tree-sha1 = "07a921781cab75691315adc645096ed5e370cb77"
-uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
-version = "1.3.3"
-
 [[deps.Preferences]]
 deps = ["TOML"]
 git-tree-sha1 = "8b770b60760d4451834fe79dd483e318eee709c4"
@@ -490,11 +469,6 @@ version = "1.5.2"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-version = "1.11.0"
-
-[[deps.Profile]]
-deps = ["StyledStrings"]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Random]]
@@ -532,22 +506,6 @@ version = "1.11.1"
 
     [deps.Statistics.weakdeps]
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-
-[[deps.StructUtils]]
-deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "aab80fbf866600f3299dd7f6656d80e7be177cfe"
-uuid = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
-version = "2.7.2"
-
-    [deps.StructUtils.extensions]
-    StructUtilsMeasurementsExt = ["Measurements"]
-    StructUtilsStaticArraysCoreExt = ["StaticArraysCore"]
-    StructUtilsTablesExt = ["Tables"]
-
-    [deps.StructUtils.weakdeps]
-    Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-    StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-    Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
@@ -609,24 +567,26 @@ version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═aa110011-3a90-11f0-4f07-69f099994798
-# ╠═bb220022-3a90-11f0-4f07-69f099994798
-# ╟─cc330033-3a90-11f0-4f07-69f099994798
-# ╟─dd440044-3a90-11f0-4f07-69f099994798
-# ╟─ee550055-3a90-11f0-4f07-69f099994798
-# ╟─ff660066-3a90-11f0-4f07-69f099994798
-# ╠═00771177-3a90-11f0-4f07-69f099994798
-# ╠═11882288-3a90-11f0-4f07-69f099994798
-# ╠═22993399-3a90-11f0-4f07-69f099994798
-# ╠═33aa44aa-3a90-11f0-4f07-69f099994798
-# ╠═44bb55bb-3a90-11f0-4f07-69f099994798
-# ╟─55cc66cc-3a90-11f0-4f07-69f099994798
-# ╠═66dd77dd-3a90-11f0-4f07-69f099994798
-# ╟─77ee88ee-3a90-11f0-4f07-69f099994798
-# ╟─88ff99ff-3a90-11f0-4f07-69f099994798
-# ╟─99001100-3a90-11f0-4f07-69f099994798
-# ╠═aa112233-3a90-11f0-4f07-69f099994798
-# ╟─bb223344-3a90-11f0-4f07-69f099994798
-# ╟─cc334455-3a90-11f0-4f07-69f099994798
+# ╠═a1b2c3d4-1a90-11f0-2f05-47d877772576
+# ╟─c3d4e5f6-1a90-11f0-2f05-47d877772576
+# ╟─d4e5f6a7-1a90-11f0-2f05-47d877772576
+# ╟─e5f6a7b8-1a90-11f0-2f05-47d877772576
+# ╠═f6a7b8c9-1a90-11f0-2f05-47d877772576
+# ╟─a7b8c9d0-1a90-11f0-2f05-47d877772576
+# ╟─b8c9d0e1-1a90-11f0-2f05-47d877772576
+# ╟─c9d0e1f2-1a90-11f0-2f05-47d877772576
+# ╠═d0e1f2a3-1a90-11f0-2f05-47d877772576
+# ╟─e1f2a3b4-1a90-11f0-2f05-47d877772576
+# ╟─f2a3b4c5-1a90-11f0-2f05-47d877772576
+# ╟─a3b4c5d6-1a90-11f0-2f05-47d877772576
+# ╠═b4c5d6e7-1a90-11f0-2f05-47d877772576
+# ╟─c5d6e7f8-1a90-11f0-2f05-47d877772576
+# ╟─d6e7f8a9-1a90-11f0-2f05-47d877772576
+# ╟─fe462959-e84f-4ba4-823a-5b5140fa8416
+# ╟─a40dcfdd-c0a9-4a44-9e1f-f73af9e610a5
+# ╠═aee71697-601d-46ea-8e7a-03978707c8db
+# ╟─71283db4-aec9-4c3a-b04f-653dd771ff29
+# ╠═8b37efdb-b4cd-4fbc-9f33-62bee67da371
+# ╟─ead7abcd-192d-4c61-93ce-0872bc16c05f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -7,8 +7,7 @@
 #> title = "Statistics"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
-#> date = "2026-04-22"
-#> description = "Some simple statistics"
+#> description = "Explore a real dataset: filter DataFrames, compute summary statistics, and create labelled plots"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -29,36 +28,199 @@ using CairoMakie
 # ╔═╡ b8d1ef27-fc1a-46dd-ab75-3a39d849fa46
 using AlgebraOfGraphics
 
+# ╔═╡ a1100001-6e29-11f1-86c9-bd51549aea91
+using Statistics
+
+# ╔═╡ a1100002-6e29-11f1-86c9-bd51549aea91
+ChooseDisplayMode()
+
 # ╔═╡ 10fbca49-ef2f-492e-a97b-067ceae8261b
 PlutoUI.TableOfContents(; depth=4)
+
+# ╔═╡ a1100003-6e29-11f1-86c9-bd51549aea91
+md"""
+# Exercise: Statistics and Visualization
+
+Julia's ecosystem makes it easy to load real datasets, compute statistics, and create
+publication-quality plots — often in just a few lines.
+
+In this exercise you will work with the classic **iris** dataset (150 flower measurements
+across three species) to practise DataFrame filtering, summary statistics, and plotting
+with Makie and AlgebraOfGraphics.
+"""
 
 # ╔═╡ 7654b1d6-41ab-4f71-aa6e-829f98b99654
 iris = dataset("datasets", "iris")
 
-# ╔═╡ 65960499-2941-4380-8da1-f328b5d7435c
-names(iris)
-
-# ╔═╡ 1ced4ff3-b02e-49a1-b3da-83588f6d1ea2
-iris[iris[!, :Species] .== "setosa", :]
-
-# ╔═╡ 193e1855-63ca-4304-91f5-155ad3d92b73
+# ╔═╡ a1100004-6e29-11f1-86c9-bd51549aea91
 md"""
-## Let's do some plotting
+## Part 1 — Filtering a DataFrame
+
+The `iris` dataset has 150 rows and five columns: `SepalLength`, `SepalWidth`,
+`PetalLength`, `PetalWidth`, and `Species`.
+
+Filter `iris` to keep only the rows where `Species == "setosa"` and store the result
+in a variable called `setosa`.
+
+Use logical indexing: `df[condition, :]` where `condition` is a Boolean vector produced
+by broadcasting `.==` over a column.
 """
 
-# ╔═╡ c54d91e2-b4dd-4c6a-96b4-94ffaf6c1472
-scatter(iris.SepalLength, iris.PetalWidth, label=iris.Species)
+# ╔═╡ a1100005-6e29-11f1-86c9-bd51549aea91
+# Write setosa here
 
-# ╔═╡ 2aafc68e-6315-47e7-907b-8bf46d35383f
-md"""
-!!! note
-    *Sigh* not automatically labled..., Makie does indivdual plots per series.
-"""
-
-# ╔═╡ a97d00c2-2989-4ce6-887d-799a080e004f
+# ╔═╡ a1100006-6e29-11f1-86c9-bd51549aea91
 let
+	if !@isdefined(setosa)
+		func_not_defined(:setosa)
+	elseif size(setosa, 1) != 50
+		keep_working(md"`setosa` should have 50 rows (one per setosa flower).")
+	elseif !all(setosa.Species .== "setosa")
+		keep_working(md"Not all rows in `setosa` have `Species == \"setosa\"`.")
+	else
+		correct()
+	end
+end
+
+# ╔═╡ a1100007-6e29-11f1-86c9-bd51549aea91
+answer_box(hint(md"""
+```julia
+setosa = iris[iris.Species .== "setosa", :]
+```
+or equivalently:
+```julia
+setosa = iris[iris[!, :Species] .== "setosa", :]
+```
+"""))
+
+# ╔═╡ a1100008-6e29-11f1-86c9-bd51549aea91
+md"""
+## Part 2 — Summary statistics
+
+Using `mean` from `Statistics`, compute the mean sepal length for each species and
+store the results in three variables:
+
+- `mean_setosa` — mean `SepalLength` for setosa
+- `mean_versicolor` — mean `SepalLength` for versicolor
+- `mean_virginica` — mean `SepalLength` for virginica
+
+Expected values (to 3 d.p.): `5.006`, `5.936`, `6.588`.
+"""
+
+# ╔═╡ a1100009-6e29-11f1-86c9-bd51549aea91
+# Write mean_setosa, mean_versicolor, mean_virginica here
+
+# ╔═╡ a110000a-6e29-11f1-86c9-bd51549aea91
+let
+	if !@isdefined(mean_setosa)
+		func_not_defined(:mean_setosa)
+	elseif !@isdefined(mean_versicolor)
+		func_not_defined(:mean_versicolor)
+	elseif !@isdefined(mean_virginica)
+		func_not_defined(:mean_virginica)
+	elseif !(mean_setosa ≈ 5.006)
+		keep_working(md"`mean_setosa` should be approximately `5.006`.")
+	elseif !(mean_versicolor ≈ 5.936)
+		keep_working(md"`mean_versicolor` should be approximately `5.936`.")
+	elseif !(mean_virginica ≈ 6.588)
+		keep_working(md"`mean_virginica` should be approximately `6.588`.")
+	else
+		correct()
+	end
+end
+
+# ╔═╡ a110000b-6e29-11f1-86c9-bd51549aea91
+answer_box(hint(md"""
+```julia
+mean_setosa     = mean(iris[iris.Species .== "setosa",     :SepalLength])
+mean_versicolor = mean(iris[iris.Species .== "versicolor", :SepalLength])
+mean_virginica  = mean(iris[iris.Species .== "virginica",  :SepalLength])
+```
+"""))
+
+# ╔═╡ a110000c-6e29-11f1-86c9-bd51549aea91
+md"""
+## Part 3 — Basic scatter plot
+
+Write a function `my_scatter()` that creates and returns a `Figure` with a scatter plot
+of `iris.SepalLength` (x-axis, labelled `"Sepal length"`) vs `iris.PetalWidth`
+(y-axis, labelled `"Petal width"`).
+
+```julia
+fig = Figure()
+ax  = Axis(fig[1,1], xlabel=..., ylabel=...)
+scatter!(ax, xs, ys)
+fig
+```
+"""
+
+# ╔═╡ a110000d-6e29-11f1-86c9-bd51549aea91
+# Write my_scatter here
+
+# ╔═╡ a110000e-6e29-11f1-86c9-bd51549aea91
+let
+	if !@isdefined(my_scatter)
+		func_not_defined(:my_scatter)
+	else
+		result = try my_scatter() catch e; e end
+		if result isa Exception
+			keep_working(md"`my_scatter()` threw an error.")
+		elseif !(result isa Figure)
+			keep_working(md"`my_scatter()` should return a `Figure`.")
+		else
+			correct()
+		end
+	end
+end
+
+# ╔═╡ a110000f-6e29-11f1-86c9-bd51549aea91
+answer_box(hint(md"""
+```julia
+function my_scatter()
 	fig = Figure()
-	ax = Axis(fig[1,1], xlabel="SepalLength", ylabel="PetalWidth")
+	ax  = Axis(fig[1,1], xlabel="Sepal length", ylabel="Petal width")
+	scatter!(ax, iris.SepalLength, iris.PetalWidth)
+	fig
+end
+```
+"""))
+
+# ╔═╡ a1100010-6e29-11f1-86c9-bd51549aea91
+md"""
+## Part 4 — Grouped scatter plot
+
+The plain scatter above mixes all three species. Write a function `species_scatter()`
+that draws one scatter series per species so they are visually distinct, with a legend.
+
+Use `groupby(iris, [:Species])` to iterate over species subsets. For each subset, call
+`scatter!(ax, ...; label=...)`. Finish with `axislegend(ax)`.
+"""
+
+# ╔═╡ a1100011-6e29-11f1-86c9-bd51549aea91
+# Write species_scatter here
+
+# ╔═╡ a1100012-6e29-11f1-86c9-bd51549aea91
+let
+	if !@isdefined(species_scatter)
+		func_not_defined(:species_scatter)
+	else
+		result = try species_scatter() catch e; e end
+		if result isa Exception
+			keep_working(md"`species_scatter()` threw an error.")
+		elseif !(result isa Figure)
+			keep_working(md"`species_scatter()` should return a `Figure`.")
+		else
+			correct()
+		end
+	end
+end
+
+# ╔═╡ a1100013-6e29-11f1-86c9-bd51549aea91
+answer_box(hint(md"""
+```julia
+function species_scatter()
+	fig = Figure()
+	ax  = Axis(fig[1,1], xlabel="Sepal length", ylabel="Petal width")
 	for subdf in groupby(iris, [:Species])
 		scatter!(ax, subdf.SepalLength, subdf.PetalWidth;
 				 label=string(first(subdf.Species)))
@@ -66,15 +228,26 @@ let
 	axislegend(ax)
 	fig
 end
-		
+```
+"""))
 
-# ╔═╡ 0435aa78-b105-4577-9a80-e4f00f6dbc80
+# ╔═╡ a1100014-6e29-11f1-86c9-bd51549aea91
 md"""
-### Using AlgebraOfGraphics
+## Part 5 — AlgebraOfGraphics
+
+AlgebraOfGraphics (AoG) provides a higher-level, declarative interface for plots.
+The same grouped scatter from Part 4 can be expressed in a single pipeline using `*`
+to combine a data source, variable mappings, and visual marks:
 """
 
 # ╔═╡ 694d6079-ee0d-4278-8b52-89cd9a611dad
 data(iris) * mapping(:SepalLength, :PetalWidth) * mapping(color=:Species) |> draw
+
+# ╔═╡ a1100015-6e29-11f1-86c9-bd51549aea91
+md"""
+AoG also makes faceted plots easy. The penguins dataset below is split by `sex`
+(rows) and `island` (columns) in a single spec, with a linear trend overlaid:
+"""
 
 # ╔═╡ 68c082b1-98e2-4891-8583-78c0f6004077
 let
@@ -88,7 +261,7 @@ let
 	        col = :island,
 	    ) *
 	    (visual(Scatter, alpha = 0.3) + linear())
-	
+
 	draw(spec)
 end
 
@@ -100,6 +273,7 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 RDatasets = "ce6b1742-4840-55fa-b093-852dadbb1d8b"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 AlgebraOfGraphics = "~0.12.7"
@@ -115,7 +289,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "8e640bf385ade80603dc0fb7f9e4e733ab7d424b"
+project_hash = "db582e37aac3e18fe6ecc0cb6ce82b9e2246b2b2"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -2028,19 +2202,33 @@ version = "4.1.0+0"
 
 # ╔═╡ Cell order:
 # ╠═e50972da-3e29-11f1-86c9-bd51549aea91
-# ╠═10fbca49-ef2f-492e-a97b-067ceae8261b
 # ╠═3fa4d967-bcf4-4b36-adf5-bd21fb6e94df
 # ╠═36e875b0-5e60-4454-8413-9f374268e1b6
 # ╠═b8d1ef27-fc1a-46dd-ab75-3a39d849fa46
+# ╠═a1100001-6e29-11f1-86c9-bd51549aea91
+# ╠═a1100002-6e29-11f1-86c9-bd51549aea91
+# ╟─10fbca49-ef2f-492e-a97b-067ceae8261b
+# ╟─a1100003-6e29-11f1-86c9-bd51549aea91
 # ╠═7654b1d6-41ab-4f71-aa6e-829f98b99654
-# ╠═65960499-2941-4380-8da1-f328b5d7435c
-# ╠═1ced4ff3-b02e-49a1-b3da-83588f6d1ea2
-# ╟─193e1855-63ca-4304-91f5-155ad3d92b73
-# ╠═c54d91e2-b4dd-4c6a-96b4-94ffaf6c1472
-# ╟─2aafc68e-6315-47e7-907b-8bf46d35383f
-# ╠═a97d00c2-2989-4ce6-887d-799a080e004f
-# ╟─0435aa78-b105-4577-9a80-e4f00f6dbc80
+# ╟─a1100004-6e29-11f1-86c9-bd51549aea91
+# ╠═a1100005-6e29-11f1-86c9-bd51549aea91
+# ╟─a1100006-6e29-11f1-86c9-bd51549aea91
+# ╟─a1100007-6e29-11f1-86c9-bd51549aea91
+# ╟─a1100008-6e29-11f1-86c9-bd51549aea91
+# ╠═a1100009-6e29-11f1-86c9-bd51549aea91
+# ╟─a110000a-6e29-11f1-86c9-bd51549aea91
+# ╟─a110000b-6e29-11f1-86c9-bd51549aea91
+# ╟─a110000c-6e29-11f1-86c9-bd51549aea91
+# ╠═a110000d-6e29-11f1-86c9-bd51549aea91
+# ╟─a110000e-6e29-11f1-86c9-bd51549aea91
+# ╟─a110000f-6e29-11f1-86c9-bd51549aea91
+# ╟─a1100010-6e29-11f1-86c9-bd51549aea91
+# ╠═a1100011-6e29-11f1-86c9-bd51549aea91
+# ╟─a1100012-6e29-11f1-86c9-bd51549aea91
+# ╟─a1100013-6e29-11f1-86c9-bd51549aea91
+# ╟─a1100014-6e29-11f1-86c9-bd51549aea91
 # ╠═694d6079-ee0d-4278-8b52-89cd9a611dad
+# ╟─a1100015-6e29-11f1-86c9-bd51549aea91
 # ╠═68c082b1-98e2-4891-8583-78c0f6004077
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

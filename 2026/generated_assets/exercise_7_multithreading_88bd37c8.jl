@@ -2,13 +2,12 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "2.5"
-#> exercise_number = "5"
-#> title = "Structs and Custom Types"
-#> tags = ["module1", "track_principles", "exercises"]
+#> order = "3.1"
+#> exercise_number = "7"
+#> title = "Shared-memory parallelism"
+#> tags = ["module1", "track_parallel", "exercises"]
 #> layout = "layout.jlhtml"
-#> description = "Define custom Julia types with structs and extend them via multiple dispatch"
-#> date = "2026-04-22"
+#> description = "Practice shared-memory parallelism in Julia using Threads.@spawn for recursive parallelism and concurrent map"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -17,180 +16,182 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 1a2b3c4d-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
 using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ 4d5e6f7a-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 0331dc20-fa0b-4b7f-badc-a2040795f15a
+using LinearAlgebra, Random
+
+# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+using BenchmarkTools
+
+# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
+ChooseDisplayMode()
+
+# ╔═╡ 3e5c3c97-4401-41d4-a701-d9b24f9acdc6
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ 5e6f7a8b-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
 md"""
-# Exercise: Structs and Custom Types
+# Exercise: Shared-memory parallelism
 
-Julia lets you define your own types with `struct` and extend any function — including
-those from `Base` — via multiple dispatch.
-This is the mechanism behind Julia's composability: packages can work together without
-knowing about each other in advance.
+Julia's multi-threading model lets you spawn lightweight tasks that the scheduler maps
+onto available CPU cores. In this exercise you will use `Threads.@spawn` to parallelise
+a recursive algorithm and a map operation.
 """
 
-# ╔═╡ 6f7a8b9c-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 64e33738-e7b0-4a7a-893c-69b0b48b6215
 md"""
-## Part 1 — A 2D point type
-
-Define a struct `Point2D` with two `Float64` fields, `x` and `y`.
-
-Then extend:
-- `Base.:+(a, b)` — pointwise addition
-- `Base.:-(a, b)` — pointwise subtraction
-- `Base.:*(s, p)` where `s::Real` — scalar multiplication
-- `LinearAlgebra.norm(p)` — Euclidean norm $\sqrt{x^2 + y^2}$
+This notebook uses **$(Threads.nthreads()) threads**
 """
 
-# ╔═╡ 7a8b9cad-5a90-11f0-6209-8bf2bbbb6910
-# Define Point2D and its methods here
+# ╔═╡ 2d039f15-fe74-4296-8e26-53cce9dde7c6
+md"""
+## Part 1 — Parallel fibonacci
 
-# ╔═╡ 8b9cadb0-5a90-11f0-6209-8bf2bbbb6910
+Remember:
+
+```julia
+t = Threads.@spawn begin # `@spawn` returns right away
+    3 + 3
+end
+
+fetch(t) # `fetch` waits for the task to finish
+```
+"""
+
+# ╔═╡ cbbfe10c-2131-42a0-8db7-06e7518508d9
+function fib(n)
+	if n <= 1
+        return n
+    end
+	return fib(n-1) + fib(n-2)
+end
+
+# ╔═╡ 89858748-ebe6-4d00-b09c-6cb1064e101f
+fib(12)
+
+# ╔═╡ 03228a70-2298-4dcd-96e8-2be48603b860
+# TODO: Implement pfib
+
+# ╔═╡ 031dc47b-8a1c-48a2-abe6-de88050ae1c7
 let
-	if !@isdefined(Point2D)
-		func_not_defined(:Point2D)
+	if !@isdefined(pfib)
+		func_not_defined(:pfib)
+	elseif pfib(12) !== fib(12)
+		keep_working(md"Your solution and the reference solution disagree!")
 	else
-		p1 = Point2D(3.0, 0.0)
-		p2 = Point2D(0.0, 4.0)
-		p3 = try p1 + p2 catch; nothing end
-		if isnothing(p3)
-			keep_working(md"Addition `p1 + p2` threw an error — implement `Base.:+` for `Point2D`.")
-		elseif !(p3 isa Point2D && p3.x ≈ 3.0 && p3.y ≈ 4.0)
-			keep_working(md"`Point2D(3,0) + Point2D(0,4)` should give `Point2D(3.0, 4.0)`.")
-		elseif !(norm(p3) ≈ 5.0)
-			keep_working(md"`norm(Point2D(3.0, 4.0))` should be `5.0`.")
-		elseif !(2 * p1 isa Point2D && (2 * p1).x ≈ 6.0)
-			keep_working(md"`2 * Point2D(3.0, 0.0)` should give `Point2D(6.0, 0.0)`.")
-		else
-			correct()
-		end
+		correct()
 	end
 end
 
-# ╔═╡ 9cadb0c1-5a90-11f0-6209-8bf2bbbb6910
-answer_box(hint(md"""
-```julia
-struct Point2D
-    x::Float64
-    y::Float64
-end
-
-Base.:+(a::Point2D, b::Point2D)  = Point2D(a.x + b.x, a.y + b.y)
-Base.:-(a::Point2D, b::Point2D)  = Point2D(a.x - b.x, a.y - b.y)
-Base.:*(s::Real,    p::Point2D)  = Point2D(s * p.x, s * p.y)
-LinearAlgebra.norm(p::Point2D)   = sqrt(p.x^2 + p.y^2)
-```
-"""))
-
-# ╔═╡ adb0c1d2-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
+answer_box(hint(
 md"""
-## Part 2 — Parametric struct
-
-The `Point2D` above always uses `Float64`. Make it parametric so it works for any
-numeric element type:
-
 ```julia
-struct Point{T<:Real}
-    x::T
-    y::T
+function pfib(n)
+	if n <= 1
+		return n
+	end
+	t = Threads.@spawn pfib(n-2)
+	return pfib(n-1) + fetch(t)::Int
 end
 ```
+"""
+))
 
-Re-implement `+`, `-`, `*`, and `norm` for `Point{T}`.
-
-Check that `Point(3, 4)` (integers) and `Point(3.0f0, 4.0f0)` (Float32) both work
-and that the norm result type follows from the element type.
+# ╔═╡ 5d888f29-0204-4388-ab81-53aefafd5092
+md"""
+## Part 2 — Multi-threaded map
 """
 
-# ╔═╡ b0c1d2e3-5a90-11f0-6209-8bf2bbbb6910
-# Define Point{T} and its methods here
+# ╔═╡ 0c8cfee6-5edb-4400-b7cd-753c2975a1e4
+function tmap(fn, itr)
+    # for each i ∈ itr, spawn a task to compute fn(i)
+    tasks = map(i -> Threads.@spawn(fn(i)), itr)
+    # fetch and return all the results
+    return fetch.(tasks)
+end
 
-# ╔═╡ c1d2e3f4-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ b2aecd04-115e-4aef-90d9-077aa886e70e
+Ms = [rand(100,100) for i in 1:(8 * Threads.nthreads())];
+
+# ╔═╡ 4297ac26-de6b-4041-940e-531184860d84
+begin
+	BLAS.set_num_threads(Sys.CPU_THREADS) # Fix number of BLAS threads
+	# BLAS.set_num_threads(1)
+	blas_edge = nothing
+end
+
+# ╔═╡ 1fe0391a-7cee-4b9a-a775-3b78335f475c
+begin
+	blas_edge
+	serial_map_svdals_b = @benchmark map(svdvals, $Ms) samples=10 evals=3
+end
+
+# ╔═╡ cb042477-6a3e-4940-b3e6-38511936d370
+begin
+	blas_edge
+	threaded_map_svdals_b = @benchmark tmap(svdvals, $Ms) samples=10 evals=3
+end
+
+# ╔═╡ 3923ae23-1000-49ab-b5a2-c31567822e5d
+(minimum(serial_map_svdals_b.times) / minimum(threaded_map_svdals_b.times)) / Threads.nthreads() * 100 # parallel efficiency
+
+# ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
+md"""
+!!! note
+     Vary the number of threads the BLAS library uses.
+     (See the cell above with `BLAS.set_num_threads()`)
+"""
+
+# ╔═╡ d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6
+md"""
+### Task — chunked map
+
+`tmap` above spawns one task per element. For large arrays with cheap per-element work
+the task-spawning overhead can dominate. Implement `tmap_chunked(fn, itr, chunk_size)`
+that splits `itr` into chunks of `chunk_size` elements and spawns one task per chunk.
+
+*Hint:* `Iterators.partition(itr, chunk_size)` splits an iterable into fixed-size pieces.
+"""
+
+# ╔═╡ e2f3a4b5-c6d7-4e8f-9a0b-b2c3d4e5f6a7
+# TODO: Implement tmap_chunked
+
+# ╔═╡ f3a4b5c6-d7e8-4f9a-ab1c-c3d4e5f6a7b8
 let
-	if !@isdefined(Point)
-		func_not_defined(:Point)
+	if !@isdefined(tmap_chunked)
+		func_not_defined(:tmap_chunked)
+	elseif tmap_chunked(x -> x^2, 1:10, 3) != map(x -> x^2, collect(1:10))
+		keep_working(md"`tmap_chunked(x -> x^2, 1:10, 3)` should equal `[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]`.")
 	else
-		p_int = try Point(3, 4)   catch; nothing end
-		p_f32 = try Point(3.0f0, 4.0f0) catch; nothing end
-		if isnothing(p_int)
-			keep_working(md"`Point(3, 4)` threw an error.")
-		elseif isnothing(p_f32)
-			keep_working(md"`Point(3.0f0, 4.0f0)` threw an error.")
-		elseif !(norm(p_int) ≈ 5.0)
-			keep_working(md"`norm(Point(3, 4))` should be `5.0`.")
-		elseif !(norm(p_f32) isa Float32)
-			keep_working(md"`norm(Point(3.0f0, 4.0f0))` should return a `Float32`.")
-		else
-			correct()
-		end
+		correct()
 	end
 end
 
-# ╔═╡ d2e3f405-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ a4b5c6d7-e8f9-4a0b-bc1d-d4e5f6a7b8c9
 answer_box(hint(md"""
 ```julia
-struct Point{T<:Real}
-    x::T
-    y::T
+function tmap_chunked(fn, itr, chunk_size)
+    chunks = Iterators.partition(itr, chunk_size)
+    tasks = map(chunk -> Threads.@spawn(map(fn, collect(chunk))), chunks)
+    vcat(fetch.(tasks)...)
 end
-
-Base.:+(a::Point, b::Point)  = Point(a.x + b.x, a.y + b.y)
-Base.:-(a::Point, b::Point)  = Point(a.x - b.x, a.y - b.y)
-Base.:*(s::Real,  p::Point)  = Point(s * p.x, s * p.y)
-LinearAlgebra.norm(p::Point) = sqrt(p.x^2 + p.y^2)
 ```
-
-`sqrt` preserves element type: `sqrt(3^2 + 4^2)` → `Float64`, `sqrt(3.0f0^2 + 4.0f0^2)` → `Float32`.
-"""))
-
-# ╔═╡ e3f40516-5a90-11f0-6209-8bf2bbbb6910
-md"""
-## Part 3 — Custom `show`
-
-Implement `Base.show(io::IO, p::Point)` so that a point displays as `(3.0, 4.0)`
-rather than the default `Point{Float64}(3.0, 4.0)`.
-"""
-
-# ╔═╡ f4051627-5a90-11f0-6209-8bf2bbbb6910
-# Implement show here
-
-# ╔═╡ 05162738-5a90-11f0-6209-8bf2bbbb6910
-let
-	if !@isdefined(Point)
-		func_not_defined(:Point)
-	else
-		p = Point(3.0, 4.0)
-		s = sprint(show, p)
-		if s == "(3.0, 4.0)"
-			correct()
-		else
-			keep_working(md"`show` should display the point as `(x, y)`, but got `$(s)`.")
-		end
-	end
-end
-
-# ╔═╡ 16273849-5a90-11f0-6209-8bf2bbbb6910
-answer_box(hint(md"""
-```julia
-Base.show(io::IO, p::Point) = print(io, "(", p.x, ", ", p.y, ")")
-```
-
-After defining this, `Point(3.0, 4.0)` will render as `(3.0, 4.0)` in Pluto cells
-and in the REPL.
 """))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
-PlutoTeachingTools = "~0.4"
+BenchmarkTools = "~1.6.0"
 PlutoUI = "~0.7"
 """
 
@@ -200,7 +201,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "298d939e2def5605c9bbf33e4a51404869962d9d"
+project_hash = "c7ddad1e8b318d8adb139bcd1dfee9fb31e937bb"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -220,6 +221,12 @@ version = "1.11.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
+[[deps.BenchmarkTools]]
+deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "7fecfb1123b8d0232218e2da0c213004ff15358d"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.6.3"
+
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
 git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
@@ -229,6 +236,16 @@ weakdeps = ["StyledStrings"]
 
     [deps.ColorTypes.extensions]
     StyledStringsExt = "StyledStrings"
+
+[[deps.Compat]]
+deps = ["TOML", "UUIDs"]
+git-tree-sha1 = "9d8a54ce4b17aa5bdce0ea5c34bc5e7c340d16ad"
+uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
+version = "4.18.1"
+weakdeps = ["Dates", "LinearAlgebra"]
+
+    [deps.Compat.extensions]
+    CompatLinearAlgebraExt = "LinearAlgebra"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -294,6 +311,18 @@ deps = ["Artifacts", "Preferences"]
 git-tree-sha1 = "0533e564aae234aff59ab625543145446d8b6ec2"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
 version = "1.7.1"
+
+[[deps.JSON]]
+deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
+git-tree-sha1 = "3e846e18560a65dcef26febd2ede0160c6831c1c"
+uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+version = "1.5.1"
+
+    [deps.JSON.extensions]
+    JSONArrowExt = ["ArrowTypes"]
+
+    [deps.JSON.weakdeps]
+    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -405,6 +434,12 @@ git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.8.1"
 
+[[deps.Parsers]]
+deps = ["Dates", "PrecompileTools", "UUIDs"]
+git-tree-sha1 = "5d5e0a78e971354b1c7bff0655d11fdc1b0e12c8"
+uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
+version = "2.8.4"
+
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -428,6 +463,12 @@ git-tree-sha1 = "fbc875044d82c113a9dee6fc14e16cf01fd48872"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 version = "0.7.80"
 
+[[deps.PrecompileTools]]
+deps = ["Preferences"]
+git-tree-sha1 = "07a921781cab75691315adc645096ed5e370cb77"
+uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+version = "1.3.3"
+
 [[deps.Preferences]]
 deps = ["TOML"]
 git-tree-sha1 = "8b770b60760d4451834fe79dd483e318eee709c4"
@@ -437,6 +478,11 @@ version = "1.5.2"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+version = "1.11.0"
+
+[[deps.Profile]]
+deps = ["StyledStrings"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Random]]
@@ -474,6 +520,22 @@ version = "1.11.1"
 
     [deps.Statistics.weakdeps]
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[[deps.StructUtils]]
+deps = ["Dates", "UUIDs"]
+git-tree-sha1 = "86f5831495301b2a1387476cb30f86af7ab99194"
+uuid = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
+version = "2.8.0"
+
+    [deps.StructUtils.extensions]
+    StructUtilsMeasurementsExt = ["Measurements"]
+    StructUtilsStaticArraysCoreExt = ["StaticArraysCore"]
+    StructUtilsTablesExt = ["Tables"]
+
+    [deps.StructUtils.weakdeps]
+    Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
+    StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
+    Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
@@ -535,20 +597,30 @@ version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═1a2b3c4d-5a90-11f0-6209-8bf2bbbb6910
-# ╟─4d5e6f7a-5a90-11f0-6209-8bf2bbbb6910
-# ╟─5e6f7a8b-5a90-11f0-6209-8bf2bbbb6910
-# ╟─6f7a8b9c-5a90-11f0-6209-8bf2bbbb6910
-# ╠═7a8b9cad-5a90-11f0-6209-8bf2bbbb6910
-# ╟─8b9cadb0-5a90-11f0-6209-8bf2bbbb6910
-# ╟─9cadb0c1-5a90-11f0-6209-8bf2bbbb6910
-# ╟─adb0c1d2-5a90-11f0-6209-8bf2bbbb6910
-# ╠═b0c1d2e3-5a90-11f0-6209-8bf2bbbb6910
-# ╟─c1d2e3f4-5a90-11f0-6209-8bf2bbbb6910
-# ╟─d2e3f405-5a90-11f0-6209-8bf2bbbb6910
-# ╟─e3f40516-5a90-11f0-6209-8bf2bbbb6910
-# ╠═f4051627-5a90-11f0-6209-8bf2bbbb6910
-# ╟─05162738-5a90-11f0-6209-8bf2bbbb6910
-# ╟─16273849-5a90-11f0-6209-8bf2bbbb6910
+# ╠═75b9bee9-7d03-4c90-b828-43e9e946517b
+# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
+# ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
+# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
+# ╟─64e33738-e7b0-4a7a-893c-69b0b48b6215
+# ╟─2d039f15-fe74-4296-8e26-53cce9dde7c6
+# ╠═cbbfe10c-2131-42a0-8db7-06e7518508d9
+# ╠═89858748-ebe6-4d00-b09c-6cb1064e101f
+# ╠═03228a70-2298-4dcd-96e8-2be48603b860
+# ╟─031dc47b-8a1c-48a2-abe6-de88050ae1c7
+# ╟─4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
+# ╟─5d888f29-0204-4388-ab81-53aefafd5092
+# ╠═0331dc20-fa0b-4b7f-badc-a2040795f15a
+# ╠═91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+# ╠═0c8cfee6-5edb-4400-b7cd-753c2975a1e4
+# ╠═b2aecd04-115e-4aef-90d9-077aa886e70e
+# ╠═4297ac26-de6b-4041-940e-531184860d84
+# ╠═1fe0391a-7cee-4b9a-a775-3b78335f475c
+# ╠═cb042477-6a3e-4940-b3e6-38511936d370
+# ╠═3923ae23-1000-49ab-b5a2-c31567822e5d
+# ╟─c88229ac-c421-41e5-8db8-c62afdb54322
+# ╟─d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6
+# ╠═e2f3a4b5-c6d7-4e8f-9a0b-b2c3d4e5f6a7
+# ╟─f3a4b5c6-d7e8-4f9a-ab1c-c3d4e5f6a7b8
+# ╟─a4b5c6d7-e8f9-4a0b-bc1d-d4e5f6a7b8c9
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
