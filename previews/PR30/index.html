@@ -1,0 +1,240 @@
+<!DOCTYPE html><html lang="en">
+<head>
+
+<title>index — Research Software Engineering with Julia </title>
+
+<meta name="citation_title" content='Research Software Engineering with Julia' /><meta name="citation_author" content='Valentin Churavy' /><meta name="citation_publisher" content='University of Mainz' /><meta name="citation_language" content="en" /><meta name="citation_public_url" content='https://vchuravy.github.io/rse-course/2026' /><meta name="citation_publication_date" content='2026' />
+
+<link rel="root" href="." />
+
+<link rel="icon" href="./assets/favicon.ico" />
+<link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+
+<link rel="stylesheet" href="./assets/styles/index.css" type="text/css" />
+<link rel="stylesheet" href="./assets/styles/layout.css" type="text/css" />
+<script src="./assets/scripts/sidebar.js" type="module"></script>
+
+<link rel="pp-search-data" href="./pp_search_data.json" />
+<script src="https://cdn.jsdelivr.net/npm/lunr@2.3.9/lunr.min.js" integrity="sha256-DFDZACuFeAqEKv/7Vnu1Tt5ALa58bcWZegGGFNgET8g=" crossorigin="anonymous" defer></script>
+<script src="./assets/scripts/search.js" type="module" defer></script>
+
+<script src="https://cdn.jsdelivr.net/npm/lite-youtube-embed@0.3.0/src/lite-yt-embed.js" integrity="sha256-sDRYYtDc+jNi2rrJPUS5kGxXXMlmnOSCq5ek5tYAk/M=" crossorigin="anonymous" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lite-youtube-embed@0.3.0/src/lite-yt-embed.css" integrity="sha256-lv6SEl7Dhri7d86yiHCTuSWFb9CYROQFewxZ7Je0n5k=" crossorigin="anonymous">
+
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "8572a580bead4b729ad55779ba3a1cd6"}'></script>
+
+<script data-goatcounter="https://computationalthinking-stats.plutojl.org/count" async src="//computationalthinking-stats.plutojl.org/count.js"></script>
+
+<script defer data-domain="vchuravy.dev" src="https://plausible.io/js/script.hash.js"></script>
+
+<script type="importmap">{"imports":{"9IVCm":"./firebase-firestore.97b3e0f3.js","g8zEq":"./firebase-app.513de744.js"}}</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/editor.f27d730b.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/editor.4403bf6d.css"><script type="module" src="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/frontend.16ec773c.js"></script>
+    <meta name="viewport" content="width=device-width">
+    <meta charset="utf-8">
+
+    
+<meta name="pluto-insertion-spot-meta">
+
+
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="white">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#2a2928">
+    <meta name="color-scheme" content="light dark">
+
+    
+    
+    
+    <link rel="pluto-external-source" id="pluto-logo-big" href="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/logo.103597bc.svg">
+    <link rel="pluto-external-source" id="pluto-logo-small" href="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/favicon_unsaturated.9ed3a6f6.svg">
+
+    <script defer="">console.log("Pluto.jl, by Fons van der Plas (https://github.com/fonsp), Mikołaj Bochenski (https://github.com/malyvsen), Michiel Dral (https://github.com/dralletje) and friends 🌈");</script>
+
+    <script src="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/editor.ed1b15a7.js" defer=""></script>
+
+    <!-- This doesn't do anything unless activated, and it makes sure parcel bundles this -->
+    <script id="iframe-resizer-content-window-script" src="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/editor.2ba45c45.js" crossorigin="anonymous" defer=""></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/editor.409716be.css" type="text/css">
+
+    <meta rel="pluto-cdn-root" href="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/">
+    <script data-pluto-file="launch-parameters">
+window.pluto_notebook_id = undefined;
+window.pluto_isolated_cell_ids = undefined;
+window.pluto_notebookfile = undefined;
+window.pluto_disable_ui = true;
+window.pluto_slider_server_url = undefined;
+window.pluto_binder_url = "https://mybinder.org/v2/gh/fonsp/pluto-on-binder/v0.20.24";
+window.pluto_statefile = undefined;
+window.pluto_preamble_html = undefined;
+window.pluto_recording_url = undefined;
+window.pluto_recording_audio_url = undefined;
+</script>
+
+<meta name="pluto-insertion-spot-parameters">
+
+    <script src="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/editor.7ab89870.js" type="module" defer=""></script>
+    <script src="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/frontend.ae6e0116.js"></script>
+
+    <!-- This script will be enabled by JS after the notebook has initialized to prevent taking up bandwidth during the initial load. -->
+    <link rel="pluto-external-source" id="MathJax-script" href="https://cdn.jsdelivr.net/gh/JuliaPluto/Pluto.jl@0.20.24/frontend-dist/tex-svg-full.6762fe7d.js" type="text/javascript">
+    
+    
+<meta name="pluto-insertion-spot-preload">
+
+
+
+</head>
+<body>
+    <div id="pages-layout">
+        <button id="toggle-nav" title="Open navigation"></button>
+        <nav id="pages-sidebar">
+        <div>
+        <ul>
+            <li class="sidebar-about">
+                <div class="course-title">
+                    <h1><a href="."><span>Research Software Engineering with Julia</span></a></h1>
+                    <h2><span></span></h2>
+                </div>
+                <div class="authors">
+                    by <a href="https://vchuravy.dev">Valentin Churavy</a>
+                </div>
+            </li>
+            <li>
+                <div class="search-bar">
+                    <form action="./search" method="GET">
+                        <input type="search" name="q" placeholder="Search...">
+                        <input type=submit value="🔎">
+                    </form>
+                </div>
+            </li>
+            <li>
+                <div class="track-chooser">
+                    <label>
+                    <h2>Choose your track:</h2>
+                    <select>
+                        <option value="">Choose...</option>
+                        <option value="principles">Principles of RSE</option> <option value="performance">Performance Engineering</option> <option value="parallel">Parallel programming</option> <option value="ad">Automatic Differentiation</option> 
+                    </select>
+                    </label>
+                </div>
+            </li>
+        <li>
+<h3>Welcome</h3>
+<ul>
+<li class=' lecture tag_welcome'><a href='./logistics/'><span class="entry-number"></span> Class logistics</a></li><li class=' lecture tag_welcome'><a href='./installation/'><span class="entry-number"></span> Software installation</a></li><li class=' lecture tag_welcome'><a href='./cheatsheets/'><span class="entry-number"></span> Resources</a></li>
+</ul>
+</li>
+<li>
+<h3>Module 1: Introduction</h3>
+<ul>
+<li class=' lecture tag_module1 tag_track_principles'><a href='./mod1_introduction/research_software_engineering/'><span class="entry-number">1.1</span> Research Software Engineering</a></li><li class=' lecture tag_module1 tag_track_principles'><a href='./mod1_introduction/julia_introduction/'><span class="entry-number">1.2</span> Introduction to Julia</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='./exercises/exercise_1_functions_unicode/' title='Practice writing Julia functions and using Unicode identifiers'><span class="entry-number">Exercise 1:</span> Functions and Unicode</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='./exercises/exercise_2_multiple_dispatch/' title='Explore Julia&apos;s multiple dispatch system by adding methods to functions'><span class="entry-number">Exercise 2:</span> Multiple Dispatch</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='./exercises/exercise_3_type_stability/' title='Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code'><span class="entry-number">Exercise 3:</span> Type Stability</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='./exercises/exercise_4_broadcasting/' title='Practice Julia&apos;s broadcasting syntax and array comprehensions for element-wise operations'><span class="entry-number">Exercise 4:</span> Broadcasting and Array Comprehensions</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='./exercises/exercise_5_structs/' title='Define custom Julia types with structs and extend them via multiple dispatch'><span class="entry-number">Exercise 5:</span> Structs and Custom Types</a></li><li class=' exercise tag_module1 tag_track_principles tag_exercises'><a href='./exercises/exercise_6_statistics/' title='Explore a real dataset: filter DataFrames, compute summary statistics, and create labelled plots'><span class="entry-number">Exercise 6:</span> Statistics</a></li><li class=' indepth tag_module1 tag_track_principles tag_indepth'><a href='./mod1_introduction/types/'><span class="entry-number">In-depth 1:</span> Types, Structs, and Mutable Structs</a></li><li class=' lecture tag_module1 tag_track_parallel'><a href='./mod1_introduction/parallelism/'><span class="entry-number">1.3</span> Parallelism</a></li><li class=' exercise tag_module1 tag_track_parallel tag_exercises'><a href='./exercises/exercise_7_multithreading/' title='Practice shared-memory parallelism in Julia using Threads.@spawn for recursive parallelism and concurrent map'><span class="entry-number">Exercise 7:</span> Shared-memory parallelism</a></li><li class=' exercise tag_module1 tag_track_parallel tag_exercises'><a href='./exercises/exercise_8_accelerated/' title='Write portable GPU kernels using KernelAbstractions.jl, targeting CUDA, Metal, oneAPI, and CPU backends'><span class="entry-number">Exercise 8:</span> Introduction to accelerated computing</a></li>
+</ul>
+</li>
+
+                <li><hr></li>
+            <li class="sidebar-about">
+                <div class="semester-details">
+                    <a href="./../semesters/">2026</a>
+                    <div class="course-numbers"><span></span></div>
+                </div>
+                <div class="logos">
+                    <picture title="University of Mainz">
+                        <img src="./assets/jgu_logo.jpg">
+                    </picture>
+                    <picture title="Julia Programming Language">
+                        <source srcset="./assets/julia-logo-dark.svg" media="(prefers-color-scheme: dark)" />
+                        <img src="./assets/julia-logo-color.svg">
+                    </picture>
+                </div>
+            </li>
+        </ul>
+        </div>
+        </nav>
+        <div id="pages-content">
+           
+        <link rel="stylesheet" href="./assets/styles/homepage.css" type="text/css" />
+<div id="title" class="banner">
+    <h1>Research Software Engineering with Julia</h1>
+</div>
+<main class="homepage">
+<!-- <div class="subjectscontainer wide">
+  <h1>Highlights</h1>
+  <div class="contain">
+  <section>
+<div class="content">
+    <h2>Easy to customise</h2>
+    <p><div class="markdown"><p>Let the template automate all of the website development and infrastructure, so that you can focus on the most important thing:              <strong>easily develop your lesson materials&#33;</strong></p>
+</div></p>
+</div>
+<div class="preview">
+    <img src="https://user-images.githubusercontent.com/6933510/168320383-a401459b-97f5-41df-bc7b-ebe76e4886cc.png">
+</div>
+</section>
+<section>
+<div class="content">
+    <h2>Revolutionary interactivity with Pluto.jl</h2>
+    <p><div class="markdown"><p>Thanks to Pluto.jl, the website is built using real code, and instead of a book, we have a series of interactive notebooks. <strong>On the website, students can play with sliders, buttons and images to interact with our simulations.</strong> You can even go further, and modify and run any code on our website&#33;</p>
+</div></p>
+</div>
+<div class="preview">
+    <img src="https://user-images.githubusercontent.com/6933510/136196607-16207911-53be-4abb-b90e-d46c946e6aaf.gif">
+</div>
+</section>
+<section>
+<div class="content">
+    <h2>Learn Julia</h2>
+    <p><div class="markdown"><p>In literature it&#39;s not enough to just know the technicalities of grammar. In music it&#39;s not enough to learn the scales. The goal is to communicate experiences and emotions. For a computer scientist, it&#39;s not enough to write a working program, the program should be written with beautiful high level abstractions that speak to your audience. <strong>Julia is designed with this purpose in mind, use it in your teaching to harness its power.</strong></p>
+</div></p>
+</div>
+<div class="preview">
+    <img src="https://user-images.githubusercontent.com/6933510/136203632-29ce0a96-5a34-46ad-a996-de55b3bcd380.png">
+</div>
+</section>
+  </div>
+</div>
+<div class="wide subjectscontainer">
+<h1>Subjects</h1>
+<div class="subjects">
+</div>
+</div>
+ -->
+<div class="wide subjectscontainer">
+<h1>Schedule</h1>
+<div class="subjects">
+<a class='no-decoration tag_module1 tag_track_principles' href='./mod1_introduction/research_software_engineering/'>
+    <h3>Research Software Engineering</h3>
+    2026-04-15
+</a><a class='no-decoration tag_module1 tag_track_principles' href='./mod1_introduction/julia_introduction/'>
+    <h3>Introduction to Julia</h3>
+    2026-04-22
+</a><a class='no-decoration tag_module1 tag_track_principles tag_indepth' href='./mod1_introduction/types/'>
+    <h3>Types, Structs, and Mutable Structs</h3>
+    2026-04-28
+</a><a class='no-decoration tag_module1 tag_track_parallel' href='./mod1_introduction/parallelism/'>
+    <h3>Parallelism</h3>
+    2026-04-28
+</a>
+</div>
+</div>
+</main>
+<div class="citation">
+    <h2>Cite this course</h2>
+    <p>Valentin Churavy. (2026). Research Software Engineering with Julia. University of Mainz. https://vchuravy.github.io/rse-course/2026</p>
+    <pre><code>@book{churavy2026:rsecourse,
+  author       = {Churavy, Valentin},
+  title        = {Research Software Engineering with Julia},
+  year         = {2026},
+  organization = {University of Mainz},
+  url          = {https://vchuravy.github.io/rse-course/2026},
+}</code></pre>
+</div>
+
+        
+        <div class="page-foot">
+            <div class="copyright">
+                <a href="https://github.com/vchuravy/rse-course"><b>Edit this page on <img class="github-logo" src="https://unpkg.com/ionicons@5.1.2/dist/svg/logo-github.svg"></b></a><br>
+                Website based on the MIT course <a href="https://computationalthinking.mit.edu"><em><b>Computational Thinking</b>, a live online Julia/Pluto textbook</em></a> and built with <a href="https://plutojl.org/">Pluto.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+            </div>
+        </div>
+        </div>
+    </div>
+</body>
+</html>
