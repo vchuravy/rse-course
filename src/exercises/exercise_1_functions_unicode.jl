@@ -7,6 +7,7 @@
 #> title = "Functions and Unicode"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Practice writing Julia functions and using Unicode identifiers"
 #> 
 #>     [[frontmatter.author]]

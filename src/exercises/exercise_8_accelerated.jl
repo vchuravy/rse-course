@@ -7,6 +7,7 @@
 #> title = "Introduction to accelerated computing"
 #> tags = ["module1", "track_parallel", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Write portable GPU kernels using KernelAbstractions.jl, targeting CUDA, Metal, oneAPI, and CPU backends"
 #> 
 #>     [[frontmatter.author]]

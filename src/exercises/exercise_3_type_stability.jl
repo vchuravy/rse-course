@@ -7,6 +7,7 @@
 #> title = "Type Stability"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code"
 #> 
 #>     [[frontmatter.author]]

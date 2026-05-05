@@ -7,6 +7,7 @@
 #> title = "Shared-memory parallelism"
 #> tags = ["module1", "track_parallel", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Practice shared-memory parallelism in Julia using Threads.@spawn for recursive parallelism and concurrent map"
 #> 
 #>     [[frontmatter.author]]

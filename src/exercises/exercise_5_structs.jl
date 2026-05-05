@@ -7,6 +7,7 @@
 #> title = "Structs and Custom Types"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Define custom Julia types with structs and extend them via multiple dispatch"
 #> 
 #>     [[frontmatter.author]]

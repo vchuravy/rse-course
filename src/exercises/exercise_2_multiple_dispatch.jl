@@ -7,6 +7,7 @@
 #> title = "Multiple Dispatch"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Explore Julia's multiple dispatch system by adding methods to functions"
 #> 
 #>     [[frontmatter.author]]

@@ -7,6 +7,7 @@
 #> title = "Broadcasting and Array Comprehensions"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Practice Julia's broadcasting syntax and array comprehensions for element-wise operations"
 #> 
 #>     [[frontmatter.author]]

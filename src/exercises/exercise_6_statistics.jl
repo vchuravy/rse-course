@@ -7,6 +7,7 @@
 #> title = "Statistics"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Explore a real dataset: filter DataFrames, compute summary statistics, and create labelled plots"
 #> 
 #>     [[frontmatter.author]]
