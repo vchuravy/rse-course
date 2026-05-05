@@ -7,6 +7,7 @@
 #> title = "Broadcasting and Array Comprehensions"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
+#> license = "MIT"
 #> description = "Practice Julia's broadcasting syntax and array comprehensions for element-wise operations"
 #> 
 #>     [[frontmatter.author]]
@@ -204,7 +205,7 @@ PlutoUI = "~0.7"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.4"
+julia_version = "1.12.6"
 manifest_format = "2.0"
 project_hash = "298d939e2def5605c9bbf33e4a51404869962d9d"
 

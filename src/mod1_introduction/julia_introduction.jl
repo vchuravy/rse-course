@@ -552,6 +552,89 @@ end
 # 	cond = false
 # end
 
+# ╔═╡ aabbccdd-0001-4000-8000-000000000101
+md"""
+### Exceptions and Error Handling
+
+Julia uses exceptions for exceptional control flow.  Errors propagate up the
+call stack until caught by a `try`/`catch` block.
+
+```julia
+try
+    # code that might fail
+catch e          # e is bound to the thrown value
+    # handle error
+finally          # optional — always runs
+    # cleanup
+end
+```
+
+Common ways to signal an error:
+
+| Form | When to use |
+|---|---|
+| `error("message")` | Simple string error |
+| `throw(SomeException(...))` | Specific exception type |
+| `@assert cond "msg"` | Precondition check (debug-removable) |
+"""
+
+# ╔═╡ aabbccdd-0001-4000-8000-000000000102
+# try/catch returns a value — useful for fallbacks
+result = try
+    sqrt(-1.0)          # throws DomainError
+catch e
+    NaN
+end
+
+# ╔═╡ aabbccdd-0001-4000-8000-000000000103
+# Inspect the caught exception
+try
+    parse(Int, "not a number")
+catch e
+    println(typeof(e))   # ArgumentError
+    println(e.msg)
+end
+
+# ╔═╡ aabbccdd-0001-4000-8000-000000000104
+# throw a specific exception type with context
+function safe_sqrt(x)
+    x < 0 && throw(DomainError(x, "argument must be ≥ 0"))
+    sqrt(x)
+end
+
+# ╔═╡ aabbccdd-0001-4000-8000-000000000105
+try
+    safe_sqrt(-4.0)
+catch e
+    e          # DomainError with val and msg
+end
+
+# ╔═╡ aabbccdd-0001-4000-8000-000000000106
+md"""
+#### Custom exception types
+
+Define a struct that subtypes `Exception`, and optionally extend `Base.showerror`
+for a friendly message.
+"""
+
+# ╔═╡ aabbccdd-0001-4000-8000-000000000107
+begin
+	struct ConvergenceError <: Exception
+	    iterations::Int
+	end
+	
+	Base.showerror(io::IO, e::ConvergenceError) =
+	    print(io, "ConvergenceError: did not converge after $(e.iterations) iterations")
+end
+
+# ╔═╡ aabbccdd-0001-4000-8000-000000000108
+# sprint(showerror, e) formats the exception as a string
+try
+    throw(ConvergenceError(100))
+catch e
+    sprint(showerror, e)
+end
+
 # ╔═╡ ca1c42da-3db7-11f1-884c-873d52639f08
 md"""
 ### Array comprehensions
@@ -782,7 +865,7 @@ PlutoUI = "~0.7.80"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.4"
+julia_version = "1.12.6"
 manifest_format = "2.0"
 project_hash = "3d21a7ed524558923cd6b991238c85027a956ae8"
 
@@ -2539,6 +2622,14 @@ version = "4.1.0+0"
 # ╠═d995e1e5-29f8-48c6-a8b5-5889e0e22339
 # ╠═ca1c42ba-3db7-11f1-91e6-319d6f35f8af
 # ╠═154d4c02-d304-4c90-b935-d7817d61cf1c
+# ╟─aabbccdd-0001-4000-8000-000000000101
+# ╠═aabbccdd-0001-4000-8000-000000000102
+# ╠═aabbccdd-0001-4000-8000-000000000103
+# ╠═aabbccdd-0001-4000-8000-000000000104
+# ╠═aabbccdd-0001-4000-8000-000000000105
+# ╟─aabbccdd-0001-4000-8000-000000000106
+# ╠═aabbccdd-0001-4000-8000-000000000107
+# ╠═aabbccdd-0001-4000-8000-000000000108
 # ╟─ca1c42da-3db7-11f1-884c-873d52639f08
 # ╠═ca1c430c-3db7-11f1-8f61-555b159aff10
 # ╠═e7ec8c28-8278-409c-9640-1d5a02cee42b
