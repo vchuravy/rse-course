@@ -53,6 +53,9 @@ Implementing proximal gradient descent for minimization of a squared error loss 
 [Inspiration](https://discourse.julialang.org/t/types-and-gradients-including-forward-gradient/946)
 """
 
+# ╔═╡ aabb1140-1111-4000-8000-000000000011
+import Enzyme
+
 # ╔═╡ 10b7c128-c33b-4089-a20b-d53dc531abef
 # model
 linear_regression(w, b, x) = w*x .+ b
@@ -163,39 +166,121 @@ my_loss(ŷ, y) = sum(abs, ŷ .- y) / size(y, 2)
 
 # ╔═╡ d925aa0a-f35f-4b4a-8df1-a2dff5530582
 md"""
-## Part 2 — Generic arrays
+## Part 2 — Element-type genericity
 """
 
 # ╔═╡ d889d62b-186d-458f-bfb0-1db728b739a5
-question_box(md"""
-Cast your mind back to the lecture on parallel computing.
+md"""
+In machine learning `Float32` is typically preferred over `Float64`: it halves memory
+usage and is faster on both CPUs and GPUs (where most real training happens).
 
-This code only uses array-based abstractions.
-Is it generic enough that it just works with different array types?
-
-1. Try calling `main(CuArray)` if you have a GPU available (you may need to `import CUDA` first).
-2. What breaks, if anything? What would you need to fix?
-""")
+The `main` function accepts an array constructor `T` so we can swap array types, but
+there is a hidden type inconsistency that prevents it from being truly generic.
+"""
 
 # ╔═╡ 84ff0ef3-aeea-46de-8305-53d997bf0aa4
-md"""
-!!! note
-    If it doesn't work with your array type of choice, consider filing an issue or a pull-request upstream.
-"""
+question_box(md"""
+1. Run `main(x -> Float32.(x))`.  What is the element type of `b` at the end of training?
+2. Find the line in `main` that forces `b` to always be `Float64`, regardless of `T`.
+3. Write a corrected version `main_f32` where `b` has the same element type as `w` after
+   the arrays are converted — use `zero(eltype(w))` to construct the initial bias.
+4. Verify that the final loss from `main_f32()` is close to the one from `main()`.
+""")
+
+# ╔═╡ aabb1120-1111-4000-8000-000000000011
+# TODO: Implement main_f32
+
+# ╔═╡ aabb1121-1111-4000-8000-000000000011
+let
+	if !@isdefined(main_f32)
+		func_not_defined(:main_f32)
+	else
+		try
+			errs32 = main_f32()
+			errs64 = main(Array)
+			if !(eltype(errs32) <: Float32)
+				keep_working(md"The errors should be `Float32`. Check that `b` is initialised with `zero(eltype(w))`.")
+			elseif !(last(errs32) ≈ last(errs64); atol=0.05)
+				keep_working(md"The final loss of `main_f32()` should be close to `main()`. Got $(last(errs32)) vs $(last(errs64)).")
+			else
+				correct()
+			end
+		catch e
+			keep_working(md"Got an error: $(sprint(showerror, e))")
+		end
+	end
+end
+
+# ╔═╡ aabb1122-1111-4000-8000-000000000011
+answer_box(hint(md"""
+Change `b = 0.0` to `b = zero(eltype(w))` **after** converting `w = T(w)`:
+
+```julia
+function main_f32(T = x -> Float32.(x), n = 100000)
+    Random.seed!(0)
+    p = 25
+    x = randn(n, p)'
+    y = sum(x[1:5, :]; dims=1) .+ randn(n)' * 0.1
+    w = 0.0001 * randn(1, p)
+
+    x = T(x); y = T(y); w = T(w)
+    b = zero(eltype(w))   # tracks the element type of w
+
+    model = linear_regression
+    loss  = mean_squared_error
+    errs  = [loss(model(w, b, x), y)]
+    for i in 1:p
+        w, b = proximal_gradient_descent(model, loss, w, b, x, y)
+        push!(errs, loss(model(w, b, x), y))
+    end
+    errs
+end
+```
+"""))
 
 # ╔═╡ 238e80e6-1358-407b-b617-7149ea055f96
 md"""
 ## Part 3 — Different AD framework
 """
 
+# ╔═╡ aabb1133-1111-4000-8000-000000000011
+tip(md"""
+**Enzyme.jl API primer**
+
+Exercise 10 showed `Enzyme.autodiff(Enzyme.Forward, ...)` for scalar forward-mode
+derivatives.  Here we need *gradients* — derivatives of a scalar-valued function
+w.r.t. a *vector* argument — and we want to use *reverse mode* because it needs
+only **one backward pass** regardless of the number of inputs (compare: forward mode
+needs one pass *per parameter*).
+
+```julia
+import Enzyme
+
+# gradient of f : Rⁿ → R  w.r.t. its vector argument x
+g = Enzyme.gradient(Enzyme.Reverse, f, x)   # returns a vector the same shape as x
+
+# for a scalar argument use autodiff directly
+# (gradient requires an array; autodiff handles scalars)
+db = Enzyme.autodiff(Enzyme.Reverse, f, Enzyme.Active(b))[1][1]
+```
+
+The key pieces:
+- `Enzyme.Reverse` — use reverse-mode (backpropagation).
+- `Enzyme.gradient(mode, f, x)` — high-level helper; returns `∇f(x)` as an array.
+- `Enzyme.Active(b)` — marks a *scalar* as an active (differentiated) input when calling `autodiff` directly; the derivative is returned in the first element of the first tuple.
+""")
+
 # ╔═╡ aabb1130-1111-4000-8000-000000000011
 question_box(md"""
-We use `ForwardDiff.gradient` above. As discussed in the lecture, forward-mode AD is inefficient when there are many parameters (here `p = 25`).
+`ForwardDiff.gradient` used above is forward-mode AD: it needs one forward pass per
+parameter, so cost scales with `p = 25`.  Reverse-mode AD (backpropagation) computes
+all parameter gradients in a single backward pass.
 
-1. Add `Enzyme` to the notebook (run `import Pkg; Pkg.add("Enzyme")` in a cell).
-2. Implement `loss∇w_enzyme` using `Enzyme.gradient(Enzyme.Reverse, ...)` instead of `ForwardDiff.gradient`.
-3. Implement `lossdb_enzyme` for the scalar bias term.
-4. Verify both return the same values as the original `loss∇w` and `lossdb`.
+1. Using the primer above, implement `loss∇w_enzyme(model, loss, w, b, x, y)` with
+   `Enzyme.gradient(Enzyme.Reverse, ...)`.
+2. Implement `lossdb_enzyme(model, loss, w, b, x, y)` for the scalar bias using
+   `Enzyme.autodiff(Enzyme.Reverse, ..., Enzyme.Active(b))`.
+3. Verify that both return the same values as `loss∇w` and `lossdb`.
 """)
 
 # ╔═╡ aabb1131-1111-4000-8000-000000000011
@@ -218,6 +303,7 @@ lossdb_enzyme(model, loss, w, b, x, y) =
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
@@ -226,6 +312,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 CairoMakie = "~0.15.10"
+Enzyme = "~0.13.140"
 ForwardDiff = "~1.3.3"
 PlutoTeachingTools = "~0.4.7"
 PlutoUI = "~0.7.80"
@@ -237,7 +324,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "7ba4664361fb19b05bffd4e3cbd1ea7f6bae878e"
+project_hash = "77305ba1d1ba52be842da0bcd61a2d3b87f420a8"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -559,6 +646,45 @@ git-tree-sha1 = "c49898e8438c828577f04b92fc9368c388ac783c"
 uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
 version = "1.0.7"
 
+[[deps.Enzyme]]
+deps = ["CEnum", "EnzymeCore", "Enzyme_jll", "GPUCompiler", "InteractiveUtils", "LLVM", "Libdl", "LinearAlgebra", "ObjectFile", "PrecompileTools", "Preferences", "Printf", "Random", "SparseArrays"]
+git-tree-sha1 = "78704dd8d84c93a7f2ac5af0bbb95d26763ec9b9"
+uuid = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+version = "0.13.140"
+
+    [deps.Enzyme.extensions]
+    EnzymeBFloat16sExt = "BFloat16s"
+    EnzymeChainRulesCoreExt = "ChainRulesCore"
+    EnzymeGPUArraysCoreExt = "GPUArraysCore"
+    EnzymeLogExpFunctionsExt = "LogExpFunctions"
+    EnzymeSpecialFunctionsExt = "SpecialFunctions"
+    EnzymeStaticArraysExt = "StaticArrays"
+
+    [deps.Enzyme.weakdeps]
+    ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+    BFloat16s = "ab4f0b2a-ad5b-11e8-123f-65d77653426b"
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
+    LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
+    SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[[deps.EnzymeCore]]
+git-tree-sha1 = "c6ee69ee502060982d12dbaaf3d8fcb4e835a0d1"
+uuid = "f151be2c-9106-41f4-ab19-57ee4f262869"
+version = "0.8.20"
+weakdeps = ["Adapt", "ChainRulesCore"]
+
+    [deps.EnzymeCore.extensions]
+    AdaptExt = "Adapt"
+    EnzymeCoreChainRulesCoreExt = "ChainRulesCore"
+
+[[deps.Enzyme_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
+git-tree-sha1 = "d3ad8f5eca369ac8803ff7db660028d47debc75d"
+uuid = "7cc45869-7501-5eee-bdea-0790c847d4ef"
+version = "0.0.258+0"
+
 [[deps.ExactPredicates]]
 deps = ["IntervalArithmetic", "Random", "StaticArrays"]
 git-tree-sha1 = "83231673ea4d3d6008ac74dc5079e77ab2209d8f"
@@ -570,6 +696,11 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "8f05e9a2e7c2e3eb524102bb2926c5743c07fbe1"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.8.0+0"
+
+[[deps.ExprTools]]
+git-tree-sha1 = "27415f162e6028e81c72b82ef756bf321213b6ec"
+uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
+version = "0.1.10"
 
 [[deps.Extents]]
 git-tree-sha1 = "b309b36a9e02fe7be71270dd8c0fd873625332b4"
@@ -694,6 +825,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "7a214fdac5ed5f59a22c2d9a885a16da1c74bbc7"
 uuid = "559328eb-81f9-559d-9380-de523a88c83c"
 version = "1.0.17+0"
+
+[[deps.GPUCompiler]]
+deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
+git-tree-sha1 = "fedfe5e7db7035271c3f58359007f971da1dde87"
+uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
+version = "1.9.1"
 
 [[deps.GeometryBasics]]
 deps = ["EarCut_jll", "Extents", "IterTools", "LinearAlgebra", "PrecompileTools", "Random", "StaticArrays"]
@@ -976,6 +1113,24 @@ git-tree-sha1 = "17b94ecafcfa45e8360a4fc9ca6b583b049e4e37"
 uuid = "88015f11-f218-50d7-93a8-a6af411a945d"
 version = "4.1.0+0"
 
+[[deps.LLVM]]
+deps = ["CEnum", "LLVMExtra_jll", "Libdl", "PrecompileTools", "Preferences", "Printf", "Unicode"]
+git-tree-sha1 = "85592339c4363f40863f0b61f9cba80b885070c3"
+uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
+version = "9.7.1"
+
+    [deps.LLVM.extensions]
+    BFloat16sExt = "BFloat16s"
+
+    [deps.LLVM.weakdeps]
+    BFloat16s = "ab4f0b2a-ad5b-11e8-123f-65d77653426b"
+
+[[deps.LLVMExtra_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
+git-tree-sha1 = "f1d1adfff151fd02b4062d1af82df02052dc4a0c"
+uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
+version = "0.0.42+0"
+
 [[deps.LLVMOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "eb62a3deb62fc6d8822c0c4bef73e4412419c5d8"
@@ -1004,6 +1159,11 @@ version = "0.16.10"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
     tectonic_jll = "d7dd28d6-a5e6-559c-9131-7eb760cdacc5"
+
+[[deps.LazyArtifacts]]
+deps = ["Artifacts", "Pkg"]
+uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
+version = "1.11.0"
 
 [[deps.LazyModules]]
 git-tree-sha1 = "a560dd966b386ac9ae60bdd3a3d3a326062d3c3e"
@@ -1034,6 +1194,12 @@ version = "1.9.0+0"
 deps = ["Artifacts", "Libdl", "OpenSSL_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
 version = "1.11.3+1"
+
+[[deps.LibTracyClient_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "d4e20500d210247322901841d4eafc7a0c52642d"
+uuid = "ad6e5548-8b26-5c9f-8ef3-ef0ad883f3a5"
+version = "0.13.1+0"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -1178,6 +1344,12 @@ version = "1.1.1"
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.3.0"
+
+[[deps.ObjectFile]]
+deps = ["Reexport", "StructIO"]
+git-tree-sha1 = "22faba70c22d2f03e60fbc61da99c4ebfc3eb9ba"
+uuid = "d8793406-e978-5875-9003-1fc021f44a92"
+version = "0.5.0"
 
 [[deps.Observables]]
 git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
@@ -1383,12 +1555,10 @@ deps = ["DataStructures", "LinearAlgebra"]
 git-tree-sha1 = "5e8e8b0ab68215d7a2b14b9921a946fee794749e"
 uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 version = "2.11.3"
+weakdeps = ["Enzyme"]
 
     [deps.QuadGK.extensions]
     QuadGKEnzymeExt = "Enzyme"
-
-    [deps.QuadGK.weakdeps]
-    Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "JuliaSyntaxHighlighting", "Markdown", "Sockets", "StyledStrings", "Unicode"]
@@ -1611,6 +1781,11 @@ version = "0.7.3"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
+[[deps.StructIO]]
+git-tree-sha1 = "c581be48ae1cbf83e899b14c07a807e1787512cc"
+uuid = "53d494c1-5632-5724-8f4c-31dff12d585f"
+version = "0.3.1"
+
 [[deps.StructUtils]]
 deps = ["Dates", "UUIDs"]
 git-tree-sha1 = "dd974aefe288ef2898733aecf40858dc86742d74"
@@ -1678,6 +1853,18 @@ deps = ["CodecZstd", "ColorTypes", "DataStructures", "DocStringExtensions", "Fil
 git-tree-sha1 = "9ca5f1f2d42f80df4b8c9f6ab5a64f438bbd9976"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
 version = "0.11.9"
+
+[[deps.Tracy]]
+deps = ["ExprTools", "LibTracyClient_jll", "Libdl"]
+git-tree-sha1 = "73e3ff50fd3990874c59fef0f35d10644a1487bc"
+uuid = "e689c965-62c8-4b79-b2c5-8359227902fd"
+version = "0.1.6"
+
+    [deps.Tracy.extensions]
+    TracyProfilerExt = "TracyProfiler_jll"
+
+    [deps.Tracy.weakdeps]
+    TracyProfiler_jll = "0c351ed6-8a68-550e-8b79-de6f926da83c"
 
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
@@ -1906,6 +2093,7 @@ version = "4.1.0+0"
 # ╠═686f3e40-cd54-4865-bd0a-82cc072db52e
 # ╟─bd091528-f45c-11ef-20a6-418581cf93bd
 # ╠═37c43c75-c1a3-47a4-9e18-d2f49f1d5e77
+# ╠═aabb1140-1111-4000-8000-000000000011
 # ╠═68024e3e-a6d3-40f8-a0d7-09c0c0d6a472
 # ╠═10b7c128-c33b-4089-a20b-d53dc531abef
 # ╠═fa9c78f2-8e06-466e-bd32-a7a3f53db054
@@ -1923,7 +2111,11 @@ version = "4.1.0+0"
 # ╟─d925aa0a-f35f-4b4a-8df1-a2dff5530582
 # ╟─d889d62b-186d-458f-bfb0-1db728b739a5
 # ╟─84ff0ef3-aeea-46de-8305-53d997bf0aa4
+# ╠═aabb1120-1111-4000-8000-000000000011
+# ╟─aabb1121-1111-4000-8000-000000000011
+# ╟─aabb1122-1111-4000-8000-000000000011
 # ╟─238e80e6-1358-407b-b617-7149ea055f96
+# ╟─aabb1133-1111-4000-8000-000000000011
 # ╟─aabb1130-1111-4000-8000-000000000011
 # ╠═aabb1131-1111-4000-8000-000000000011
 # ╟─aabb1132-1111-4000-8000-000000000011

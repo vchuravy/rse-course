@@ -51,6 +51,9 @@ using DoubleFloats
 # ╔═╡ 708757e8-f115-42d4-a100-9a132d91cd0f
 using BenchmarkTools
 
+# ╔═╡ aabbccdd-1111-4000-8000-000000000010
+using ForwardDiff
+
 # ╔═╡ 3a267f1f-1936-4cab-81cc-d42d59169d26
 ChooseDisplayMode()
 
@@ -351,6 +354,33 @@ Base.promote_rule(::Type{Dual{T}}, ::Type{<:Real}) where {T <: Real} = Dual{T}
 
 # ╔═╡ 67182362-cf07-463f-9583-00451633bd93
 Dual(1, 2) + 3.0
+
+# ╔═╡ aabbccdd-1111-4000-8000-000000000001
+warning_box(md"""
+**Type-generic allocations**
+
+The promote rules propagate `Dual` numbers through arithmetic — but only if every array you allocate can *hold* them. A common pitfall is `zeros(n)` or `zeros(Float64, m, n)`, which always creates a `Float64` array that rejects `Dual` values when you try to store `x` into it:
+
+```julia
+function bad(x)
+    A = zeros(2, 2)   # always Matrix{Float64}
+    A[1,1] = x        # MethodError: cannot convert Dual → Float64
+    A
+end
+```
+
+Write `zeros(typeof(x), m, n)` instead so the element type follows the input:
+
+```julia
+function good(x)
+    A = zeros(typeof(x), 2, 2)
+    A[1,1] = x
+    A
+end
+```
+
+You will encounter this pitfall directly in **Exercise 10, Part 2**.
+""")
 
 # ╔═╡ 67f88aac-14e4-423c-9a7b-35275a01a309
 md"Next, we need to implement the well-know derivatives of special functions."
@@ -717,6 +747,42 @@ tip(md"""
 Julia has a robust ecosystem of automatic-differentiation tools! Do not handroll your own library like we did here, but instead use [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) or [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl).
 """)
 
+# ╔═╡ aabbccdd-1111-4000-8000-000000000011
+md"""
+## From hand-rolled to ForwardDiff.jl
+
+Our custom `derivative(f, x)` works for scalar functions. For production code,
+use **ForwardDiff.jl** which provides:
+
+| Function                       | Input      | Returns           |
+|--------------------------------|------------|-------------------|
+| `ForwardDiff.derivative(f, x)` | scalar `x` | scalar `f′(x)`    |
+| `ForwardDiff.gradient(f, x)`   | vector `x` | vector `∇f(x)`    |
+
+The key distinction: `gradient` differentiates a *scalar-valued* function w.r.t.
+a **vector** argument and returns a vector of partial derivatives.
+"""
+
+# ╔═╡ aabbccdd-1111-4000-8000-000000000012
+# Our hand-rolled derivative vs ForwardDiff.derivative — same result
+(derivative(g, 1.0), ForwardDiff.derivative(g, 1.0))
+
+# ╔═╡ aabbccdd-1111-4000-8000-000000000013
+# ForwardDiff.gradient: differentiate w.r.t. a *vector* of parameters
+let
+	loss(c) = mse(ys, m.(xs, c...))
+	ForwardDiff.gradient(loss, [coeffs_guess...])
+end
+
+# ╔═╡ aabbccdd-1111-4000-8000-000000000014
+tip(md"""
+Compare the result above to our manual `dm(mse, ys, xs, coeffs_guess)` — they
+should match! But `ForwardDiff.gradient` handles all the one-hot seeding
+internally and is heavily optimised.
+
+You will use `ForwardDiff.gradient` directly in **Exercises 9 and 11**.
+""")
+
 # ╔═╡ 74bf8e0b-5018-422d-8536-a5a03053acd0
 md"""
 ## Popping up the stack
@@ -809,12 +875,37 @@ let
 	fig
 end	
 
+# ╔═╡ aabbccdd-1111-4000-8000-000000000020
+tip(md"""
+**Coming up in Exercise 9: `Optim.jl`**
+
+Instead of writing a gradient-descent loop by hand, you can use `Optim.jl`:
+
+```julia
+using Optim
+
+f(c) = mse(ys, m.(xs, c...))   # objective: Vector → scalar
+
+function g!(dc, c)              # in-place gradient: writes ∇f into dc
+    dc .= ForwardDiff.gradient(f, c)
+end
+
+sol = optimize(f, g!, c₀)      # c₀ is the initial guess
+Optim.minimizer(sol)            # optimal parameters
+```
+
+The `g!(dc, c)` convention means Optim passes you a pre-allocated vector `dc`
+and expects you to *fill it* with the gradient — it avoids allocations on every
+iteration.
+""")
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
@@ -822,6 +913,7 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 BenchmarkTools = "~1.6.0"
 CairoMakie = "~0.15.0"
 DoubleFloats = "~1.4.3"
+ForwardDiff = "~0.10.38"
 PlutoTeachingTools = "~0.4.1"
 PlutoUI = "~0.7.65"
 """
@@ -832,7 +924,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "20b4eef5e00b5e351d9eeac6dcf775f698b83769"
+project_hash = "f14732b9a228d5876667cdf75d9707111fd43cd6"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1018,6 +1110,12 @@ git-tree-sha1 = "37ea44092930b1811e666c3bc38065d7d87fcc74"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.13.1"
 
+[[deps.CommonSubexpressions]]
+deps = ["MacroTools"]
+git-tree-sha1 = "cda2cfaebb4be89c9084adaca7dd7333369715c5"
+uuid = "bbf7d656-a473-5ed7-a52c-81e309532950"
+version = "0.3.1"
+
 [[deps.Compat]]
 deps = ["TOML", "UUIDs"]
 git-tree-sha1 = "8ae8d32e09f0dcf42a36b90d4e17f5dd2e4c4215"
@@ -1081,6 +1179,18 @@ deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
 git-tree-sha1 = "5620ff4ee0084a6ab7097a27ba0c19290200b037"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
 version = "1.6.4"
+
+[[deps.DiffResults]]
+deps = ["StaticArraysCore"]
+git-tree-sha1 = "782dd5f4561f5d267313f23853baaaa4c52ea621"
+uuid = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
+version = "1.1.0"
+
+[[deps.DiffRules]]
+deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
+git-tree-sha1 = "23163d55f885173722d1e4cf0f6110cdbaf7e272"
+uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
+version = "1.15.1"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -1226,6 +1336,16 @@ version = "2.16.0+0"
 git-tree-sha1 = "9c68794ef81b08086aeb32eeaf33531668d5f5fc"
 uuid = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
 version = "1.3.7"
+
+[[deps.ForwardDiff]]
+deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions"]
+git-tree-sha1 = "afb7c51ac63e40708a3071f80f5e84a752299d4f"
+uuid = "f6369f11-7733-5829-9624-2563aa707210"
+version = "0.10.39"
+weakdeps = ["StaticArrays"]
+
+    [deps.ForwardDiff.extensions]
+    ForwardDiffStaticArraysExt = "StaticArrays"
 
 [[deps.FreeType]]
 deps = ["CEnum", "FreeType2_jll"]
@@ -2294,18 +2414,13 @@ deps = ["Dates", "LinearAlgebra", "Random"]
 git-tree-sha1 = "d2282232f8a4d71f79e85dc4dd45e5b12a6297fb"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
 version = "1.23.1"
+weakdeps = ["ConstructionBase", "ForwardDiff", "InverseFunctions", "Printf"]
 
     [deps.Unitful.extensions]
     ConstructionBaseUnitfulExt = "ConstructionBase"
     ForwardDiffExt = "ForwardDiff"
     InverseFunctionsUnitfulExt = "InverseFunctions"
     PrintfExt = "Printf"
-
-    [deps.Unitful.weakdeps]
-    ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
-    Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.WebP]]
 deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
@@ -2543,6 +2658,7 @@ version = "3.6.0+0"
 # ╠═71ec1afe-a7c7-41c8-a05b-32287658c2f5
 # ╠═ebd73caf-5be3-4b75-a240-031d4a3aa64b
 # ╠═67182362-cf07-463f-9583-00451633bd93
+# ╟─aabbccdd-1111-4000-8000-000000000001
 # ╟─67f88aac-14e4-423c-9a7b-35275a01a309
 # ╠═10553f26-b660-4889-b0a7-71d68dbc105c
 # ╠═42af19cc-c2b9-4736-9d07-8376c8b6cf09
@@ -2573,6 +2689,11 @@ version = "3.6.0+0"
 # ╠═ad924e1f-ef4c-433e-a259-120c9ef0c2d9
 # ╟─12186fb3-a520-446b-aaf0-6a8e131ac508
 # ╟─55c17860-f5d9-4fda-ad3e-b16b075af06c
+# ╠═aabbccdd-1111-4000-8000-000000000010
+# ╟─aabbccdd-1111-4000-8000-000000000011
+# ╠═aabbccdd-1111-4000-8000-000000000012
+# ╠═aabbccdd-1111-4000-8000-000000000013
+# ╟─aabbccdd-1111-4000-8000-000000000014
 # ╟─74bf8e0b-5018-422d-8536-a5a03053acd0
 # ╠═dda152e7-a72a-4d71-b01d-c04f5b46de3a
 # ╠═432f3155-d4ff-4a92-bf2b-a28cb055f54f
@@ -2589,5 +2710,6 @@ version = "3.6.0+0"
 # ╟─4649dadd-75bb-4ca9-a65a-281f05dfce44
 # ╠═f9ad118c-65c2-439a-9254-9d025245aa98
 # ╠═b4dcb6d9-99a4-43da-bd3e-8af749c48290
+# ╟─aabbccdd-1111-4000-8000-000000000020
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
