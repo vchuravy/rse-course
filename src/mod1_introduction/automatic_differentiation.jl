@@ -36,9 +36,6 @@ begin
 	PlutoUI.TableOfContents(; depth=4)
 end
 
-# ╔═╡ 3a267f1f-1936-4cab-81cc-d42d59169d26
-ChooseDisplayMode()
-
 # ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
 begin
 	using CairoMakie
@@ -47,6 +44,15 @@ begin
 			   Lines = (linewidth = 2,),
 			   markersize = 16)
 end
+
+# ╔═╡ 424db547-b82b-45ae-a8ac-044de1ed6a0c
+using DoubleFloats
+
+# ╔═╡ 708757e8-f115-42d4-a100-9a132d91cd0f
+using BenchmarkTools
+
+# ╔═╡ 3a267f1f-1936-4cab-81cc-d42d59169d26
+ChooseDisplayMode()
 
 # ╔═╡ 668493d8-bf95-4561-9a3a-2e7f7a987682
 md"""
@@ -68,39 +74,8 @@ This number $f'(\tilde{x})$ is called the derivative of $f$ at $\tilde{x}$.
 Let's visualize this on a simple scalar function:
 """
 
-# ╔═╡ 280d83db-080d-4b22-8fc0-a175c8690b4a
-f(x) = x^2 - 5 * sin(x) - 10 # you can change this function!
-
 # ╔═╡ 38b821ed-91a9-414e-9575-eb43e8068956
 @bind x̂ Slider(-5:0.2:5, default=-1.5, show_value=true)
-
-# ╔═╡ 9a0fe51f-b1df-46e7-8577-02d8cb4136f5
-let
-	fig = Figure()
-	ax = Axis(fig[1,1], xlabel=L"x")
-
-    # Plot function
-    xs = range(-5, 5, 50)
-	ymin, ymax = extrema(f.(xs))
-
-	ylims!(ax, ymin-5, ymax+5)
-	lines!(ax, xs, f, label=L"Function $f(x)$")
-
-    # Obtain the function f′
-    f′ = derivative(f)
-
-    # Plot f′(x)
-    lines!(ax, xs, f′; label=L"Derivative $f′(x)$")
-
-    # # Plot 1st order Taylor series approximation
-    taylor_approx(x) = f(x̂) + f′(x̂)*(x-x̂) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
-    lines!(ax, xs, taylor_approx; label=L"Taylor approx. around $\tilde{x}$")
-
-    # # Show point of linearization
-    vlines!(ax, [x̂]; color=:grey, linestyle=:dash, label=L"\tilde{x}")
-	axislegend(ax, position=:ct)
-	fig
-end
 
 # ╔═╡ 779370fe-7513-4f4e-8517-d3328337ac42
 md"""
@@ -109,49 +84,11 @@ md"""
 For a multi-variable function like `f(x, y)` we define $\frac{\partial}{\partial x}f$ as the rate of change in the $x$ direction, and likewise $\frac{\partial}{\partial y}f$ as the rate of change in the $y$ direction.
 """
 
-# ╔═╡ 866b8869-47ec-4040-a7ef-a0831370b277
-f2(x, y) = x^2 - y^3 - 5 * sin(x) + 5 * cos(y * x) - 20 # you can change this function!
-
 # ╔═╡ cf7662c3-6ad6-4cc8-b73b-42b1bb738f37
 @bind x̂₁ Slider(-5:0.2:5, default=-1.5, show_value=true)
 
 # ╔═╡ 47da91d3-8a69-4aa5-a49f-55f9c4f585f9
 @bind ŷ₁ Slider(-5:0.2:5, default=-1.5, show_value=true)
-
-# ╔═╡ e5193d1e-8613-4cc4-80a0-a08597c720a5
-let
-	fig = Figure()
-	ax = Axis3(fig[1,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="f(x,y)")
-	ax4 = Axis3(fig[2,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="Taylor approx. around x̂=$x̂₁, ŷ=$ŷ₁")
-
-	ax2 = Axis(fig[1, 2], title="Partial deriv. in x at ŷ=$ŷ₁", xlabel=L"x")
-	ax3 = Axis(fig[2, 2], title="Partial deriv. in y at x̂", xlabel=L"y")
-
-    # Plot function
-    xs = range(-5, 5, 50)
-	ys = range(-5, 5, 50)
-	zmin, zmax = extrema(f2.(xs, ys'))
-
-	zlims!(ax, zmin-5, zmax+5)
-	surface!(ax, xs, ys, f2)
-	# lines!(ax, xs, f, label=L"Function $f(x)$")
-
-    # Obtain the partial derivative functions f′
- 	f_x′ = derivative(x->f2(x, ŷ₁))
-	f_y′ = derivative(y->f2(x̂₁, y))
-
-
-    # Plot partial f′(x)
-    lines!(ax2, xs, f_x′; label=L"Derivative $f_x′(x)$")
-
-	lines!(ax3, ys, f_y′; label=L"Derivative $f_x′(x)$")
-
-    # Plot 1st order Taylor series approximation
-    taylor_approx(x, y) = f2(x̂₁, ŷ₁) + f_x′(x̂₁)*(x-x̂₁) + f_y′(ŷ₁)*(y-ŷ₁) 
-    surface!(ax4, xs, ys, taylor_approx; label=L"Taylor approx. around $\tilde{x},\tilde{y}$")
-
-	fig
-end
 
 # ╔═╡ ddbbc711-bd5b-4d20-962b-7d103e0f31b4
 md"""
@@ -170,64 +107,12 @@ Below we study a model that is the combination of a `sin` and `cos` function wit
 
 """
 
-# ╔═╡ ecf84d2e-46f6-4dd1-a5de-a5f65b1d281f
-function m(x, a, b, c, d)
-	return sin(a*x)*b + cos(c*x)*d
-end
-
-# ╔═╡ 7a5bccfa-fce1-4bd8-8531-048ecb1c6a21
-xs = 0.0:0.01:2π
-
-# ╔═╡ 3c4079a7-a627-464a-9309-f0f5320d368b
-function multi_slider(names, values)
-	return PlutoUI.combine() do Child
-		inputs = [
-			md""" $(name): $(
-				Child(name, Slider(vals; show_value=true, default=(first(vals)+last(vals))/2))
-			)"""
-			
-			for (name, vals) in zip(names, values)
-		]
-		
-		md"""
-		$(inputs)
-		"""
-	end
-end
-
-# ╔═╡ 4b079423-6c68-4ea0-a51d-b2b3bbfbb0f6
-@bind coeffs multi_slider(
-	("a", "b", "c", "d"), 
-	(-1.0:0.1:2.0,
-	 -1.0:0.1:2.0,
-	 -1.0:0.1:2.0,
-	 -1.0:0.1:2.0,))
-
-# ╔═╡ a4e57d7a-7232-4189-85ff-8a25a3cb82da
-let
-	fig = Figure()
-	ax = Axis(fig[1,1])
-
-	lines!(ax, xs, sin, label="sin")
-	lines!(ax, xs, cos, label="cos")
-	lines!(ax, xs, m.(xs, coeffs...), label = "model")
-
-	axislegend(ax)
-	fig
-end
-
 # ╔═╡ 74c8acf3-0c7b-4555-a795-0c712546d5b4
 question_box(
 md"""
 Given an "observed" evaluation of `m` can we "learn" the values of `a`, `b`, `c`, `d`?
 """
 )
-
-# ╔═╡ e86b88d2-baa7-4d41-9539-fb298ba5c123
-ys = m.(xs, 0.3, -1.2, 0.5, 0.7)
-
-# ╔═╡ b2cdecef-d2d5-4514-a6cd-d3d453ed9099
-lines(xs, ys)
 
 # ╔═╡ 608b15d4-9ab3-405d-b574-167788f0c842
 md"""
@@ -237,50 +122,15 @@ We could try some random values!
 # ╔═╡ 834f9474-8f11-4bda-818e-ed3dd505f444
 coeffs_guess = rand(-2.0:0.1:2.0, 4)
 
-# ╔═╡ f73540da-cf91-4463-9adf-b0e5b98e7b79
-ys_guess = m.(xs, coeffs_guess...)
-
 # ╔═╡ 3950039e-5d9d-4a00-b511-3f0a583d8309
 md"""
 We need to define a "loss" a function that measures how far away we are from our solution. The Mean-Squared-Error is a common choice.
 """
 
-# ╔═╡ 14db561f-54c3-41d4-8078-531facb65038
-# Mean squared error
-function mse(ŷ, y)
-	sum((ŷ .- y).^2) / length(y)
-end
-
-# ╔═╡ 367385c4-65b0-4a4a-aaf1-2cfcd8015b20
-mse(ys, ys_guess)
-
-# ╔═╡ b75017e8-bcfd-42fd-8870-9777c2f230e3
-let
-	fig = Figure()
-	ax = Axis(fig[1,1], title="MSE = $(mse(ys, ys_guess))")
-	lines!(ax, xs, ys)
-	lines!(ax, xs, ys_guess)
-	fig
-end
-
 # ╔═╡ a7f02fa7-8dac-424e-92d9-cc0f8ed85b93
 md"""
 So how do we improve our guess systematically?
 """
-
-# ╔═╡ 6a63cae0-fcd7-4258-a82f-3f752b37225c
-let
-	neighborhood = -0.3:0.1:0.3
-
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	for offset in neighborhood
-		_ys = m.(xs, coeffs_guess[1]+offset, coeffs_guess[2:end]...)
-		lines!(ax, xs, _ys, label="Offset a+$(offset), MSE= $(mse(ys, _ys))" )
-	end
-	axislegend(ax)
-	fig
-end
 
 # ╔═╡ 5429e788-a5ed-434b-a140-379f73b5cfc5
 tip(
@@ -295,38 +145,6 @@ But what we are after is the "rate of change" in the error given for a parameter
 (or all parameters).
 """
 )
-
-# ╔═╡ 583d4563-ac91-43f0-8cb1-2b598974edc7
-let 
-	fig=Figure()
-	ax = Axis(fig[1,1], xlabel=L"a")
-
-    # Plot function
-    as = range(-2, 2, 100)
-
-	f(a) = mse(ys, m.(xs, a, coeffs_guess[2:end]...))
-	ymin, ymax = extrema(f.(as))
-
-	ylims!(ax, ymin-5, ymax+5)
-	lines!(ax, as, f, label=L"Function $f = mse(ys, m(x; a, b, c, d))$")
-
-	# Obtain the function f′
-    f′ = derivative(f)
-
-    # Plot f′(x)
-    lines!(ax, as, f′; label=L"Derivative $f′(a)$")
-
-	â = coeffs_guess[1]
-    # Plot 1st order Taylor series approximation
-    taylor_approx(a) = f(â) + f′(â)*(a-â) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
-    lines!(ax, as, taylor_approx; label=L"Taylor approx. around $\tilde{a}$")
-
-    # Show point of linearization
-    vlines!(ax, [â]; color=:grey, linestyle=:dash, label=L"\tilde{a}")
-	axislegend(ax, position=:ct)
-
-	fig
-end
 
 # ╔═╡ f918e5a2-d1b4-4c7d-93fa-a50dcd0d8fa5
 tip(
@@ -362,17 +180,11 @@ and approximate the limit by taking a small $h > 0$. However, this leads to roun
 error since we typically represent real numbers via *floating point numbers with fixed precision*.
 """
 
-# ╔═╡ eea941bf-0be0-4002-a07e-4ee5d95645dd
-nextfloat(1.0) - 1.0
-
 # ╔═╡ a037e8aa-1b41-4146-814f-af3c6ff38be4
 eps(1.0)
 
 # ╔═╡ 5acc8ada-625a-4a8b-a790-a2b57a4ed189
 eps(1.0f0)
-
-# ╔═╡ 492d49ba-94aa-4c30-894b-4e59ed98402a
-(nextfloat(1.234e5) - 1.234e5)
 
 # ╔═╡ 4fbd8caf-04a5-46f0-8c73-a2db450bd172
 eps(1.234e5)
@@ -387,42 +199,8 @@ We illustrate this for different functions $f$ at $x = 1$. We use different type
 finite difference approximation.
 """
 
-# ╔═╡ 424db547-b82b-45ae-a8ac-044de1ed6a0c
-using DoubleFloats
-
-# ╔═╡ 400c2d07-00f1-404f-b360-572671c467b5
-@bind f_diff Select([
-	sin => "f(x) = sin(x)",
-	cos => "f(x) = cos(x)",
-	exp => "f(x) = exp(x)",
-	(x -> sin(100 * x)) => "f(x) = sin(100 x)",
-	(x -> sin(x / 100)) => "f(x) = sin(x / 100)",
-])
-
 # ╔═╡ 799fd006-6e40-47cd-98c6-62222e8c74eb
 @bind FloatType Select([Float32, Float64, Double64]; default = Float64)
-
-# ╔═╡ 051b752d-b0aa-4e05-bfc4-5d671e17e6c8
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; 
-			  xlabel = L"Step size $h$", 
-			  ylabel = "Error of the forward differences",
-			  xscale = log10, yscale = log10)
-	
-	f = f_diff
-	x = one(FloatType)
-	f′x = derivative(f, Float64(x))
-	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
-	fd_error(h) = max(abs((f(x + h) - f(x)) / h - f′x), eps(x) / 100)
-	lines!(ax, h, fd_error.(h); label = "")
-	
-	h_def = sqrt(eps(x))
-	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
-	text!(ax, "sqrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
-	
-	fig
-end
 
 # ╔═╡ 3150ee27-4907-4a83-9969-b1ed75bf6378
 md"""
@@ -430,29 +208,6 @@ Next, we use the central difference
 
 $$\frac{f(x + h) - f(x - h)}{2 h} \approx f'(x).$$
 """
-
-# ╔═╡ 518443a4-47d6-4009-bc1b-6272b46a168a
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; 
-			  xlabel = L"Step size $h$", 
-			  ylabel = "Error of the central differences",
-			  xscale = log10, yscale = log10)
-	
-	f = f_diff
-	x = one(FloatType)
-	(f′x,) = derivative(f, Float64(x))
-	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
-	fd_error(h) = max(abs((f(x + h) - f(x - h)) / (2 * h) - f′x), eps(x) / 100)
-	lines!(ax, h, fd_error.(h); label = "")
-	
-	h_def = cbrt(eps(x))
-	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
-	text!(ax, "cbrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
-	
-	fig
-end
-
 
 # ╔═╡ 89d5bd8a-a9e4-4a1a-9e71-206db516a50f
 md"""
@@ -467,63 +222,14 @@ is to implement the basic rules of calculus like the product rule and the chain 
 Before doing that, let's consider an example.
 """
 
-# ╔═╡ 7122f82d-32b8-46c3-9299-6f7e31b7fd55
-g(x) = log(x^2 + exp(sin(x)))
-
 # ╔═╡ ac9403df-12f2-436f-bfbd-553e9de1ab2e
 md"""We can compute the derivative by hand using the chain rule."""
-
-# ╔═╡ bc07318f-abb3-4791-9044-3609c05aebb3
-g′(x) = 1 / (x^2 + exp(sin(x))) * (2 * x + exp(sin(x)) * cos(x))
 
 # ╔═╡ 611ecf77-940d-4c1f-92e3-4249c2d720ef
 md"We can think of the function as a kind of *computational graph* obtained by dividing it into steps."
 
-# ╔═╡ 27220cbf-40ee-4e00-882c-d3a16f048cb0
-function g_graph(x)
-	c1 = x^2
-	c2 = sin(x)
-	c3 = exp(c2)
-	c4 = c1 + c3
-	c5 = log(c4)
-	return c5
-end
-
-# ╔═╡ 2993b2be-69d1-4d35-81af-73fcd33e1465
-g(1.0) ≈ g_graph(1.0)
-
 # ╔═╡ 5e99b4d7-5c7a-473a-aace-6e0ea16ec1bf
 md"To compute the derivative, we have to apply the chain rule multiple times."
-
-# ╔═╡ 4e610480-f0d1-420d-a273-08ee98a5438c
-function g_graph_derivative(x)
-	c1 = x^2
-	c1_ε = 2 * x
-	
-	c2 = sin(x)
-	c2_ε = cos(x)
-	
-	c3 = exp(c2)
-	c3_ε = exp(c2) * c2_ε
-	
-	c4 = c1 + c3
-	c4_ε = c1_ε + c3_ε
-	
-	c5 = log(c4)
-	c5_ε = c4_ε / c4
-	return c5, c5_ε
-end
-
-# ╔═╡ 96c8d882-2970-4497-8638-19c7d34ab492
-g_graph_derivative(1.0)
-
-# ╔═╡ 44cc65e6-f622-4601-8f4f-c31b89ce00fe
-(g(1.0), g′(1.0))
-
-# ╔═╡ 68d42e2d-10cd-474d-a8c8-681f13bb027c
-let x = 1.0, h = sqrt(eps())
-	(g(x + h) - g(x)) / h
-end
 
 # ╔═╡ 082e9259-8e64-4ffa-8ed7-5c9bdbad0a0c
 md"""
@@ -577,6 +283,12 @@ Dual(1, 2) + Dual(2.0, 3)
 Base.:-(x::Dual, y::Dual) = Dual(x.value - y.value,
 								 x.deriv - y.deriv)
 
+# ╔═╡ eea941bf-0be0-4002-a07e-4ee5d95645dd
+nextfloat(1.0) - 1.0
+
+# ╔═╡ 492d49ba-94aa-4c30-894b-4e59ed98402a
+(nextfloat(1.234e5) - 1.234e5)
+
 # ╔═╡ ae46c18f-3e2e-4f92-8a96-ed786215b51f
 Dual(1, 2) - Dual(2.0, 3)
 
@@ -584,12 +296,46 @@ Dual(1, 2) - Dual(2.0, 3)
 Base.:*(x::Dual, y::Dual) = Dual(x.value * y.value,
 								 x.value * y.deriv + x.deriv * y.value)
 
+# ╔═╡ 7a5bccfa-fce1-4bd8-8531-048ecb1c6a21
+xs = 0.0:0.01:2π
+
 # ╔═╡ 05629dd9-7777-46c8-9851-5b39ce2829df
 Dual(1, 2) * Dual(2.0, 3)
 
 # ╔═╡ 4006fed7-9a7d-4eee-bb75-ed7b5472d6d1
 Base.:/(x::Dual, y::Dual) = Dual(x.value / y.value,
 								 (x.deriv * y.value - x.value * y.deriv) / y.value^2)
+
+# ╔═╡ 3c4079a7-a627-464a-9309-f0f5320d368b
+function multi_slider(names, values)
+	return PlutoUI.combine() do Child
+		inputs = [
+			md""" $(name): $(
+				Child(name, Slider(vals; show_value=true, default=(first(vals)+last(vals))/2))
+			)"""
+			
+			for (name, vals) in zip(names, values)
+		]
+		
+		md"""
+		$(inputs)
+		"""
+	end
+end
+
+# ╔═╡ 4b079423-6c68-4ea0-a51d-b2b3bbfbb0f6
+@bind coeffs multi_slider(
+	("a", "b", "c", "d"), 
+	(-1.0:0.1:2.0,
+	 -1.0:0.1:2.0,
+	 -1.0:0.1:2.0,
+	 -1.0:0.1:2.0,))
+
+# ╔═╡ 14db561f-54c3-41d4-8078-531facb65038
+# Mean squared error
+function mse(ŷ, y)
+	sum((ŷ .- y).^2) / length(y)
+end
 
 # ╔═╡ f0ed7963-e935-41cc-9820-94db0c3cd042
 Dual(1, 2) / Dual(2.0, 3)
@@ -609,14 +355,73 @@ Dual(1, 2) + 3.0
 # ╔═╡ 67f88aac-14e4-423c-9a7b-35275a01a309
 md"Next, we need to implement the well-know derivatives of special functions."
 
+# ╔═╡ 81a8a7b4-47dc-4e20-a26f-adf6f36d12d9
+Base.cos(x::Dual) = Dual(cos(x.value), -sin(x.value) * x.deriv)
+
 # ╔═╡ 10553f26-b660-4889-b0a7-71d68dbc105c
 Base.sin(x::Dual) = Dual(sin(x.value), cos(x.value) * x.deriv)
 
+# ╔═╡ 280d83db-080d-4b22-8fc0-a175c8690b4a
+f(x) = x^2 - 5 * sin(x) - 10 # you can change this function!
+
+# ╔═╡ 866b8869-47ec-4040-a7ef-a0831370b277
+f2(x, y) = x^2 - y^3 - 5 * sin(x) + 5 * cos(y * x) - 20 # you can change this function!
+
+# ╔═╡ ecf84d2e-46f6-4dd1-a5de-a5f65b1d281f
+function m(x, a, b, c, d)
+	return sin(a*x)*b + cos(c*x)*d
+end
+
+# ╔═╡ e86b88d2-baa7-4d41-9539-fb298ba5c123
+ys = m.(xs, 0.3, -1.2, 0.5, 0.7)
+
+# ╔═╡ b2cdecef-d2d5-4514-a6cd-d3d453ed9099
+lines(xs, ys)
+
+# ╔═╡ f73540da-cf91-4463-9adf-b0e5b98e7b79
+ys_guess = m.(xs, coeffs_guess...)
+
+# ╔═╡ 367385c4-65b0-4a4a-aaf1-2cfcd8015b20
+mse(ys, ys_guess)
+
+# ╔═╡ b75017e8-bcfd-42fd-8870-9777c2f230e3
+let
+	fig = Figure()
+	ax = Axis(fig[1,1], title="MSE = $(mse(ys, ys_guess))")
+	lines!(ax, xs, ys)
+	lines!(ax, xs, ys_guess)
+	fig
+end
+
+# ╔═╡ 6a63cae0-fcd7-4258-a82f-3f752b37225c
+let
+	neighborhood = -0.3:0.1:0.3
+
+	fig = Figure()
+	ax = Axis(fig[1,1])
+	for offset in neighborhood
+		_ys = m.(xs, coeffs_guess[1]+offset, coeffs_guess[2:end]...)
+		lines!(ax, xs, _ys, label="Offset a+$(offset), MSE= $(mse(ys, _ys))" )
+	end
+	axislegend(ax)
+	fig
+end
+
+# ╔═╡ a4e57d7a-7232-4189-85ff-8a25a3cb82da
+let
+	fig = Figure()
+	ax = Axis(fig[1,1])
+
+	lines!(ax, xs, sin, label="sin")
+	lines!(ax, xs, cos, label="cos")
+	lines!(ax, xs, m.(xs, coeffs...), label = "model")
+
+	axislegend(ax)
+	fig
+end
+
 # ╔═╡ 42af19cc-c2b9-4736-9d07-8376c8b6cf09
 sin(Dual(π, 1.0))
-
-# ╔═╡ 81a8a7b4-47dc-4e20-a26f-adf6f36d12d9
-Base.cos(x::Dual) = Dual(cos(x.value), -sin(x.value) * x.deriv)
 
 # ╔═╡ 89be32ff-786e-4794-9aa7-9246dc488a8c
 cos(Dual(π, 1.0))
@@ -630,11 +435,69 @@ log(Dual(1.0, 1))
 # ╔═╡ 34d68aa2-42de-480c-8e1b-ce7dfdd1e538
 Base.exp(x::Dual) = Dual(exp(x.value), exp(x.value) * x.deriv)
 
+# ╔═╡ 400c2d07-00f1-404f-b360-572671c467b5
+@bind f_diff Select([
+	sin => "f(x) = sin(x)",
+	cos => "f(x) = cos(x)",
+	exp => "f(x) = exp(x)",
+	(x -> sin(100 * x)) => "f(x) = sin(100 x)",
+	(x -> sin(x / 100)) => "f(x) = sin(x / 100)",
+])
+
+# ╔═╡ 7122f82d-32b8-46c3-9299-6f7e31b7fd55
+g(x) = log(x^2 + exp(sin(x)))
+
+# ╔═╡ 68d42e2d-10cd-474d-a8c8-681f13bb027c
+let x = 1.0, h = sqrt(eps())
+	(g(x + h) - g(x)) / h
+end
+
+# ╔═╡ bc07318f-abb3-4791-9044-3609c05aebb3
+g′(x) = 1 / (x^2 + exp(sin(x))) * (2 * x + exp(sin(x)) * cos(x))
+
+# ╔═╡ 44cc65e6-f622-4601-8f4f-c31b89ce00fe
+(g(1.0), g′(1.0))
+
+# ╔═╡ 27220cbf-40ee-4e00-882c-d3a16f048cb0
+function g_graph(x)
+	c1 = x^2
+	c2 = sin(x)
+	c3 = exp(c2)
+	c4 = c1 + c3
+	c5 = log(c4)
+	return c5
+end
+
+# ╔═╡ 2993b2be-69d1-4d35-81af-73fcd33e1465
+g(1.0) ≈ g_graph(1.0)
+
+# ╔═╡ 4e610480-f0d1-420d-a273-08ee98a5438c
+function g_graph_derivative(x)
+	c1 = x^2
+	c1_ε = 2 * x
+	
+	c2 = sin(x)
+	c2_ε = cos(x)
+	
+	c3 = exp(c2)
+	c3_ε = exp(c2) * c2_ε
+	
+	c4 = c1 + c3
+	c4_ε = c1_ε + c3_ε
+	
+	c5 = log(c4)
+	c5_ε = c4_ε / c4
+	return c5, c5_ε
+end
+
+# ╔═╡ 96c8d882-2970-4497-8638-19c7d34ab492
+g_graph_derivative(1.0)
+
 # ╔═╡ 027dcf07-5dbf-4bfe-bab3-9e8ad3279e3a
 exp(Dual(1.0, 1))
 
 # ╔═╡ d0ebe0d0-c370-4a9d-ace8-1146da614fda
-Base.abs(x::Dual) = Dual(abs(x.value), sign(x.value))
+Base.abs(x::Dual) = Dual(abs(x.value), sign(x.value) * x.deriv)
 
 # ╔═╡ 18901d86-b709-4f71-a439-237c7cb06ce9
 md"Finally, we can differentiate the function `f` we started with!"
@@ -663,9 +526,6 @@ md"This works since the compiler basically performs the transformation `f` $\to$
 # ╔═╡ 51a97752-ac9b-441a-a654-65a82ec6057c
 md"Since the compiler can see all the different steps, it can generate very efficient code."
 
-# ╔═╡ 708757e8-f115-42d4-a100-9a132d91cd0f
-using BenchmarkTools
-
 # ╔═╡ 1fdcaee7-3f27-4d97-bace-1a022babaff9
 @benchmark g_graph_derivative($(Ref(1.0))[])
 
@@ -678,6 +538,152 @@ md"Now, we have a versatile tool to compute derivatives of functions depending o
 # ╔═╡ 552d2403-41a8-4f56-938a-61e6ced75d85
 derivative(f, x::Real) = f(Dual(x, one(x))).deriv
 
+# ╔═╡ 69e2683a-caf4-48b0-a71a-b73f24bdab83
+md"We can also get the derivative as a function itself."
+
+# ╔═╡ 6f903e30-2c85-4ae1-a4cc-591934f1e012
+derivative(f) = x -> derivative(f, x)
+
+# ╔═╡ 9a0fe51f-b1df-46e7-8577-02d8cb4136f5
+let
+	fig = Figure()
+	ax = Axis(fig[1,1], xlabel=L"x")
+
+    # Plot function
+    xs = range(-5, 5, 50)
+	ymin, ymax = extrema(f.(xs))
+
+	ylims!(ax, ymin-5, ymax+5)
+	lines!(ax, xs, f, label=L"Function $f(x)$")
+
+    # Obtain the function f′
+    f′ = derivative(f)
+
+    # Plot f′(x)
+    lines!(ax, xs, f′; label=L"Derivative $f′(x)$")
+
+    # # Plot 1st order Taylor series approximation
+    taylor_approx(x) = f(x̂) + f′(x̂)*(x-x̂) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
+    lines!(ax, xs, taylor_approx; label=L"Taylor approx. around $\tilde{x}$")
+
+    # # Show point of linearization
+    vlines!(ax, [x̂]; color=:grey, linestyle=:dash, label=L"\tilde{x}")
+	axislegend(ax, position=:ct)
+	fig
+end
+
+# ╔═╡ e5193d1e-8613-4cc4-80a0-a08597c720a5
+let
+	fig = Figure()
+	ax = Axis3(fig[1,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="f(x,y)")
+	ax4 = Axis3(fig[2,1], xlabel=L"x", ylabel=L"y", zlabel=L"z", title="Taylor approx. around x̂=$x̂₁, ŷ=$ŷ₁")
+
+	ax2 = Axis(fig[1, 2], title="Partial deriv. in x at ŷ=$ŷ₁", xlabel=L"x")
+	ax3 = Axis(fig[2, 2], title="Partial deriv. in y at x̂", xlabel=L"y")
+
+    # Plot function
+    xs = range(-5, 5, 50)
+	ys = range(-5, 5, 50)
+	zmin, zmax = extrema(f2.(xs, ys'))
+
+	zlims!(ax, zmin-5, zmax+5)
+	surface!(ax, xs, ys, f2)
+	# lines!(ax, xs, f, label=L"Function $f(x)$")
+
+    # Obtain the partial derivative functions f′
+ 	f_x′ = derivative(x->f2(x, ŷ₁))
+	f_y′ = derivative(y->f2(x̂₁, y))
+
+
+    # Plot partial f′(x)
+    lines!(ax2, xs, f_x′; label=L"Derivative $f_x′(x)$")
+
+	lines!(ax3, ys, f_y′; label=L"Derivative $f_y′(y)$")
+
+    # Plot 1st order Taylor series approximation
+    taylor_approx(x, y) = f2(x̂₁, ŷ₁) + f_x′(x̂₁)*(x-x̂₁) + f_y′(ŷ₁)*(y-ŷ₁) 
+    surface!(ax4, xs, ys, taylor_approx; label=L"Taylor approx. around $\tilde{x},\tilde{y}$")
+
+	fig
+end
+
+# ╔═╡ 583d4563-ac91-43f0-8cb1-2b598974edc7
+let 
+	fig=Figure()
+	ax = Axis(fig[1,1], xlabel=L"a")
+
+    # Plot function
+    as = range(-2, 2, 100)
+
+	f(a) = mse(ys, m.(xs, a, coeffs_guess[2:end]...))
+	ymin, ymax = extrema(f.(as))
+
+	ylims!(ax, ymin-5, ymax+5)
+	lines!(ax, as, f, label=L"Function $f = mse(ys, m(x; a, b, c, d))$")
+
+	# Obtain the function f′
+    f′ = derivative(f)
+
+    # Plot f′(x)
+    lines!(ax, as, f′; label=L"Derivative $f′(a)$")
+
+	â = coeffs_guess[1]
+    # Plot 1st order Taylor series approximation
+    taylor_approx(a) = f(â) + f′(â)*(a-â) # f(x) ≈ f(x̃) + f′(x̃)(x-x̃)
+    lines!(ax, as, taylor_approx; label=L"Taylor approx. around $\tilde{a}$")
+
+    # Show point of linearization
+    vlines!(ax, [â]; color=:grey, linestyle=:dash, label=L"\tilde{a}")
+	axislegend(ax, position=:ct)
+
+	fig
+end
+
+# ╔═╡ 051b752d-b0aa-4e05-bfc4-5d671e17e6c8
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1]; 
+			  xlabel = L"Step size $h$", 
+			  ylabel = "Error of the forward differences",
+			  xscale = log10, yscale = log10)
+	
+	f = f_diff
+	x = one(FloatType)
+	f′x = derivative(f, Float64(x))
+	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
+	fd_error(h) = max(abs((f(x + h) - f(x)) / h - f′x), eps(x) / 100)
+	lines!(ax, h, fd_error.(h); label = "")
+	
+	h_def = sqrt(eps(x))
+	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
+	text!(ax, "sqrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
+	
+	fig
+end
+
+# ╔═╡ 518443a4-47d6-4009-bc1b-6272b46a168a
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1]; 
+			  xlabel = L"Step size $h$", 
+			  ylabel = "Error of the central differences",
+			  xscale = log10, yscale = log10)
+	
+	f = f_diff
+	x = one(FloatType)
+	(f′x,) = derivative(f, Float64(x))
+	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
+	fd_error(h) = max(abs((f(x + h) - f(x - h)) / (2 * h) - f′x), eps(x) / 100)
+	lines!(ax, h, fd_error.(h); label = "")
+	
+	h_def = cbrt(eps(x))
+	scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
+	text!(ax, "cbrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
+	
+	fig
+end
+
+
 # ╔═╡ de74c171-b9e2-4a7e-9550-124508e0dfaa
 derivative(g, 1.0)
 
@@ -688,12 +694,6 @@ derivative(x -> 3 * x^2 + 4 * x + 5, 2)
 derivative(3) do x
 	sin(x) * log(x)
 end
-
-# ╔═╡ 69e2683a-caf4-48b0-a71a-b73f24bdab83
-md"We can also get the derivative as a function itself."
-
-# ╔═╡ 6f903e30-2c85-4ae1-a4cc-591934f1e012
-derivative(f) = x -> derivative(f, x)
 
 # ╔═╡ ad924e1f-ef4c-433e-a259-120c9ef0c2d9
 let dg = derivative(g)
@@ -763,7 +763,7 @@ const one_hot_vectors = [
 dm(loss, ys, xs, coeffs) = map(v->loss(ys, m.(xs, v...)).deriv, map(v->v.+coeffs, one_hot_vectors))
 
 # ╔═╡ 8223c585-24b7-4938-a1fb-08749e8909e0
-dm(mse, xs, ys, [coeffs_guess...])
+dm(mse, ys, xs, [coeffs_guess...])
 
 # ╔═╡ 4649dadd-75bb-4ca9-a65a-281f05dfce44
 md"""
@@ -830,9 +830,9 @@ PlutoUI = "~0.7.65"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "b02ccd87a23cd1ed304cb5508053eefe87ee4dfa"
+project_hash = "20b4eef5e00b5e351d9eeac6dcf775f698b83769"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1031,7 +1031,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.1+0"
+version = "1.3.0+1"
 
 [[deps.ComputePipeline]]
 deps = ["Observables", "Preferences"]
@@ -1117,7 +1117,7 @@ version = "1.4.3"
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
-version = "1.6.0"
+version = "1.7.0"
 
 [[deps.EarCut_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1507,6 +1507,11 @@ git-tree-sha1 = "eac1206917768cb54957c65a615460d87b455fc1"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.1.1+0"
 
+[[deps.JuliaSyntaxHighlighting]]
+deps = ["StyledStrings"]
+uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
+version = "1.12.0"
+
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
 git-tree-sha1 = "7d703202e65efa1369de1279c162b915e245eed1"
@@ -1576,24 +1581,24 @@ uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
 version = "0.6.4"
 
 [[deps.LibCURL_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.6.0+0"
+version = "8.15.0+0"
 
 [[deps.LibGit2]]
-deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
+deps = ["LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 version = "1.11.0"
 
 [[deps.LibGit2_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll"]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll"]
 uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
-version = "1.7.2+0"
+version = "1.9.0+0"
 
 [[deps.LibSSH2_jll]]
-deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
+deps = ["Artifacts", "Libdl", "OpenSSL_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.0+1"
+version = "1.11.3+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -1638,7 +1643,7 @@ version = "2.41.0+0"
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-version = "1.11.0"
+version = "1.12.0"
 
 [[deps.LogExpFunctions]]
 deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
@@ -1688,7 +1693,7 @@ uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
 version = "0.4.2"
 
 [[deps.Markdown]]
-deps = ["Base64"]
+deps = ["Base64", "JuliaSyntaxHighlighting", "StyledStrings"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 version = "1.11.0"
 
@@ -1697,11 +1702,6 @@ deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "Geo
 git-tree-sha1 = "6e64d2321257cc52f47e193407d0659ea1b2b431"
 uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
 version = "0.6.5"
-
-[[deps.MbedTLS_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.6+0"
 
 [[deps.Missings]]
 deps = ["DataAPI"]
@@ -1721,7 +1721,7 @@ version = "0.3.4"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2023.12.12"
+version = "2025.11.4"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -1737,7 +1737,7 @@ version = "1.1.1"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
-version = "1.2.0"
+version = "1.3.0"
 
 [[deps.Observables]]
 git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
@@ -1768,7 +1768,7 @@ version = "0.3.29+0"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.27+1"
+version = "0.3.29+0"
 
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
@@ -1785,13 +1785,12 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.7+0"
 
 [[deps.OpenSSL_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "9216a80ff3682833ac4b733caa8c00390620ba5d"
+deps = ["Artifacts", "Libdl"]
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.5.0+0"
+version = "3.5.4+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -1813,7 +1812,7 @@ version = "1.8.1"
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
-version = "10.42.0+1"
+version = "10.44.0+1"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
@@ -1860,7 +1859,7 @@ version = "0.44.2+0"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.11.0"
+version = "1.12.1"
 weakdeps = ["REPL"]
 
     [deps.Pkg.extensions]
@@ -1931,6 +1930,7 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 version = "1.11.0"
 
 [[deps.Profile]]
+deps = ["StyledStrings"]
 uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
@@ -1970,7 +1970,7 @@ uuid = "be4d8f0f-7fa4-5f49-b795-2f01399ab2dd"
 version = "0.5.13"
 
 [[deps.REPL]]
-deps = ["InteractiveUtils", "Markdown", "Sockets", "StyledStrings", "Unicode"]
+deps = ["InteractiveUtils", "JuliaSyntaxHighlighting", "Markdown", "Sockets", "StyledStrings", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 version = "1.11.0"
 
@@ -2108,7 +2108,7 @@ version = "1.2.1"
 [[deps.SparseArrays]]
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-version = "1.11.0"
+version = "1.12.0"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
@@ -2213,7 +2213,7 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 [[deps.SuiteSparse_jll]]
 deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "7.7.0+0"
+version = "7.8.3+2"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -2376,7 +2376,7 @@ version = "1.6.0+0"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.13+1"
+version = "1.3.1+2"
 
 [[deps.Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2405,7 +2405,7 @@ version = "0.15.2+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.11.0+0"
+version = "5.15.0+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2440,18 +2440,18 @@ version = "1.5.0+0"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.59.0+0"
+version = "1.64.0+1"
 
 [[deps.oneTBB_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
 git-tree-sha1 = "d5a767a3bb77135a99e433afe0eb14cd7f6914c3"
 uuid = "1317d2d5-d96f-522e-a858-c73665f53c3e"
 version = "2022.0.0+0"
 
 [[deps.p7zip_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.4.0+2"
+version = "17.7.0+0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]

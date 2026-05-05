@@ -147,10 +147,21 @@ my_abs(z::Complex) = sqrt(real(z)^2 + imag(z)^2)
 md"""
 ## Part 4 -- Let's play Rock-Paper-Scissors
 
-Define a function `play` that takes types `play(::Type{Paper}, ::Type{Rock}) = "Paper wins"` and implements the rules of rock-paper-scissors.
+Define a function `play(::Type{A}, ::Type{B})` that implements the rules of rock-paper-scissors.
+The function should return one of three strings depending on the outcome:
+
+| Combination | Result |
+|---|---|
+| Rock vs Scissors | `"Rock wins"` |
+| Paper vs Rock | `"Paper wins"` |
+| Scissors vs Paper | `"Scissors wins"` |
+| Same vs Same | `"Tie, try again"` |
+| Reversed combinations | same result (symmetric) |
+
+For example: `play(Paper, Rock)` → `"Paper wins"` and `play(Rock, Paper)` → `"Paper wins"`.
 
 !!! note "Question"
-    How many methods do you need to define?
+    How many methods do you need to define? Can you use dispatch to avoid listing all 9 combinations?
 
 """
 
@@ -169,41 +180,59 @@ end
 let
 	if !@isdefined(play)
 		func_not_defined(:play)
-	elseif !(play(Paper, Scissors) == "Scissors wins")
-		keep_working(md"`play(Paper, Scissors)` should equal \"Scissors wins\".")
-	elseif !(play(Scissors, Paper) == "Scissors wins")
-		keep_working(md"`play(Scissors, Paper)` should equal \"Scissors wins\".")
-	elseif !(play(Rock, Paper) == "Paper wins")
-		keep_working(md"`play(Rock, Paper)` should equal \"Paper wins\".")
-	elseif !(play(Paper, Rock) == "Paper wins")
-		keep_working(md"`play(Rock, Paper)` should equal \"Paper wins\".")
-	elseif !(play(Rock, Scissors) == "Rock wins")
-		keep_working(md"`play(Rock, Scissors)` should equal \"Rock wins\".")
-	elseif !(play(Scissors, Rock) == "Rock wins")
-		keep_working(md"`play(Rock, Scissors)` should equal \"Rock wins\".")
-	elseif !(play(Scissors, Scissors) == "Tie, try again")
-		keep_working(md"`play(Scissors, Scissors)` should equal \"Tie, try again\".")
-	elseif !(play(Rock, Rock) == "Tie, try again")
-		keep_working(md"`play(Rock, Rock)` should equal \"Tie, try again\".")
-	elseif !(play(Paper, Paper) == "Tie, try again")
-		keep_working(md"`play(Paper, Paper)` should equal \"Tie, try again\".")
 	else
-		correct()
+		try
+			if !(play(Paper, Scissors) == "Scissors wins")
+				keep_working(md"`play(Paper, Scissors)` should return `\"Scissors wins\"`.")
+			elseif !(play(Scissors, Paper) == "Scissors wins")
+				keep_working(md"`play(Scissors, Paper)` should return `\"Scissors wins\"`.")
+			elseif !(play(Rock, Paper) == "Paper wins")
+				keep_working(md"`play(Rock, Paper)` should return `\"Paper wins\"`.")
+			elseif !(play(Paper, Rock) == "Paper wins")
+				keep_working(md"`play(Paper, Rock)` should return `\"Paper wins\"`.")
+			elseif !(play(Rock, Scissors) == "Rock wins")
+				keep_working(md"`play(Rock, Scissors)` should return `\"Rock wins\"`.")
+			elseif !(play(Scissors, Rock) == "Rock wins")
+				keep_working(md"`play(Scissors, Rock)` should return `\"Rock wins\"`.")
+			elseif !(play(Scissors, Scissors) == "Tie, try again")
+				keep_working(md"`play(Scissors, Scissors)` should return `\"Tie, try again\"`.")
+			elseif !(play(Rock, Rock) == "Tie, try again")
+				keep_working(md"`play(Rock, Rock)` should return `\"Tie, try again\"`.")
+			elseif !(play(Paper, Paper) == "Tie, try again")
+				keep_working(md"`play(Paper, Paper)` should return `\"Tie, try again\"`.")
+			elseif length(methods(play)) > 5
+				almost(md"All outcomes are correct! But you defined **$(length(methods(play))) methods** — can you reduce to 5? Hint: think about symmetry and a catch-all for ties.")
+			else
+				correct()
+			end
+		catch e
+			if e isa MethodError
+				keep_working(md"Your `play` function is missing a method for some combination. Make sure all 9 pairs are handled (or use dispatch to cover them generically). Missing: `$(sprint(showerror, e))`")
+			else
+				keep_working(md"Your function threw an unexpected error: `$(sprint(showerror, e))`")
+			end
+		end
 	end
 end
 
 # ╔═╡ 1b4e4e48-349e-44ee-8b8e-ea4f567dd613
 answer_box(hint(md"""
 ```julia
-	play(::Type{Paper}, ::Type{Rock})     = "Paper wins"
-	play(::Type{Paper}, ::Type{Scissors}) = "Scissors wins"
-	play(::Type{Rock},  ::Type{Scissors}) = "Rock wins"
-	play(::Type{T},     ::Type{T}) where {T<: Shape} = "Tie, try again"
-	play(a::Type{<:Shape}, b::Type{<:Shape}) = play(b, a) # Commutativity
+play(::Type{Paper}, ::Type{Rock})     = "Paper wins"
+play(::Type{Paper}, ::Type{Scissors}) = "Scissors wins"
+play(::Type{Rock},  ::Type{Scissors}) = "Rock wins"
+play(::Type{T},     ::Type{T}) where {T <: Shape} = "Tie, try again"
+play(a::Type{<:Shape}, b::Type{<:Shape}) = play(b, a)  # symmetry
+```
+
+This uses only **5 methods**: 3 canonical winners, 1 tie, and 1 symmetry rule.
+`@which play(Rock, Paper)` will show which method is selected.
 """))
 
 # ╔═╡ 3ed7eaa3-1deb-484b-94a4-29179a39ff47
-play(Scissors, rand([Scissors, Paper, Rock]))
+if @isdefined(play)
+	play(Scissors, rand([Scissors, Paper, Rock]))
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
