@@ -28,10 +28,7 @@ end
 using LinearAlgebra
 
 # ╔═╡ 6bd9908e-944d-47d4-ad61-1ed79cdc5ac8
-begin
-	using ANSIColoredPrinters
-	using HypertextLiteral
-end
+using HypertextLiteral
 
 # ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
 ChooseDisplayMode()
@@ -43,24 +40,28 @@ import ForwardDiff
 import Enzyme
 
 # ╔═╡ e5b72189-9a74-4b5c-8d19-b2f5d94726cd
-function expected_failure(f::Function)
+function expected_failure(f)
 	try
 		f()
 		Markdown.MD(Markdown.Admonition("warning", "Expected failure", [
 			Markdown.Paragraph(["The code was expected to fail, but it evaluated successfully."])
 		]))
 	catch e
-		io = IOBuffer()
-		showerror(IOContext(io, :color=>true), e)
-		@htl("""
-			 
-				<div>
-				 <link rel="stylesheet" href="https://juliadocs.org/ANSIColoredPrinters.jl/dev/assets/default.css" crossorigin=""/>
-				<jlerror>
-				$(HTMLPrinter(io))
-				</jlerror>
-				</div>
-				""")
+		str = sprint() do io
+			showerror(IOContext(io, :color=>true), e)
+		end
+		@htl """
+		<div>
+		<jlerror>
+		<div class="error-header">
+		<secret-h1>Expected error message</secret-h1>
+		</div>
+		<header style='overflow: auto;'>
+		$(embed_display(Text(str)))
+		</header>
+		</jlerror>
+		</div>
+		"""
 	end
 end
 
@@ -519,7 +520,6 @@ But better just to use ForwardDiff or Enymze.
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-ANSIColoredPrinters = "a4c015fc-c6ff-483c-b24f-f7ea428134e9"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 HypertextLiteral = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
@@ -528,7 +528,6 @@ PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-ANSIColoredPrinters = "~0.0.1"
 Enzyme = "~0.13.140"
 ForwardDiff = "~1.3.3"
 HypertextLiteral = "~1.0.0"
@@ -542,12 +541,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "c09267cc7cc6187321aa5e7801f3fce086d3f4a5"
-
-[[deps.ANSIColoredPrinters]]
-git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
-uuid = "a4c015fc-c6ff-483c-b24f-f7ea428134e9"
-version = "0.0.1"
+project_hash = "5ed64085a581fb7979fbcd7cd0cfe88f09f6f26a"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
