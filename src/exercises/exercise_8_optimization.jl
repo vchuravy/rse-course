@@ -3,7 +3,7 @@
 
 #> [frontmatter]
 #> order = "4.1"
-#> exercise_number = "9"
+#> exercise_number = "8"
 #> title = "Optimization of parameters"
 #> tags = ["module1", "track_ad", "exercises"]
 #> layout = "layout.jlhtml"

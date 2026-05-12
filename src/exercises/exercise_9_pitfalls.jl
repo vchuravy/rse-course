@@ -3,7 +3,7 @@
 
 #> [frontmatter]
 #> order = "4.2"
-#> exercise_number = "10"
+#> exercise_number = "9"
 #> title = "Pitfalls of AD"
 #> tags = ["module1", "track_ad", "exercises"]
 #> layout = "layout.jlhtml"

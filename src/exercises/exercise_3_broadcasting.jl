@@ -2,13 +2,13 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "2.5"
-#> exercise_number = "5"
-#> title = "Structs and Custom Types"
+#> order = "2.4"
+#> exercise_number = "3"
+#> title = "Broadcasting and Array Comprehensions"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
 #> license = "MIT"
-#> description = "Define custom Julia types with structs and extend them via multiple dispatch"
+#> description = "Practice Julia's broadcasting syntax and array comprehensions for element-wise operations"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -17,170 +17,177 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 1a2b3c4d-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ ab12cd34-4a90-11f0-5108-7af1aaaa5809
 using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ 4d5e6f7a-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ bc23de45-4a90-11f0-5108-7af1aaaa5809
+ChooseDisplayMode()
+
+# ╔═╡ cd34ef56-4a90-11f0-5108-7af1aaaa5809
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ 5e6f7a8b-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ de45f067-4a90-11f0-5108-7af1aaaa5809
 md"""
-# Exercise: Structs and Custom Types
+# Exercise: Broadcasting and Array Comprehensions
 
-Julia lets you define your own types with `struct` and extend any function — including
-those from `Base` — via multiple dispatch.
-This is the mechanism behind Julia's composability: packages can work together without
-knowing about each other in advance.
+Julia has two idiomatic ways to apply element-wise operations to arrays:
+
+- **Broadcasting** — apply any function or operator element-wise using the dot (`.`) notation.
+- **Array comprehensions** — a concise `[expr for x in collection if condition]` syntax.
+
+Both compile down to efficient single-pass loops.
 """
 
-# ╔═╡ 6f7a8b9c-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ ef560178-4a90-11f0-5108-7af1aaaa5809
 md"""
-## Part 1 — A 2D point type
+## Part 1 — Squaring a vector
 
-Define a struct `Point2D` with two `Float64` fields, `x` and `y`.
-
-Then extend:
-- `Base.:+(a, b)` — pointwise addition
-- `Base.:-(a, b)` — pointwise subtraction
-- `Base.:*(s, p)` where `s::Real` — scalar multiplication
-- `LinearAlgebra.norm(p)` — Euclidean norm $\sqrt{x^2 + y^2}$
+Given `v = 1:10`, store the vector of squares in a variable `sq_broadcast` using broadcasting,
+and in `sq_comp` using an array comprehension. Check they agree.
 """
 
-# ╔═╡ 7a8b9cad-5a90-11f0-6209-8bf2bbbb6910
-# Define Point2D and its methods here
+# ╔═╡ f0671289-4a90-11f0-5108-7af1aaaa5809
+v = 1:10
 
-# ╔═╡ 8b9cadb0-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 0178239a-4a90-11f0-5108-7af1aaaa5809
+# Write sq_broadcast and sq_comp here
+
+# ╔═╡ 12893ab0-4a90-11f0-5108-7af1aaaa5809
 let
-	if !@isdefined(Point2D)
-		func_not_defined(:Point2D)
+	if !@isdefined(sq_broadcast)
+		func_not_defined(:sq_broadcast)
+	elseif !@isdefined(sq_comp)
+		func_not_defined(:sq_comp)
+	elseif sq_broadcast != [1,4,9,16,25,36,49,64,81,100]
+		keep_working(md"`sq_broadcast` doesn't look right — it should be `[1, 4, 9, ..., 100]`.")
+	elseif sq_comp != sq_broadcast
+		keep_working(md"`sq_comp` and `sq_broadcast` should be equal.")
 	else
-		p1 = Point2D(3.0, 0.0)
-		p2 = Point2D(0.0, 4.0)
-		p3 = try p1 + p2 catch; nothing end
-		if isnothing(p3)
-			keep_working(md"Addition `p1 + p2` threw an error — implement `Base.:+` for `Point2D`.")
-		elseif !(p3 isa Point2D && p3.x ≈ 3.0 && p3.y ≈ 4.0)
-			keep_working(md"`Point2D(3,0) + Point2D(0,4)` should give `Point2D(3.0, 4.0)`.")
-		elseif !(norm(p3) ≈ 5.0)
-			keep_working(md"`norm(Point2D(3.0, 4.0))` should be `5.0`.")
-		elseif !(2 * p1 isa Point2D && (2 * p1).x ≈ 6.0)
-			keep_working(md"`2 * Point2D(3.0, 0.0)` should give `Point2D(6.0, 0.0)`.")
-		else
-			correct()
-		end
+		correct()
 	end
 end
 
-# ╔═╡ 9cadb0c1-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 239a4bc1-4a90-11f0-5108-7af1aaaa5809
 answer_box(hint(md"""
 ```julia
-struct Point2D
-    x::Float64
-    y::Float64
-end
-
-Base.:+(a::Point2D, b::Point2D)  = Point2D(a.x + b.x, a.y + b.y)
-Base.:-(a::Point2D, b::Point2D)  = Point2D(a.x - b.x, a.y - b.y)
-Base.:*(s::Real,    p::Point2D)  = Point2D(s * p.x, s * p.y)
-LinearAlgebra.norm(p::Point2D)   = sqrt(p.x^2 + p.y^2)
+sq_broadcast = v .^ 2
+sq_comp      = [x^2 for x in v]
+sq_broadcast == sq_comp   # true
 ```
 """))
 
-# ╔═╡ adb0c1d2-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 3ab05cd2-4a90-11f0-5108-7af1aaaa5809
 md"""
-## Part 2 — Parametric struct
+## Part 2 — Filtering with comprehensions
 
-The `Point2D` above always uses `Float64`. Make it parametric so it works for any
-numeric element type:
+Write a one-liner that collects only the **even** squares from `v = 1:10` into a
+variable `even_sq`.
 
-```julia
-struct Point{T<:Real}
-    x::T
-    y::T
-end
-```
-
-Re-implement `+`, `-`, `*`, and `norm` for `Point{T}`.
-
-Check that `Point(3, 4)` (integers) and `Point(3.0f0, 4.0f0)` (Float32) both work
-and that the norm result type follows from the element type.
+Expected: `[4, 16, 36, 64, 100]`
 """
 
-# ╔═╡ b0c1d2e3-5a90-11f0-6209-8bf2bbbb6910
-# Define Point{T} and its methods here
+# ╔═╡ 4bc16de3-4a90-11f0-5108-7af1aaaa5809
+# Write even_sq here
 
-# ╔═╡ c1d2e3f4-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 5cd27ef4-4a90-11f0-5108-7af1aaaa5809
 let
-	if !@isdefined(Point)
-		func_not_defined(:Point)
+	if !@isdefined(even_sq)
+		func_not_defined(:even_sq)
+	elseif even_sq != [4, 16, 36, 64, 100]
+		keep_working(md"`even_sq` should be `[4, 16, 36, 64, 100]`.")
 	else
-		p_int = try Point(3, 4)   catch; nothing end
-		p_f32 = try Point(3.0f0, 4.0f0) catch; nothing end
-		if isnothing(p_int)
-			keep_working(md"`Point(3, 4)` threw an error.")
-		elseif isnothing(p_f32)
-			keep_working(md"`Point(3.0f0, 4.0f0)` threw an error.")
-		elseif !(norm(p_int) ≈ 5.0)
-			keep_working(md"`norm(Point(3, 4))` should be `5.0`.")
-		elseif !(norm(p_f32) isa Float32)
-			keep_working(md"`norm(Point(3.0f0, 4.0f0))` should return a `Float32`.")
-		else
-			correct()
-		end
+		correct()
 	end
 end
 
-# ╔═╡ d2e3f405-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 6de38f05-4a90-11f0-5108-7af1aaaa5809
 answer_box(hint(md"""
 ```julia
-struct Point{T<:Real}
-    x::T
-    y::T
-end
+# Conditional comprehension
+even_sq = [x^2 for x in v if iseven(x)]
 
-Base.:+(a::Point, b::Point)  = Point(a.x + b.x, a.y + b.y)
-Base.:-(a::Point, b::Point)  = Point(a.x - b.x, a.y - b.y)
-Base.:*(s::Real,  p::Point)  = Point(s * p.x, s * p.y)
-LinearAlgebra.norm(p::Point) = sqrt(p.x^2 + p.y^2)
+# Alternative: filter on broadcast result
+even_sq = filter(iseven, v .^ 2)
 ```
-
-`sqrt` preserves element type: `sqrt(3^2 + 4^2)` → `Float64`, `sqrt(3.0f0^2 + 4.0f0^2)` → `Float32`.
 """))
 
-# ╔═╡ e3f40516-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 7ef4a016-4a90-11f0-5108-7af1aaaa5809
 md"""
-## Part 3 — Custom `show`
+## Part 3 — Broadcasting a custom function
 
-Implement `Base.show(io::IO, p::Point)` so that a point displays as `(3.0, 4.0)`
-rather than the default `Point{Float64}(3.0, 4.0)`.
+Define a function `clamp01(x)` that clips a value to the interval $[0, 1]$
+(i.e. returns `0.0` if `x < 0`, `1.0` if `x > 1`, and `x` otherwise).
+
+Then broadcast it over `w = [-0.5, 0.0, 0.3, 0.7, 1.0, 1.5]`.
+
+Store the result in `clamped`.
 """
 
-# ╔═╡ f4051627-5a90-11f0-6209-8bf2bbbb6910
-# Implement show here
+# ╔═╡ 8f05b127-4a90-11f0-5108-7af1aaaa5809
+w = [-0.5, 0.0, 0.3, 0.7, 1.0, 1.5]
 
-# ╔═╡ 05162738-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ 90162238-4a90-11f0-5108-7af1aaaa5809
+# Define clamp01 and compute clamped here
+
+# ╔═╡ a1273349-4a90-11f0-5108-7af1aaaa5809
 let
-	if !@isdefined(Point)
-		func_not_defined(:Point)
+	if !@isdefined(clamp01)
+		func_not_defined(:clamp01)
+	elseif !@isdefined(clamped)
+		func_not_defined(:clamped)
+	elseif !(clamp01(-1.0) == 0.0 && clamp01(0.5) == 0.5 && clamp01(2.0) == 1.0)
+		keep_working(md"`clamp01` doesn't clip correctly — check the boundary conditions.")
+	elseif clamped != [0.0, 0.0, 0.3, 0.7, 1.0, 1.0]
+		keep_working(md"`clamped` should be `[0.0, 0.0, 0.3, 0.7, 1.0, 1.0]`.")
 	else
-		p = Point(3.0, 4.0)
-		s = sprint(show, p)
-		if s == "(3.0, 4.0)"
-			correct()
-		else
-			keep_working(md"`show` should display the point as `(x, y)`, but got `$(s)`.")
-		end
+		correct()
 	end
 end
 
-# ╔═╡ 16273849-5a90-11f0-6209-8bf2bbbb6910
+# ╔═╡ b238445a-4a90-11f0-5108-7af1aaaa5809
 answer_box(hint(md"""
 ```julia
-Base.show(io::IO, p::Point) = print(io, "(", p.x, ", ", p.y, ")")
+clamp01(x) = max(0.0, min(1.0, x))
+clamped = clamp01.(w)   # [0.0, 0.0, 0.3, 0.7, 1.0, 1.0]
 ```
 
-After defining this, `Point(3.0, 4.0)` will render as `(3.0, 4.0)` in Pluto cells
-and in the REPL.
+Julia also has a built-in: `clamp.(w, 0.0, 1.0)`.
+"""))
+
+# ╔═╡ c3495560-4a90-11f0-5108-7af1aaaa5809
+md"""
+## Part 4 — 2D comprehension
+
+Use a nested comprehension to build the **multiplication table** for 1 through 5
+and store it in `T` (a 5×5 matrix where `T[i,j] = i * j`).
+"""
+
+# ╔═╡ d45a666b-4a90-11f0-5108-7af1aaaa5809
+# Write T here
+
+# ╔═╡ e56b777c-4a90-11f0-5108-7af1aaaa5809
+let
+	if !@isdefined(T)
+		func_not_defined(:T)
+	elseif size(T) != (5, 5)
+		keep_working(md"`T` should be a 5×5 matrix.")
+	elseif T != [i*j for i in 1:5, j in 1:5]
+		keep_working(md"`T[i,j]` should equal `i * j`.")
+	else
+		correct()
+	end
+end
+
+# ╔═╡ f67c888d-4a90-11f0-5108-7af1aaaa5809
+answer_box(hint(md"""
+```julia
+T = [i * j for i in 1:5, j in 1:5]
+
+# Alternative: outer product
+T = (1:5) * (1:5)'
+```
+
+The syntax `[expr for i in rows, j in cols]` produces a 2D array directly.
 """))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -535,20 +542,27 @@ version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═1a2b3c4d-5a90-11f0-6209-8bf2bbbb6910
-# ╟─4d5e6f7a-5a90-11f0-6209-8bf2bbbb6910
-# ╟─5e6f7a8b-5a90-11f0-6209-8bf2bbbb6910
-# ╟─6f7a8b9c-5a90-11f0-6209-8bf2bbbb6910
-# ╠═7a8b9cad-5a90-11f0-6209-8bf2bbbb6910
-# ╟─8b9cadb0-5a90-11f0-6209-8bf2bbbb6910
-# ╟─9cadb0c1-5a90-11f0-6209-8bf2bbbb6910
-# ╟─adb0c1d2-5a90-11f0-6209-8bf2bbbb6910
-# ╠═b0c1d2e3-5a90-11f0-6209-8bf2bbbb6910
-# ╟─c1d2e3f4-5a90-11f0-6209-8bf2bbbb6910
-# ╟─d2e3f405-5a90-11f0-6209-8bf2bbbb6910
-# ╟─e3f40516-5a90-11f0-6209-8bf2bbbb6910
-# ╠═f4051627-5a90-11f0-6209-8bf2bbbb6910
-# ╟─05162738-5a90-11f0-6209-8bf2bbbb6910
-# ╟─16273849-5a90-11f0-6209-8bf2bbbb6910
+# ╠═ab12cd34-4a90-11f0-5108-7af1aaaa5809
+# ╟─bc23de45-4a90-11f0-5108-7af1aaaa5809
+# ╟─cd34ef56-4a90-11f0-5108-7af1aaaa5809
+# ╟─de45f067-4a90-11f0-5108-7af1aaaa5809
+# ╟─ef560178-4a90-11f0-5108-7af1aaaa5809
+# ╠═f0671289-4a90-11f0-5108-7af1aaaa5809
+# ╠═0178239a-4a90-11f0-5108-7af1aaaa5809
+# ╟─12893ab0-4a90-11f0-5108-7af1aaaa5809
+# ╟─239a4bc1-4a90-11f0-5108-7af1aaaa5809
+# ╟─3ab05cd2-4a90-11f0-5108-7af1aaaa5809
+# ╠═4bc16de3-4a90-11f0-5108-7af1aaaa5809
+# ╟─5cd27ef4-4a90-11f0-5108-7af1aaaa5809
+# ╟─6de38f05-4a90-11f0-5108-7af1aaaa5809
+# ╟─7ef4a016-4a90-11f0-5108-7af1aaaa5809
+# ╠═8f05b127-4a90-11f0-5108-7af1aaaa5809
+# ╠═90162238-4a90-11f0-5108-7af1aaaa5809
+# ╟─a1273349-4a90-11f0-5108-7af1aaaa5809
+# ╟─b238445a-4a90-11f0-5108-7af1aaaa5809
+# ╟─c3495560-4a90-11f0-5108-7af1aaaa5809
+# ╠═d45a666b-4a90-11f0-5108-7af1aaaa5809
+# ╟─e56b777c-4a90-11f0-5108-7af1aaaa5809
+# ╟─f67c888d-4a90-11f0-5108-7af1aaaa5809
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
