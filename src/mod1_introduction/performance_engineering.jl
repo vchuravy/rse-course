@@ -63,7 +63,7 @@ TwoColumn(
 md"""
 **Benchmarking**
 - Focusing on the "hot-loop"
-- Allows for comparision
+- Allows for comparison
   - Different algorithms
   - Different hardware
 """,
@@ -91,7 +91,7 @@ md"""
 md"""
 ### BenchmarkTools.jl
 
-Solid package that tries to eliminate common pitfalls in performance measurment.
+Solid package that tries to eliminate common pitfalls in performance measurement.
 
 - `@benchmark` macro that will repeatedly evaluate your code to gain enough samples
 - Caveat: You probably want to escape $ your input data
@@ -181,7 +181,7 @@ end
 # ╔═╡ 0115a2f6-ae33-45e3-bebf-924f7c3e8e05
 md"""
 !!! warning
-	Did we get to fast?
+	Did we get too fast?
 """
 
 # ╔═╡ 3eb69d4f-5d7b-4b08-b274-f51f7c33970a
@@ -254,7 +254,7 @@ Computers are noisy systems. The operating system manages resources and distribu
     - Disk/Network access is variable
     - The OS will also put you to sleep, when waiting for data
 4. The CPU
-    - CPU are "learning"/"predicitive" systems. See https://discourse.julialang.org/t/psa-microbenchmarks-remember-branch-history/17436
+    - CPU are "learning"/"predictive" systems. See https://discourse.julialang.org/t/psa-microbenchmarks-remember-branch-history/17436
 """
 
 # ╔═╡ e8dd5d43-7a39-4f4c-9465-a25ad4dae287
@@ -388,7 +388,7 @@ It can be hard to correlate profiles with our programs, instrumentation makes it
 - [TimerOutputs](https://github.com/KristofferC/TimerOutputs.jl)
 - [NVTX](https://github.com/JuliaGPU/NVTX.jl)
 - [Tracy](https://github.com/topolarity/Tracy.jl)
-- [IntelITT.jl](https://github.com/JuliaPerf/IntelITT.j)
+- [IntelITT.jl](https://github.com/JuliaPerf/IntelITT.jl)
 
 """
 
@@ -483,7 +483,7 @@ md"""
 - https://docs.julialang.org/en/v1/manual/performance-tips/
 - Julia does bounds checking by default `ones(10)[11]` is an error
 - `@inbounds` Turns of bounds-checking locally
-- `@fastmath` Turns of strict IEEE749 locally – be very careful this might not do what you want
+- `@fastmath` Turns of strict IEEE 754 locally – be very careful this might not do what you want
 - `@simd` and `@simd ivdep` provide stronger gurantuees to encourage LLVM to use SIMD operations
 
 """
@@ -532,7 +532,7 @@ Here let's implement matrix addition in two different ways. We'll use a pre-allo
 
 # ╔═╡ 3f344124-fd06-453d-ad16-c9d1e62fb9bd
 function matadd1!(C, A, B)
-    size(C) == size(A) == size(B) || throw(DimensionMismatchmatch())
+    size(C) == size(A) == size(B) || throw(DimensionMismatch())
     m,n = size(A)
     for i = 1:m
         @simd for j = 1:n
