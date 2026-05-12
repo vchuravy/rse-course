@@ -6,7 +6,6 @@
 #> section = "2"
 #> order = "2.7"
 #> title = "Types, Structs, and Mutable Structs"
-#> date = "2026-04-28"
 #> tags = ["module1", "track_principles", "indepth"]
 #> layout = "layout.jlhtml"
 #> indepth_number = "1"
