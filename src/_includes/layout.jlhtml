@@ -1,5 +1,6 @@
 $(begin
     import Pluto
+    import Dates
 
     const metadata = Base.include(@__MODULE__, joinpath(@__DIR__, "load_metadata.jl"))
 
@@ -24,10 +25,20 @@ $(begin
     function section_number(frontmatter)
         ch = get(frontmatter, "chapter", nothing)
         se = get(frontmatter, "section", nothing)
-        
+
         isnothing(ch) || isnothing(se) ? nothing : "$(ch).$(se)"
     end
-    
+
+    function is_upcoming(frontmatter)
+        date_str = get(frontmatter, "date", nothing)
+        date_str === nothing && return false
+        try
+            Dates.Date(string(date_str)) > Dates.today()
+        catch
+            false
+        end
+    end
+
     nothing
 end)<html lang="en">
 <head>
@@ -174,39 +185,42 @@ $(pluto_head)
                     let
                         input = other_page.input
                         output = other_page.output
-                        
-                        number = section_number(output.frontmatter)
-                        
-                        name = get(output.frontmatter, "title", basename(input.relative_path))
-                        desc = get(output.frontmatter, "description", nothing)
-                        tags = get(output.frontmatter, "tags", String[])
-                        active = page.url == other_page.url
-                        
-                        exercise_number = get(output.frontmatter, "exercise_number", nothing)
-                        indepth_number = get(output.frontmatter, "indepth_number", nothing)
-                        
-                        href = root_url * "/" * other_page.url
 
-                        category = if exercise_number !== nothing
-                            "exercise"
-                        elseif indepth_number !== nothing
-                            "indepth"
-                        else
-                            "lecture"
-                        end 
+                        upcoming = is_upcoming(output.frontmatter)
+                        upcoming ? nothing : begin
+                            number = section_number(output.frontmatter)
 
-                        class = [
-                            active ? "active" : nothing,
-                            category,
-                            ("tag_$(replace(x, " "=>"_"))" for x in tags)...,
-                        ]
-                        
-                        if exercise_number !== nothing
-                            @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">Exercise $(exercise_number):</span> $(name)</a></li>""")
-                        elseif indepth_number !== nothing
-                            @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">In-depth $(indepth_number):</span> $(name)</a></li>""")
-                        else
-                            @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">$(number)</span> $(name)</a></li>""")
+                            name = get(output.frontmatter, "title", basename(input.relative_path))
+                            desc = get(output.frontmatter, "description", nothing)
+                            tags = get(output.frontmatter, "tags", String[])
+                            active = page.url == other_page.url
+
+                            exercise_number = get(output.frontmatter, "exercise_number", nothing)
+                            indepth_number = get(output.frontmatter, "indepth_number", nothing)
+
+                            href = root_url * "/" * other_page.url
+
+                            category = if exercise_number !== nothing
+                                "exercise"
+                            elseif indepth_number !== nothing
+                                "indepth"
+                            else
+                                "lecture"
+                            end
+
+                            class = [
+                                active ? "active" : nothing,
+                                category,
+                                ("tag_$(replace(x, " "=>"_"))" for x in tags)...,
+                            ]
+
+                            if exercise_number !== nothing
+                                @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">Exercise $(exercise_number):</span> $(name)</a></li>""")
+                            elseif indepth_number !== nothing
+                                @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">In-depth $(indepth_number):</span> $(name)</a></li>""")
+                            else
+                                @htl("""<li class=$(class)><a href=$(href) title=$(desc)><span class="entry-number">$(number)</span> $(name)</a></li>""")
+                            end
                         end
                     end for other_page in collections[section_id].pages
                 ])
