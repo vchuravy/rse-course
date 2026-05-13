@@ -55,14 +55,14 @@ let
 	for i in 1:length(A)
 		A[i] = i
 	end
-	md"""
-	Memory layout of a `4×4` matrix (numbers show linear index = memory order):
-
-	$(A)
-
-	Columns run top-to-bottom; rows run left-to-right but are **not** contiguous in memory.
-	"""
+	A
 end
+
+# ╔═╡ 62310f1e-c8dd-4cdc-8316-d9d5cdadc243
+md"""
+!!! note
+    Memory layout of a `4×4` matrix (numbers show linear index = memory order):
+"""
 
 # ╔═╡ 13010007-0013-4000-8000-000000000007
 md"""
@@ -124,18 +124,16 @@ let
 end
 
 # ╔═╡ 1301000b-0013-4000-8000-00000000000b
-if @isdefined(sum_colfirst)
-	let
-		A = rand(1024, 1024)
-		t_row = @belapsed sum_rowfirst($A)
-		t_col = @belapsed sum_colfirst($A)
-		md"""
-		| Loop order | Time | Speedup |
-		|---|---|---|
-		| row-first (cache-unfriendly) | $(round(t_row * 1e3, digits=2)) ms | 1× |
-		| col-first (cache-friendly) | $(round(t_col * 1e3, digits=2)) ms | $(round(t_row / t_col, digits=2))× |
-		"""
-	end
+let
+	A = rand(1024, 1024)
+	t_row = @belapsed sum_rowfirst($A)
+	t_col = @isdefined(sum_colfirst) ? @belapsed(sum_colfirst($A)) : NaN
+	md"""
+	| Loop order | Time | Speedup |
+	|---|---|---|
+	| row-first (cache-unfriendly) | $(round(t_row * 1e3, digits=2)) ms | 1× |
+	| col-first (cache-friendly) | $(round(t_col * 1e3, digits=2)) ms | $(round(t_row / t_col, digits=2))× |
+	"""
 end
 
 # ╔═╡ 1301000c-0013-4000-8000-00000000000c
@@ -218,20 +216,18 @@ let
 end
 
 # ╔═╡ 13010011-0013-4000-8000-000000000011
-if @isdefined(matvec_colfirst!)
-	let
-		m, n = 1024, 1024
-		A = rand(m, n); x = rand(n)
-		y = zeros(m)
-		t_row = @belapsed matvec_rowfirst!($y, $A, $x)
-		t_col = @belapsed matvec_colfirst!($y, $A, $x)
-		md"""
-		| Implementation | Time | Speedup |
-		|---|---|---|
-		| `matvec_rowfirst!` | $(round(t_row * 1e3, digits=2)) ms | 1× |
-		| `matvec_colfirst!` | $(round(t_col * 1e3, digits=2)) ms | $(round(t_row / t_col, digits=2))× |
-		"""
-	end
+let
+	m, n = 1024, 1024
+	A = rand(m, n); x = rand(n)
+	y = zeros(m)
+	t_row = @belapsed matvec_rowfirst!($y, $A, $x)
+	t_col = @isdefined(matvec_colfirst!) ? @belapsed(matvec_colfirst!($y, $A, $x)) : NaN
+	md"""
+	| Implementation | Time | Speedup |
+	|---|---|---|
+	| `matvec_rowfirst!` | $(round(t_row * 1e3, digits=2)) ms | 1× |
+	| `matvec_colfirst!` | $(round(t_col * 1e3, digits=2)) ms | $(round(t_row / t_col, digits=2))× |
+	"""
 end
 
 # ╔═╡ 13010012-0013-4000-8000-000000000012
@@ -674,17 +670,18 @@ version = "17.7.0+0"
 # ╟─13010004-0013-4000-8000-000000000004
 # ╟─13010005-0013-4000-8000-000000000005
 # ╠═13010006-0013-4000-8000-000000000006
+# ╟─62310f1e-c8dd-4cdc-8316-d9d5cdadc243
 # ╟─13010007-0013-4000-8000-000000000007
 # ╠═13010008-0013-4000-8000-000000000008
 # ╠═13010009-0013-4000-8000-000000000009
 # ╟─1301000a-0013-4000-8000-00000000000a
-# ╠═1301000b-0013-4000-8000-00000000000b
+# ╟─1301000b-0013-4000-8000-00000000000b
 # ╟─1301000c-0013-4000-8000-00000000000c
 # ╟─1301000d-0013-4000-8000-00000000000d
 # ╠═1301000e-0013-4000-8000-00000000000e
 # ╠═1301000f-0013-4000-8000-00000000000f
 # ╟─13010010-0013-4000-8000-000000000010
-# ╠═13010011-0013-4000-8000-000000000011
+# ╟─13010011-0013-4000-8000-000000000011
 # ╟─13010012-0013-4000-8000-000000000012
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

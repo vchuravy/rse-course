@@ -169,12 +169,21 @@ After fixing it, verify that `my_sqrt(2.0) ≈ sqrt(2.0)` and that
 let
 	if !@isdefined(my_sqrt)
 		func_not_defined(:my_sqrt)
-	elseif !(my_sqrt(2.0) ≈ sqrt(2.0))
-		keep_working(md"`my_sqrt(2.0)` should be approximately `sqrt(2.0)`.")
-	elseif !(my_sqrt(Float32(2)) isa Float32)
-		keep_working(md"`my_sqrt(Float32(2))` should return a `Float32`, not a `$(typeof(my_sqrt(Float32(2))))`.")
 	else
-		correct()
+		try
+			if !(my_sqrt(2.0) ≈ sqrt(2.0))
+				keep_working(md"`my_sqrt(2.0)` should be approximately `sqrt(2.0)`.")
+			else
+				r32 = my_sqrt(Float32(2))
+				if !(r32 isa Float32)
+					keep_working(md"`my_sqrt(Float32(2))` should return a `Float32`, not a `$(typeof(r32))`.")
+				else
+					correct()
+				end
+			end
+		catch e
+			keep_working(md"Your function threw an error: `$(sprint(showerror, e))`")
+		end
 	end
 end
 

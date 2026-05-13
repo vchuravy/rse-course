@@ -46,46 +46,49 @@ Julia provides three macros for accelerating inner loops:
 
 # ╔═╡ 12010006-0012-4000-8000-000000000006
 md"""
-## Part 1 — SAXPY with `@inbounds` and `@simd`
+## Part 1 — Sum reduction with `@inbounds` and `@simd`
 
-The lecture showed the AXPY operation: `z = a*x + y` element-wise.
-Below is a correct but unannotated reference implementation.
+The loop below is correct but limited: because IEEE 754 requires floating-point
+additions to be evaluated strictly left-to-right, the compiler cannot use vector
+registers for the accumulation without explicit permission.
 
 ```julia
-function saxpy_naive!(z, a, x, y)
-    for idx in eachindex(z, x, y)
-        z[idx] = a * x[idx] + y[idx]
+function mysum_naive(x)
+    acc = zero(eltype(x))
+    for i in eachindex(x)
+        acc += x[i]
     end
+    return acc
 end
 ```
 
-Implement `saxpy_fast!(z, a, x, y)` that adds:
-1. `@inbounds` — safe here because `eachindex(z, x, y)` throws a `DimensionMismatch` if the arrays differ in size, so any index produced is valid for all three arrays.
-2. `@simd` — each iteration is independent (no loop-carried dependency), so vectorisation is valid.
+Implement `mysum_fast(x)` that adds:
+1. `@inbounds` — safe when iterating with `eachindex`, removes the per-element bounds check inside the loop.
+2. `@simd` — grants the compiler permission to reorder additions, enabling multi-lane vector reduction (e.g. 4 × `Float64` per cycle with AVX2).
 """
 
 # ╔═╡ 12010007-0012-4000-8000-000000000007
-function saxpy_naive!(z, a, x, y)
-    for idx in eachindex(z, x, y)
-        z[idx] = a * x[idx] + y[idx]
+function mysum_naive(x)
+    acc = zero(eltype(x))
+    for i in eachindex(x)
+        acc += x[i]
     end
+    return acc
 end
 
 # ╔═╡ 12010008-0012-4000-8000-000000000008
-# TODO: Implement saxpy_fast!
+# TODO: Implement mysum_fast
 
 # ╔═╡ 12010009-0012-4000-8000-000000000009
 let
-	if !@isdefined(saxpy_fast!)
-		func_not_defined(:saxpy_fast!)
+	if !@isdefined(mysum_fast)
+		func_not_defined(:mysum_fast)
 	else
 		try
-			n = 1024
-			a = 2.5
-			x = rand(n); y = rand(n); z = zeros(n)
-			saxpy_fast!(z, a, x, y)
-			if !(z ≈ a .* x .+ y)
-				keep_working(md"`saxpy_fast!(z, a, x, y)` gives the wrong result — expected `z ≈ a .* x .+ y`.")
+			x = rand(1000)
+			result = mysum_fast(x)
+			if !(result ≈ mysum_naive(x))
+				keep_working(md"`mysum_fast(x)` returned `$(round(result, digits=6))` but expected approximately `$(round(mysum_naive(x), digits=6))`.")
 			else
 				correct()
 			end
@@ -96,34 +99,33 @@ let
 end
 
 # ╔═╡ 1201000a-0012-4000-8000-00000000000a
-if @isdefined(saxpy_fast!)
-	let
-		n = 2^20
-		a = 2.5
-		x = rand(n); y = rand(n); z = zeros(n)
-		t_naive = @belapsed saxpy_naive!($z, $a, $x, $y)
-		t_fast  = @belapsed saxpy_fast!($z, $a, $x, $y)
-		md"""
-		| Implementation | Time |
-		|---|---|
-		| `saxpy_naive!` | $(round(t_naive * 1e9, digits=1)) ns |
-		| `saxpy_fast!`  | $(round(t_fast  * 1e9, digits=1)) ns |
-		| speedup | $(round(t_naive / t_fast, digits=2))× |
-		"""
-	end
+let
+	n = 2^14
+	x = rand(n)
+	t_naive = @belapsed mysum_naive($x)
+	t_fast  = @isdefined(mysum_fast) ? @belapsed(mysum_fast($x)) : NaN
+	md"""
+	| Implementation | Time |
+	|---|---|
+	| `mysum_naive` | $(round(t_naive * 1e9, digits=1)) ns |
+	| `mysum_fast`  | $(round(t_fast  * 1e9, digits=1)) ns |
+	| speedup | $(round(t_naive / t_fast, digits=2))× |
+	"""
 end
 
 # ╔═╡ 1201000b-0012-4000-8000-00000000000b
 answer_box(hint(md"""
 ```julia
-function saxpy_fast!(z, a, x, y)
-    @inbounds @simd for idx in eachindex(z, x, y)
-        z[idx] = a * x[idx] + y[idx]
+function mysum_fast(x)
+    acc = zero(eltype(x))
+    @inbounds @simd for i in eachindex(x)
+        acc += x[i]
     end
+    return acc
 end
 ```
 
-`@inbounds` is safe because `eachindex(z, x, y)` already validates that all three arrays have the same length — if they don't, a `DimensionMismatch` is thrown before the loop body runs.
+Without `@simd`, strict IEEE 754 left-to-right ordering prevents the compiler from vectorising the reduction. `@simd` grants permission to reorder, so LLVM can maintain multiple partial sums across vector lanes — typically giving a 4–8× speedup on AVX2 hardware.
 """))
 
 # ╔═╡ 1201000c-0012-4000-8000-00000000000c
@@ -169,19 +171,17 @@ let
 end
 
 # ╔═╡ 1201000f-0012-4000-8000-00000000000f
-if @isdefined(dot_fast)
-	let
-		x = rand(2^20); y = rand(2^20)
-		t_base = @belapsed sum($x .* $y)
-		t_fast = @belapsed dot_fast($x, $y)
-		md"""
-		| Implementation | Time |
-		|---|---|
-		| `sum(x .* y)` (allocates a temporary) | $(round(t_base * 1e6, digits=2)) µs |
-		| `dot_fast(x, y)` (no allocation) | $(round(t_fast * 1e6, digits=2)) µs |
-		| speedup | $(round(t_base / t_fast, digits=2))× |
-		"""
-	end
+let
+	x = rand(2^20); y = rand(2^20)
+	t_base = @belapsed sum($x .* $y)
+	t_fast = @isdefined(dot_fast) ? @belapsed(dot_fast($x, $y)) : NaN
+	md"""
+	| Implementation | Time |
+	|---|---|
+	| `sum(x .* y)` (allocates a temporary) | $(round(t_base * 1e6, digits=2)) µs |
+	| `dot_fast(x, y)` (no allocation) | $(round(t_fast * 1e6, digits=2)) µs |
+	| speedup | $(round(t_base / t_fast, digits=2))× |
+	"""
 end
 
 # ╔═╡ 12010010-0012-4000-8000-000000000010
@@ -623,12 +623,12 @@ version = "17.7.0+0"
 # ╠═12010007-0012-4000-8000-000000000007
 # ╠═12010008-0012-4000-8000-000000000008
 # ╟─12010009-0012-4000-8000-000000000009
-# ╠═1201000a-0012-4000-8000-00000000000a
+# ╟─1201000a-0012-4000-8000-00000000000a
 # ╟─1201000b-0012-4000-8000-00000000000b
 # ╟─1201000c-0012-4000-8000-00000000000c
 # ╠═1201000d-0012-4000-8000-00000000000d
 # ╟─1201000e-0012-4000-8000-00000000000e
-# ╠═1201000f-0012-4000-8000-00000000000f
+# ╟─1201000f-0012-4000-8000-00000000000f
 # ╟─12010010-0012-4000-8000-000000000010
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
