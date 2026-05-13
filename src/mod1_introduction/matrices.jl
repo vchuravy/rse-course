@@ -2,13 +2,13 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "4.1"
-#> exercise_number = "9"
-#> title = "Optimization of parameters"
-#> tags = ["module1", "track_ad", "exercises"]
+#> chapter = "1"
+#> section = "5"
+#> order = "5.1"
+#> title = "Matrix multiply"
+#> tags = ["module1", "track_performance", "indepth"]
 #> layout = "layout.jlhtml"
-#> license = "MIT"
-#> description = "Use ForwardDiff to compute gradients and fit model parameters with Optim.jl"
+#> indepth_number = "1"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -17,205 +17,261 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
-using PlutoTeachingTools, PlutoUI
+# ╔═╡ 25935904-4644-4ce2-83e9-d08c22b5e40d
+using PlutoUI, PlutoTeachingTools
 
-# ╔═╡ ba4e41a6-c3e4-40f5-aae0-afd49744ca0d
+# ╔═╡ 8bf5b005-5374-4271-9f4d-88e4bac44331
+using LinearAlgebra, Random
+
+# ╔═╡ f08a7392-5f7e-45f8-a713-adb51eb43a7e
+using CairoMakie
+
+# ╔═╡ 98fa3886-a3c0-46c5-a547-c0cf7d808df0
+md"""
+# Experiments with Memory Access and Matrices
+(based on https://github.com/stevengj/18a01/blob/master/memory-matrices.ipynb)
+
+In many problems, especially problems accessing lots of data and doing relatively simple computations on each datum, the performance bottleneck is memory rather than computational speed. Because memory is arranged into a memory hierarchy of larger/slower and smaller/faster memories, it turns out that changing the order of memory access can have a huge impact on performance.
+"""
+
+# ╔═╡ 75f2e8f0-15f2-4920-a29f-a82a13683d8a
+md"""
+## Benchmarking Matrix Multiplication
+
+One of the most basic building blocks of numerical linear algebra is the computation of matrix multiplication: given an $m \times n$ matrix $A$ and an $n \times p$ matrix $B$, compute the $m \times p$ matrix $C = AB$.   The entries of $C$ are given by the exact formula:
+
+$C_{ik} = \\sum_{j=1}^n A_{ij} B_{jk}$
+
+but there are many ways to implement this computation.   $\approx 2mnp$ flops (floating-point additions and multiplications) are required, but they can re-ordered arbitrarily, leading to $\sim (mnp)!$ possible orderings.
+
+It turns out that the ordering of the operations in the matrix multiplication has a *huge* impact on performance, along with low-level details of the inner loops.  Basically, three factors make the implementation of efficient matrix multiplication highly nontrivial:
+
+* [Caches](https://en.wikipedia.org/wiki/CPU_cache): the matrix accesses must be reordered to obtain [temporal locality](https://en.wikipedia.org/wiki/Locality_of_reference) and hence efficient memory (cache) usage.
+* [Registers](https://en.wikipedia.org/wiki/Processor_register): at the lowest level, the CPU registers form a kind of ideal cache.  The innermost loops of the matrix multiplication need to be unrolled in order to load many values into registers and perform as much work with them as possible (essentially a small submatrix multiplication).  It turns out that a [lot of tricks](http://cscads.rice.edu/workshops/july2007/autotune-slides-07/Frigo.pdf) are required to do this well.
+* [SIMD instructions](https://en.wikipedia.org/wiki/SIMD): modern CPUs include special instructions that can perform several arithmetic operations at once (e.g. 2, 4, or even 8 `Float64` operations), and to get the full benefit of these operations typically requires hand coding.
+
+As a consequence, there is a huge performance gap between the most obvious three-loop matrix-multiplication code and highly optimized code.  This gap has become the central factor in the design of dense linear-algebra libraries for several decades, especially the industry-standard free/open-source the [LAPACK](https://en.wikipedia.org/wiki/LAPACK) library: nearly all dense linear algebra is now organized around highly optimized [BLAS](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms) libraries
+
+Because Julia benefits from fast compilers, we can illustrate this performance gap fairly with simple Julia code.  (In contrast, similar implementation in Matlab or Python would be orders of magnitude slower, and would demonstrate mostly language rather than the algorithmic effects.)
+   
+"""
+
+# ╔═╡ faf741a5-b4a9-450f-a559-0c901d90bb30
+md"
+### Naive algorithm
+
+The following is the simplest, most obvious, matrix-multiplication algorithm: just three nested loops, implementing a dot product for each output $C_{ik}$
+
+The only concessions we have made to performance concerns here are (1) we implement an in-place matmul! variant that operates on a pre-existing C array, to avoid benchmarking the memory allocation/deallocation and (2) we use the `@inbounds` macro to turn off array bounds-checking in Julia for the inner loop. Together, these make less than a factor of two difference in speed.
+"
+
+# ╔═╡ 6886e957-67fa-48ef-a1ec-a96b4cd602b8
+# compute C = A * B, using naive matrix-multiplication algorithm,
+# with a pre-allocated output array C.  ("!" is a Julia convention
+# for functions that modify their arguments.)
+function matmul!(C, A, B)
+    m,n = size(A)
+    n,p = size(B)
+    size(C) == (m,p) || error("incorrect dimensions ", size(C), " ≠ p")
+    for i = 1:m
+        for k = 1:p
+            c = zero(eltype(C))
+            for j = 1:n
+                @inbounds c += A[i,j] * B[j,k]
+            end
+            @inbounds C[i,k] = c
+        end
+    end
+    return C
+end
+
+# ╔═╡ 5f48574d-b90e-4fb0-b9cc-434fade39b1b
+# a wrapper that allocates C of an appropriate type
+matmul(A, B) = matmul!(Array{promote_type(eltype(A), eltype(B))}(undef, 
+                             size(A,1), size(B,2)),
+                       A, B)
+
+# ╔═╡ fc66ef8b-29be-4134-a366-dfda724756c2
 begin
-	using CairoMakie
-	set_theme!(theme_latexfonts();
-			   fontsize = 16,
-			   Lines = (linewidth = 2,),
-			   markersize = 16)
+	# correctness check:
+	A = rand(5,6)
+	B = rand(6,7)
+	norm(matmul(A,B) - A * B)
 end
 
-# ╔═╡ bd7ddb00-a392-43d2-8637-55c9660db022
-using ForwardDiff
-
-# ╔═╡ 743c24db-7997-42c9-8d09-392186d7b175
-using Optim
-
-# ╔═╡ d4e5f6a7-b8c9-4012-de45-f678901234ab
-using LinearAlgebra
-
-# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
-ChooseDisplayMode()
-
-# ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
+# ╔═╡ c83ed121-b27d-413b-9bb7-23d47fc5f7a7
 md"""
-# Exercise: Optimization of parameters
+#### Benchmarking naive `matmul`
+
+Here, we will benchmark our `naive` matmul implementation against the highly optimized OpenBLAS library that Julia uses for its built-in matrix multiplication. Like `matmul!`, we will call OpenBLAS with pre-allocated output via `mul!(C, A, B)` instead of the simpler `A * B`. By default, OpenBLAS uses multiple CPU cores, which gives it an "unfair" parallel speedup, but we can disable this for benchmarking purposes:
 """
 
-# ╔═╡ 55ccce7c-0d5b-44d0-8288-4124fadd7544
-md"""
-
-## Example: Rosenbrock function
-
-$f(x,y) = (1-x)^2 + 100(y-x^2)$
-
-```julia
-rosenbrock(x, y) = (1 - x) ^ 2 + 100 * (y - x ^ 2) ^ 2
-```
-"""
-
-# ╔═╡ 7c2bab99-da3a-49eb-9c64-3c81188e2abe
-rosenbrock(x, y) = (1 - x) ^ 2 + 100 * (y - x ^ 2) ^ 2;
-
-# ╔═╡ 79a94548-d34f-4404-90e5-cbe3d383180b
+# ╔═╡ bfa3df2d-1978-4974-ae4b-d8672e52ac93
+# for benchmarking, use only single-threaded BLAS:
 begin
-	xs = -6:0.04:6
-	ys = -2:0.04:5
-	zs = [log10(rosenbrock(x, y)) for x in xs, y in ys]
-end;
-
-# ╔═╡ 444b279f-1fe0-4dbf-8ea9-d350a042e675
-surface(xs, ys, zs, axis=(type=Axis3,))
-
-# ╔═╡ 22520dc4-5ab0-4ccc-af82-cc0169e856b9
-contourf(xs, ys, zs)
-
-# ╔═╡ 30a37005-b385-478e-bc04-b28941b520b1
-let
-	f(x) = rosenbrock(x...)
-	sol = optimize(f, [0.0, 0.0])
-	@show Optim.minimizer(sol)
-	sol
+	BLAS.set_num_threads(1)
+	blas_threads = nothing
 end
 
-# ╔═╡ 9d16dd65-adc0-4fa8-8528-3f3fbdfa6b8e
-∂f_∂x(f, x, y) = ForwardDiff.derivative(x->f(x, y), x)
+# ╔═╡ c715d09c-fe59-43da-badb-7be1c2f442bf
+function logspace(start, stop, length)
+	exp10.(range(start; stop, length))
+end
 
-# ╔═╡ 9c7cd1a7-9f1e-423a-b588-31cb77fdebba
-∂f_∂y(f, x, y) = ForwardDiff.derivative(y->f(x, y), y)
+# ╔═╡ 36da8b88-960c-45d4-a55b-28745750c372
+begin
+	blas_threads
 
-# ╔═╡ 8199ebd3-f5a9-4b4f-9bd7-0c8a5c943688
-contourf(xs, ys, ((x,y)->∂f_∂x(rosenbrock, x, y)[1]).(xs, ys'))
-
-# ╔═╡ ba244fcb-32c0-4e44-bc74-326c628b335c
-contourf(xs, ys, ((x,y)->∂f_∂y(rosenbrock, x, y)).(xs, ys'))
-
-# ╔═╡ 10c39e63-bc7e-4169-9187-2bcdd07fb96d
-let
-	f(x) = rosenbrock(x[1], x[2])
-	function g!(dx, x)
-		dx[1] = ∂f_∂x(rosenbrock, x[1], x[2])
-		dx[2] = ∂f_∂y(rosenbrock, x[1], x[2])
-		nothing
+	N = round.(Int, logspace(1, log10(3000), 60))  # 60 sizes from 10 to 3000
+	# alternatively, use N = 10:1000 to see some interesting patterns due to cache associativity etc.
+	t = Float64[]
+	t0 = Float64[]
+	for n in N
+	    local A = zeros(n,n)
+	    local B = zeros(n,n)
+	    # preallocate output C so that allocation is not included in timing
+	    C = zeros(n,n)
+	    push!(t, @elapsed matmul!(C,A,B))
+	    push!(t0, @elapsed LinearAlgebra.mul!(C,A,B))
+	    println("finished n = $n: slowdown of ", t[end]/t0[end])
 	end
-	sol = optimize(f, g!, [0.0, 0.0])
-	@show Optim.minimizer(sol)
-	sol
 end
 
-# ╔═╡ 29842c8e-9d95-4736-98b5-9f089e17f7f7
+# ╔═╡ 6599d6a8-073c-4a83-81bd-c65c1a62839b
 md"""
-## Exercise: Fitting our parameters
+Now, we will plot the results. Since the number of flops is $2n^3$, we will plot $2n^3/t$ for time $t$ in microseconds in order to plot the gigaflops rate (billions of flops per second). If you naively think of a CPU as a box that performs floating-point instructions at a fixed rate, with all other instructions being negligible (a picture that may have been true circa 1985), this would be a flat horizontal line independent of $n$, but we will see that reality is quite different.
+
+The OpenBLAS library gets an "unfair" factor of 8 speedup on typical modern Intel processors thanks to hand-coded support for [AVX-512](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions) SIMD instructions, which perform 8 double-precision floating-point operations simultaneously.
 """
 
-# ╔═╡ 9ec021a5-fc2b-484e-b019-b94df802b6da
-function m(x, a, b, c, d)
-	return sin(a*x)*b + cos(c*x)*d
+# ╔═╡ db422443-97b0-40c2-bd03-b8fca41b5894
+begin 
+	blas_threads
+	peakflops() * 1e-9
 end
 
-# ╔═╡ c31e6c15-b847-4da7-baf3-dd9f400adc4a
-xs1 = 0.0:0.01:2π
-
-# ╔═╡ 46f13ab1-5ee5-4a50-99d1-fe1192101503
-ys1 = m.(xs1, 0.3, -1.2, 0.5, 0.7)
-
-# ╔═╡ c44b1c27-8db3-48fc-b203-01c3b1ad9163
-# Mean squared error
-function mse(ŷ, y)
-	sum((ŷ .- y).^2) / length(y)
-end
-
-# ╔═╡ 82882271-322b-4b2a-a499-92fc77bd81cd
-sol2 = let
-	f(coeffs) = mse(ys1, m.(xs1, coeffs...))
-	function g!(dc, c)
-		dc[1] = ForwardDiff.derivative(a->f((a, c[2], c[3], c[4])), c[1])
-		dc[2] = 0 # TODO
-		dc[3] = 0 # TODO
-		dc[4] = 0 # TODO
-		nothing
-	end
-	c₀ = [0.9456253412871252, 0.5060263144193908, 0.7313087724591087, 0.5401913661922946]
-	# TODO: What happens with c₀ = rand(-2.0:0.1:2.0, 4)
-	optimize(f, g!, c₀)
-end
-
-# ╔═╡ 4df257e1-5fa0-4e6b-bf4e-21651547a720
-Optim.minimizer(sol2)
-
-# ╔═╡ 5197f620-812e-49be-94cb-b3f7159420a8
-ys2 = m.(xs1, Optim.minimizer(sol2)...)
-
-# ╔═╡ fc8626da-dd5f-47d1-beb6-91b208236487
+# ╔═╡ 3038a7ff-3ab3-4795-afa8-285b9b6d33d9
 let
 	fig = Figure()
-	ax = Axis(fig[1,1])
+	ax = Axis(fig[1, 1],
+			 title = "",
+			 xlabel = "matrix size n",
+			 ylabel = L"\text{gigaflops~} \frac{2n^3}{t}",
+			 yscale=Makie.pseudolog10,
+			 yticks = [0, 1, 2, 3, 4, 5,  25, 50, 75])
+	lines!(ax, N, 2N.^3 ./ t .* 1e-9, label="naive matmul")
+	lines!(ax, N,  2N.^3 ./ t0 .* 1e-9, label="BLAS matmul")
 
-	lines!(ax, xs1, ys1, label="Target curve")
-	lines!(ax, xs1, ys2, label="Your curve, mse = $(mse(ys1, ys2))")
+	axislegend(ax, position = :rc)
 
-	axislegend(ax)
 	fig
 end
 
-# ╔═╡ c55d1584-49d7-4eb2-94b2-9361c44dbe5a
-answer_box(hint(
+# ╔═╡ 7fd5e1f7-3ac5-4f9e-8c6c-dc6a397bdc13
 md"""
-```julia
-function g!(dc, c)
-	dc[1] = ForwardDiff.derivative(a->f((a, c[2], c[3], c[4])), c[1])
-	dc[2] = ForwardDiff.derivative(a->f((c[1], a, c[3], c[4])), c[2])
-	dc[3] = ForwardDiff.derivative(a->f((c[1], c[2], a, c[4])), c[3])
-	dc[4] = ForwardDiff.derivative(a->f((c[1], c[2], c[3], a)), c[4])
-	nothing
+### Cache-oblivious matrix-multiplication
+
+As a first step in the right direction, we'll implement a [cache-oblivious algorithm](https://en.wikipedia.org/wiki/Cache-oblivious_algorithm) for matrix multiplication: divide the matrices into four submatrices which are multiplied recursively until a sufficiently large base case is reached (large enough to amortize the recursion overhead). This strategy erases the steep performance drop-off that occurs for large $n$ where the matrix goes out-of-cache, at the cost of ~25 lines of code rather than ~10 for the naive loops.
+
+(It still doesn't match the OpenBLAS performance because it fails to address the other two problems: unrolling and optimizing the base cases to optimize register utilization, and coding for SIMD instructions.)
+
+"""
+
+# ╔═╡ 227558b9-bd0d-432d-b458-89e00c8cb14e
+function add_matmul_rec!(m,n,p, i0,j0,k0, C,A,B)
+    if m+n+p <= 64   # base case: naive matmult for sufficiently large matrices
+        for i = 1:m
+            for k = 1:p
+                c = zero(eltype(C))
+                for j = 1:n
+                    @inbounds c += A[i0+i,j0+j] * B[j0+j,k0+k]
+                end
+                @inbounds C[i0+i,k0+k] += c
+            end
+        end
+    else
+        m2 = m ÷ 2; n2 = n ÷ 2; p2 = p ÷ 2
+        add_matmul_rec!(m2, n2, p2, i0, j0, k0, C, A, B)
+        
+        add_matmul_rec!(m-m2, n2, p2, i0+m2, j0, k0, C, A, B)
+        add_matmul_rec!(m2, n-n2, p2, i0, j0+n2, k0, C, A, B)
+        add_matmul_rec!(m2, n2, p-p2, i0, j0, k0+p2, C, A, B)
+        
+        add_matmul_rec!(m-m2, n-n2, p2, i0+m2, j0+n2, k0, C, A, B)
+        add_matmul_rec!(m2, n-n2, p-p2, i0, j0+n2, k0+p2, C, A, B)
+        add_matmul_rec!(m-m2, n2, p-p2, i0+m2, j0, k0+p2, C, A, B)
+        
+        add_matmul_rec!(m-m2, n-n2, p-p2, i0+m2, j0+n2, k0+p2, C, A, B)
+    end
+    return C
 end
-```
-"""
-))
 
-# ╔═╡ e03aeed9-e0ad-4ee3-b642-9bfc5a4f67c9
-danger(
-md"""
-It is not gurantueed that the optimizer converges to the correct global minimum.
+# ╔═╡ feccbba0-2143-43dd-b039-4af8b75faae3
+function matmul_rec!(C, A, B)
+    m,n = size(A)
+    n,p = size(B)
+    size(C) == (m,p) || error("incorrect dimensions ", size(C), " ≠ 
+p")
+    fill!(C, 0)
+    return add_matmul_rec!(m,n,p, 0,0,0, C,A,B)
+end
 
-Change the initialization of `c₀`.
-"""
-)
+# ╔═╡ 47cc3dc5-5294-4aed-83ce-a82bd4a34916
+matmul_rec(A, B) = matmul_rec!(Array{promote_type(eltype(A), eltype(B))}(undef, 
+                                     size(A,1), size(B,2)),
+                               A, B)
 
-# ╔═╡ a1b2c3d4-e5f6-4789-ab12-cd34ef567890
-PlutoUI.TableOfContents(; depth=4)
-
-# ╔═╡ b3c4d5e6-f7a8-4901-bc23-de45f6789012
+# ╔═╡ d4424984-4ef5-474e-b026-7b3e87e7aa20
 let
-	target = [0.3, -1.2, 0.5, 0.7]
-	result = Optim.minimizer(sol2)
-	if norm(result .- target) > 0.1
-		keep_working(md"The optimizer didn't converge to the right parameters. Check your gradient computation.")
-	else
-		correct(md"The optimizer found the correct parameters!")
+	# correctness check:
+	A = rand(50,60)
+	B = rand(60,70)
+	norm(matmul_rec(A,B) - A * B)
+end
+
+# ╔═╡ 6c17fe85-9184-463f-985f-f463adf3c8d3
+begin
+	tco = Float64[]
+	for n in N
+	    local A = zeros(n,n)
+	    local B = zeros(n,n)
+	    # preallocate output C so that allocation is not included in timing
+	    C = zeros(n,n)
+	    push!(tco, @elapsed matmul_rec!(C,A,B))
+	    println("finished n = $n: slowdown of ", tco[end]/t0[length(tco)])
 	end
+end
+
+# ╔═╡ c6973952-c6f3-4a29-b28b-a6eb9712d2ba
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1],
+			 title = "",
+			 xlabel = "matrix size n",
+			 ylabel = L"\text{gigaflops~} \frac{2n^3}{t}",
+			 yscale=Makie.pseudolog10,
+			 yticks = [0, 1, 2, 3, 4, 5,  25, 50, 75])
+	lines!(ax, N, 2N.^3 ./ t .* 1e-9, label="naive matmul")
+	lines!(ax, N,  2N.^3 ./ t0 .* 1e-9, label="BLAS matmul")
+	lines!(ax, N,  2N.^3 ./ tco .* 1e-9, label="Cache-Oblivious matmul")
+	
+	axislegend(ax, position = :rc)
+	fig
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 CairoMakie = "~0.15.0"
-ForwardDiff = "~0.10.38"
-Optim = "~1.13.2"
-PlutoTeachingTools = "~0.2.11"
-PlutoUI = "~0.7.51"
+PlutoTeachingTools = "~0.4.1"
+PlutoUI = "~0.7.65"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -224,22 +280,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "a1e4cef657ab3aa574eae05cf2ca04e67379c83a"
-
-[[deps.ADTypes]]
-git-tree-sha1 = "be7ae030256b8ef14a441726c4c37766b90b93a3"
-uuid = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
-version = "1.15.0"
-
-    [deps.ADTypes.extensions]
-    ADTypesChainRulesCoreExt = "ChainRulesCore"
-    ADTypesConstructionBaseExt = "ConstructionBase"
-    ADTypesEnzymeCoreExt = "EnzymeCore"
-
-    [deps.ADTypes.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-    EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
+project_hash = "1bc21319e6398ac0a2b2c8ce923682114c2671a0"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -294,38 +335,6 @@ version = "0.4.2"
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 version = "1.1.2"
-
-[[deps.ArrayInterface]]
-deps = ["Adapt", "LinearAlgebra"]
-git-tree-sha1 = "9606d7832795cbef89e06a550475be300364a8aa"
-uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.19.0"
-
-    [deps.ArrayInterface.extensions]
-    ArrayInterfaceBandedMatricesExt = "BandedMatrices"
-    ArrayInterfaceBlockBandedMatricesExt = "BlockBandedMatrices"
-    ArrayInterfaceCUDAExt = "CUDA"
-    ArrayInterfaceCUDSSExt = "CUDSS"
-    ArrayInterfaceChainRulesCoreExt = "ChainRulesCore"
-    ArrayInterfaceChainRulesExt = "ChainRules"
-    ArrayInterfaceGPUArraysCoreExt = "GPUArraysCore"
-    ArrayInterfaceReverseDiffExt = "ReverseDiff"
-    ArrayInterfaceSparseArraysExt = "SparseArrays"
-    ArrayInterfaceStaticArraysCoreExt = "StaticArraysCore"
-    ArrayInterfaceTrackerExt = "Tracker"
-
-    [deps.ArrayInterface.weakdeps]
-    BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
-    BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
-    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-    CUDSS = "45b445bb-4962-46a0-9369-b4df9d0f772e"
-    ChainRules = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
-    ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-    StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-    Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -413,12 +422,6 @@ weakdeps = ["SparseArrays"]
     [deps.ChainRulesCore.extensions]
     ChainRulesCoreSparseArraysExt = "SparseArrays"
 
-[[deps.CodeTracking]]
-deps = ["InteractiveUtils", "UUIDs"]
-git-tree-sha1 = "062c5e1a5bf6ada13db96a4ae4749a4c2234f521"
-uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
-version = "1.3.9"
-
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON"]
 git-tree-sha1 = "e771a63cc8b539eca78c85b0cabd9233d6c8f06f"
@@ -456,12 +459,6 @@ deps = ["ColorTypes", "FixedPointNumbers", "Reexport"]
 git-tree-sha1 = "37ea44092930b1811e666c3bc38065d7d87fcc74"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.13.1"
-
-[[deps.CommonSubexpressions]]
-deps = ["MacroTools"]
-git-tree-sha1 = "cda2cfaebb4be89c9084adaca7dd7333369715c5"
-uuid = "bbf7d656-a473-5ed7-a52c-81e309532950"
-version = "0.3.1"
 
 [[deps.Compat]]
 deps = ["TOML", "UUIDs"]
@@ -526,68 +523,6 @@ deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
 git-tree-sha1 = "5620ff4ee0084a6ab7097a27ba0c19290200b037"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
 version = "1.6.4"
-
-[[deps.DiffResults]]
-deps = ["StaticArraysCore"]
-git-tree-sha1 = "782dd5f4561f5d267313f23853baaaa4c52ea621"
-uuid = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
-version = "1.1.0"
-
-[[deps.DiffRules]]
-deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
-git-tree-sha1 = "23163d55f885173722d1e4cf0f6110cdbaf7e272"
-uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
-version = "1.15.1"
-
-[[deps.DifferentiationInterface]]
-deps = ["ADTypes", "LinearAlgebra"]
-git-tree-sha1 = "210933c93f39f832d92f9efbbe69a49c453db36d"
-uuid = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
-version = "0.7.1"
-
-    [deps.DifferentiationInterface.extensions]
-    DifferentiationInterfaceChainRulesCoreExt = "ChainRulesCore"
-    DifferentiationInterfaceDiffractorExt = "Diffractor"
-    DifferentiationInterfaceEnzymeExt = ["EnzymeCore", "Enzyme"]
-    DifferentiationInterfaceFastDifferentiationExt = "FastDifferentiation"
-    DifferentiationInterfaceFiniteDiffExt = "FiniteDiff"
-    DifferentiationInterfaceFiniteDifferencesExt = "FiniteDifferences"
-    DifferentiationInterfaceForwardDiffExt = ["ForwardDiff", "DiffResults"]
-    DifferentiationInterfaceGPUArraysCoreExt = "GPUArraysCore"
-    DifferentiationInterfaceGTPSAExt = "GTPSA"
-    DifferentiationInterfaceMooncakeExt = "Mooncake"
-    DifferentiationInterfacePolyesterForwardDiffExt = ["PolyesterForwardDiff", "ForwardDiff", "DiffResults"]
-    DifferentiationInterfaceReverseDiffExt = ["ReverseDiff", "DiffResults"]
-    DifferentiationInterfaceSparseArraysExt = "SparseArrays"
-    DifferentiationInterfaceSparseConnectivityTracerExt = "SparseConnectivityTracer"
-    DifferentiationInterfaceSparseMatrixColoringsExt = "SparseMatrixColorings"
-    DifferentiationInterfaceStaticArraysExt = "StaticArrays"
-    DifferentiationInterfaceSymbolicsExt = "Symbolics"
-    DifferentiationInterfaceTrackerExt = "Tracker"
-    DifferentiationInterfaceZygoteExt = ["Zygote", "ForwardDiff"]
-
-    [deps.DifferentiationInterface.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
-    Diffractor = "9f5e2b26-1114-432f-b630-d3fe2085c51c"
-    Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-    EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
-    FastDifferentiation = "eb9bf01b-bf85-4b60-bf87-ee5de06c00be"
-    FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
-    FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
-    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-    GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
-    GTPSA = "b27dd330-f138-47c5-815b-40db9dd9b6e8"
-    Mooncake = "da2b9cff-9c12-43a0-ae48-6db2b0edb7d6"
-    PolyesterForwardDiff = "98d1487c-24ca-40b6-b7ab-df2af84e126b"
-    ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-    SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
-    SparseMatrixColorings = "0a514795-09f3-496d-8182-132a7b665d35"
-    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-    Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-    Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
-    Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -711,24 +646,6 @@ weakdeps = ["PDMats", "SparseArrays", "Statistics"]
     FillArraysSparseArraysExt = "SparseArrays"
     FillArraysStatisticsExt = "Statistics"
 
-[[deps.FiniteDiff]]
-deps = ["ArrayInterface", "LinearAlgebra", "Setfield"]
-git-tree-sha1 = "f089ab1f834470c525562030c8cfde4025d5e915"
-uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
-version = "2.27.0"
-
-    [deps.FiniteDiff.extensions]
-    FiniteDiffBandedMatricesExt = "BandedMatrices"
-    FiniteDiffBlockBandedMatricesExt = "BlockBandedMatrices"
-    FiniteDiffSparseArraysExt = "SparseArrays"
-    FiniteDiffStaticArraysExt = "StaticArrays"
-
-    [deps.FiniteDiff.weakdeps]
-    BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
-    BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-
 [[deps.FixedPointNumbers]]
 deps = ["Statistics"]
 git-tree-sha1 = "05882d6995ae5c12bb5f36dd2ed3f61c98cbb172"
@@ -745,16 +662,6 @@ version = "2.16.0+0"
 git-tree-sha1 = "9c68794ef81b08086aeb32eeaf33531668d5f5fc"
 uuid = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
 version = "1.3.7"
-
-[[deps.ForwardDiff]]
-deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions"]
-git-tree-sha1 = "a2df1b776752e3f344e5116c06d75a10436ab853"
-uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.38"
-weakdeps = ["StaticArrays"]
-
-    [deps.ForwardDiff.extensions]
-    ForwardDiffStaticArraysExt = "StaticArrays"
 
 [[deps.FreeType]]
 deps = ["CEnum", "FreeType2_jll"]
@@ -779,11 +686,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "7a214fdac5ed5f59a22c2d9a885a16da1c74bbc7"
 uuid = "559328eb-81f9-559d-9380-de523a88c83c"
 version = "1.0.17+0"
-
-[[deps.Future]]
-deps = ["Random"]
-uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
-version = "1.11.0"
 
 [[deps.GeoFormatTypes]]
 git-tree-sha1 = "8e233d5167e63d708d41f87597433f59a0f213fe"
@@ -1034,12 +936,6 @@ git-tree-sha1 = "eac1206917768cb54957c65a615460d87b455fc1"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.1.1+0"
 
-[[deps.JuliaInterpreter]]
-deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
-git-tree-sha1 = "6ac9e4acc417a5b534ace12690bc6973c25b862f"
-uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
-version = "0.10.3"
-
 [[deps.JuliaSyntaxHighlighting]]
 deps = ["StyledStrings"]
 uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
@@ -1173,12 +1069,6 @@ git-tree-sha1 = "321ccef73a96ba828cd51f2ab5b9f917fa73945a"
 uuid = "38a345b3-de98-5d2b-a5d3-14cd9215e700"
 version = "2.41.0+0"
 
-[[deps.LineSearches]]
-deps = ["LinearAlgebra", "NLSolversBase", "NaNMath", "Parameters", "Printf"]
-git-tree-sha1 = "4adee99b7262ad2a1a4bbbc59d993d24e55ea96f"
-uuid = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
-version = "7.4.0"
-
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -1203,12 +1093,6 @@ version = "0.3.29"
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
-
-[[deps.LoweredCodeUtils]]
-deps = ["JuliaInterpreter"]
-git-tree-sha1 = "4ef1c538614e3ec30cb6383b9eb0326a5c3a9763"
-uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "3.3.0"
 
 [[deps.MIMEs]]
 git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
@@ -1267,12 +1151,6 @@ version = "0.3.4"
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 version = "2025.11.4"
-
-[[deps.NLSolversBase]]
-deps = ["ADTypes", "DifferentiationInterface", "Distributed", "FiniteDiff", "ForwardDiff"]
-git-tree-sha1 = "25a6638571a902ecfb1ae2a18fc1575f86b1d4df"
-uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
-version = "7.10.0"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -1349,18 +1227,6 @@ git-tree-sha1 = "1346c9208249809840c91b26703912dff463d335"
 uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.6+0"
 
-[[deps.Optim]]
-deps = ["Compat", "EnumX", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "61942645c38dd2b5b78e2082c9b51ab315315d10"
-uuid = "429524aa-4258-5aef-a3af-852621145aeb"
-version = "1.13.2"
-
-    [deps.Optim.extensions]
-    OptimMOIExt = "MathOptInterface"
-
-    [deps.Optim.weakdeps]
-    MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "6703a85cb3781bd5909d48730a67205f3f31a575"
@@ -1407,12 +1273,6 @@ git-tree-sha1 = "275a9a6d85dc86c24d03d1837a0010226a96f540"
 uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
 version = "1.56.3+0"
 
-[[deps.Parameters]]
-deps = ["OrderedCollections", "UnPack"]
-git-tree-sha1 = "34c0e9ad262e5f7fc75b10a9952ca7692cfc5fbe"
-uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
-version = "0.12.3"
-
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
 git-tree-sha1 = "7d2f8f21da5db6a806faf7b9b292296da42b2810"
@@ -1446,23 +1306,11 @@ git-tree-sha1 = "3ca9a356cd2e113c420f2c13bea19f8d3fb1cb18"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.3"
 
-[[deps.PlutoHooks]]
-deps = ["InteractiveUtils", "Markdown", "UUIDs"]
-git-tree-sha1 = "072cdf20c9b0507fdd977d7d246d90030609674b"
-uuid = "0ff47ea0-7a50-410d-8455-4348d5de0774"
-version = "0.0.5"
-
-[[deps.PlutoLinks]]
-deps = ["FileWatching", "InteractiveUtils", "Markdown", "PlutoHooks", "Revise", "UUIDs"]
-git-tree-sha1 = "8f5fa7056e6dcfb23ac5211de38e6c03f6367794"
-uuid = "0ff47ea0-7a50-410d-8455-4348d5de0420"
-version = "0.1.6"
-
 [[deps.PlutoTeachingTools]]
-deps = ["Downloads", "HypertextLiteral", "LaTeXStrings", "Latexify", "Markdown", "PlutoLinks", "PlutoUI", "Random"]
-git-tree-sha1 = "5d9ab1a4faf25a62bb9d07ef0003396ac258ef1c"
+deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoUI"]
+git-tree-sha1 = "537c439831c0f8d37265efe850ee5c0d9c7efbe4"
 uuid = "661c6b06-c737-4d37-b85c-46df65de6f69"
-version = "0.2.15"
+version = "0.4.1"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
@@ -1474,12 +1322,6 @@ version = "0.7.65"
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
 uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
 version = "0.1.2"
-
-[[deps.PositiveFactorizations]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "17275485f373e6673f7e7f97051f703ed5b15b20"
-uuid = "85a6dd25-e78a-55b7-8502-1745935b8125"
-version = "0.2.4"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -1569,16 +1411,6 @@ git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.1"
 
-[[deps.Revise]]
-deps = ["CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
-git-tree-sha1 = "f6f7d30fb0d61c64d0cfe56cf085a7c9e7d5bc80"
-uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.8.0"
-weakdeps = ["Distributed"]
-
-    [deps.Revise.extensions]
-    DistributedExt = "Distributed"
-
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
 git-tree-sha1 = "852bd0f55565a9e973fcfee83a84413270224dc4"
@@ -1615,12 +1447,6 @@ version = "1.3.0"
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 version = "1.11.0"
-
-[[deps.Setfield]]
-deps = ["ConstructionBase", "Future", "MacroTools", "StaticArraysCore"]
-git-tree-sha1 = "c5391c6ace3bc430ca630251d02ea9687169ca68"
-uuid = "efcf1570-3423-57d1-acb7-fd33fddbac46"
-version = "1.1.2"
 
 [[deps.ShaderAbstractions]]
 deps = ["ColorTypes", "FixedPointNumbers", "GeometryBasics", "LinearAlgebra", "Observables", "StaticArrays"]
@@ -1841,11 +1667,6 @@ deps = ["Random", "SHA"]
 uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 version = "1.11.0"
 
-[[deps.UnPack]]
-git-tree-sha1 = "387c1f73762231e86e0c9c5443ce3b4a0a9a0c2b"
-uuid = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
-version = "1.0.2"
-
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 version = "1.11.0"
@@ -1861,13 +1682,18 @@ deps = ["Dates", "LinearAlgebra", "Random"]
 git-tree-sha1 = "d2282232f8a4d71f79e85dc4dd45e5b12a6297fb"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
 version = "1.23.1"
-weakdeps = ["ConstructionBase", "ForwardDiff", "InverseFunctions", "Printf"]
 
     [deps.Unitful.extensions]
     ConstructionBaseUnitfulExt = "ConstructionBase"
     ForwardDiffExt = "ForwardDiff"
     InverseFunctionsUnitfulExt = "InverseFunctions"
     PrintfExt = "Printf"
+
+    [deps.Unitful.weakdeps]
+    ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
+    Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.WebP]]
 deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
@@ -2029,36 +1855,28 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─75b9bee9-7d03-4c90-b828-43e9e946517b
-# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
-# ╠═ba4e41a6-c3e4-40f5-aae0-afd49744ca0d
-# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
-# ╠═bd7ddb00-a392-43d2-8637-55c9660db022
-# ╟─55ccce7c-0d5b-44d0-8288-4124fadd7544
-# ╟─7c2bab99-da3a-49eb-9c64-3c81188e2abe
-# ╠═79a94548-d34f-4404-90e5-cbe3d383180b
-# ╠═444b279f-1fe0-4dbf-8ea9-d350a042e675
-# ╠═22520dc4-5ab0-4ccc-af82-cc0169e856b9
-# ╠═743c24db-7997-42c9-8d09-392186d7b175
-# ╠═30a37005-b385-478e-bc04-b28941b520b1
-# ╠═9d16dd65-adc0-4fa8-8528-3f3fbdfa6b8e
-# ╠═9c7cd1a7-9f1e-423a-b588-31cb77fdebba
-# ╠═8199ebd3-f5a9-4b4f-9bd7-0c8a5c943688
-# ╠═ba244fcb-32c0-4e44-bc74-326c628b335c
-# ╠═10c39e63-bc7e-4169-9187-2bcdd07fb96d
-# ╟─29842c8e-9d95-4736-98b5-9f089e17f7f7
-# ╠═9ec021a5-fc2b-484e-b019-b94df802b6da
-# ╠═c31e6c15-b847-4da7-baf3-dd9f400adc4a
-# ╟─46f13ab1-5ee5-4a50-99d1-fe1192101503
-# ╠═c44b1c27-8db3-48fc-b203-01c3b1ad9163
-# ╠═82882271-322b-4b2a-a499-92fc77bd81cd
-# ╠═4df257e1-5fa0-4e6b-bf4e-21651547a720
-# ╠═5197f620-812e-49be-94cb-b3f7159420a8
-# ╟─fc8626da-dd5f-47d1-beb6-91b208236487
-# ╟─c55d1584-49d7-4eb2-94b2-9361c44dbe5a
-# ╟─e03aeed9-e0ad-4ee3-b642-9bfc5a4f67c9
-# ╠═d4e5f6a7-b8c9-4012-de45-f678901234ab
-# ╠═a1b2c3d4-e5f6-4789-ab12-cd34ef567890
-# ╟─b3c4d5e6-f7a8-4901-bc23-de45f6789012
+# ╟─25935904-4644-4ce2-83e9-d08c22b5e40d
+# ╟─98fa3886-a3c0-46c5-a547-c0cf7d808df0
+# ╟─75f2e8f0-15f2-4920-a29f-a82a13683d8a
+# ╟─faf741a5-b4a9-450f-a559-0c901d90bb30
+# ╠═6886e957-67fa-48ef-a1ec-a96b4cd602b8
+# ╠═5f48574d-b90e-4fb0-b9cc-434fade39b1b
+# ╠═8bf5b005-5374-4271-9f4d-88e4bac44331
+# ╠═fc66ef8b-29be-4134-a366-dfda724756c2
+# ╟─c83ed121-b27d-413b-9bb7-23d47fc5f7a7
+# ╠═bfa3df2d-1978-4974-ae4b-d8672e52ac93
+# ╠═c715d09c-fe59-43da-badb-7be1c2f442bf
+# ╠═36da8b88-960c-45d4-a55b-28745750c372
+# ╟─6599d6a8-073c-4a83-81bd-c65c1a62839b
+# ╠═f08a7392-5f7e-45f8-a713-adb51eb43a7e
+# ╠═db422443-97b0-40c2-bd03-b8fca41b5894
+# ╠═3038a7ff-3ab3-4795-afa8-285b9b6d33d9
+# ╟─7fd5e1f7-3ac5-4f9e-8c6c-dc6a397bdc13
+# ╠═227558b9-bd0d-432d-b458-89e00c8cb14e
+# ╠═feccbba0-2143-43dd-b039-4af8b75faae3
+# ╠═47cc3dc5-5294-4aed-83ce-a82bd4a34916
+# ╠═d4424984-4ef5-474e-b026-7b3e87e7aa20
+# ╠═6c17fe85-9184-463f-985f-f463adf3c8d3
+# ╠═c6973952-c6f3-4a29-b28b-a6eb9712d2ba
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

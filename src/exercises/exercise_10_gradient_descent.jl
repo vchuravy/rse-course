@@ -3,7 +3,7 @@
 
 #> [frontmatter]
 #> order = "4.3"
-#> exercise_number = "11"
+#> exercise_number = "10"
 #> title = "Gradient descent"
 #> tags = ["module1", "track_ad", "exercises"]
 #> layout = "layout.jlhtml"

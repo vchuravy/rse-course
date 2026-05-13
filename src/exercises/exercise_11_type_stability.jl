@@ -2,13 +2,13 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "3.1"
-#> exercise_number = "7"
-#> title = "Shared-memory parallelism"
-#> tags = ["module1", "track_parallel", "exercises"]
+#> order = "5.1"
+#> exercise_number = "11"
+#> title = "Type Stability"
+#> tags = ["module1", "track_performance", "exercises"]
 #> layout = "layout.jlhtml"
 #> license = "MIT"
-#> description = "Practice shared-memory parallelism in Julia using Threads.@spawn for recursive parallelism and concurrent map"
+#> description = "Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -17,183 +17,193 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 75b9bee9-7d03-4c90-b828-43e9e946517b
+# ╔═╡ aa110011-3a90-11f0-4f07-69f099994798
 using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
-ChooseDisplayMode()
-
-# ╔═╡ 3e5c3c97-4401-41d4-a701-d9b24f9acdc6
-PlutoUI.TableOfContents(; depth=4)
-
-# ╔═╡ 19f63d1f-99e5-4063-9af1-9c457c1cbda5
-md"""
-# Exercise: Shared-memory parallelism
-
-Julia's multi-threading model lets you spawn lightweight tasks that the scheduler maps
-onto available CPU cores. In this exercise you will use `Threads.@spawn` to parallelise
-a recursive algorithm and a map operation.
-"""
-
-# ╔═╡ 64e33738-e7b0-4a7a-893c-69b0b48b6215
-md"""
-This notebook uses **$(Threads.nthreads()) threads**
-"""
-
-# ╔═╡ 2d039f15-fe74-4296-8e26-53cce9dde7c6
-md"""
-## Part 1 — Parallel fibonacci
-
-Remember:
-
-```julia
-t = Threads.@spawn begin # `@spawn` returns right away
-    3 + 3
-end
-
-fetch(t) # `fetch` waits for the task to finish
-```
-"""
-
-# ╔═╡ cbbfe10c-2131-42a0-8db7-06e7518508d9
-function fib(n)
-	if n <= 1
-        return n
-    end
-	return fib(n-1) + fib(n-2)
-end
-
-# ╔═╡ 89858748-ebe6-4d00-b09c-6cb1064e101f
-fib(12)
-
-# ╔═╡ 03228a70-2298-4dcd-96e8-2be48603b860
-# TODO: Implement pfib
-
-# ╔═╡ 031dc47b-8a1c-48a2-abe6-de88050ae1c7
-let
-	if !@isdefined(pfib)
-		func_not_defined(:pfib)
-	elseif pfib(12) !== fib(12)
-		keep_working(md"Your solution and the reference solution disagree!")
-	else
-		correct()
-	end
-end
-
-# ╔═╡ 4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
-answer_box(hint(
-md"""
-```julia
-function pfib(n)
-	if n <= 1
-		return n
-	end
-	t = Threads.@spawn pfib(n-2)
-	return pfib(n-1) + fetch(t)::Int
-end
-```
-"""
-))
-
-# ╔═╡ 5d888f29-0204-4388-ab81-53aefafd5092
-md"""
-## Part 2 — Multi-threaded map
-"""
-
-# ╔═╡ 0331dc20-fa0b-4b7f-badc-a2040795f15a
-using LinearAlgebra, Random
-
-# ╔═╡ 91f3684d-ed56-4ee2-b914-79ab4b6ed87a
+# ╔═╡ bb220022-3a90-11f0-4f07-69f099994798
 using BenchmarkTools
 
-# ╔═╡ 0c8cfee6-5edb-4400-b7cd-753c2975a1e4
-function tmap(fn, itr)
-    # for each i ∈ itr, spawn a task to compute fn(i)
-    tasks = map(i -> Threads.@spawn(fn(i)), itr)
-    # fetch and return all the results
-    return fetch.(tasks)
-end
+# ╔═╡ cc330033-3a90-11f0-4f07-69f099994798
+ChooseDisplayMode()
 
-# ╔═╡ b2aecd04-115e-4aef-90d9-077aa886e70e
-Ms = [rand(100,100) for i in 1:(8 * Threads.nthreads())];
+# ╔═╡ dd440044-3a90-11f0-4f07-69f099994798
+PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ 4297ac26-de6b-4041-940e-531184860d84
-begin
-	BLAS.set_num_threads(Sys.CPU_THREADS) # Fix number of BLAS threads
-	# BLAS.set_num_threads(1)
-	blas_edge = nothing
-end
-
-# ╔═╡ 1fe0391a-7cee-4b9a-a775-3b78335f475c
-begin
-	blas_edge
-	serial_map_svdals_b = @benchmark map(svdvals, $Ms) samples=10 evals=3
-end
-
-# ╔═╡ cb042477-6a3e-4940-b3e6-38511936d370
-begin
-	blas_edge
-	threaded_map_svdals_b = @benchmark tmap(svdvals, $Ms) samples=10 evals=3
-end
-
-# ╔═╡ 3923ae23-1000-49ab-b5a2-c31567822e5d
-(minimum(serial_map_svdals_b.times) / minimum(threaded_map_svdals_b.times)) / Threads.nthreads() * 100 # parallel efficiency
-
-# ╔═╡ c88229ac-c421-41e5-8db8-c62afdb54322
+# ╔═╡ ee550055-3a90-11f0-4f07-69f099994798
 md"""
-!!! note
-     Vary the number of threads the BLAS library uses.
-     (See the cell above with `BLAS.set_num_threads()`)
+# Exercise: Type Stability
+
+A function is *type-stable* if the compiler can determine the return type (and the types of
+all local variables) from the types of the inputs alone, without running the code.
+
+Type-unstable functions force the compiler to emit slower, boxed code that handles
+multiple possible types at runtime.
 """
 
-# ╔═╡ d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6
+# ╔═╡ ff660066-3a90-11f0-4f07-69f099994798
 md"""
-### Task — chunked map
+## Motivating example
 
-`tmap` above spawns one task per element. For large arrays with cheap per-element work
-the task-spawning overhead can dominate. Implement `tmap_chunked(fn, itr, chunk_size)`
-that splits `itr` into chunks of `chunk_size` elements and spawns one task per chunk.
-
-*Hint:* `Iterators.partition(itr, chunk_size)` splits an iterable into fixed-size pieces.
+`baz` returns different types depending on the branch taken; `bar` always returns `Float64`.
+Run the benchmarks and inspect `Base.return_types` to see the difference.
 """
 
-# ╔═╡ e2f3a4b5-c6d7-4e8f-9a0b-b2c3d4e5f6a7
-# TODO: Implement tmap_chunked
+# ╔═╡ 00771177-3a90-11f0-4f07-69f099994798
+function baz()
+    s = rand()
+    if s > 2/3
+        return 0.666667   # Float64
+    elseif s > 1/3
+        return 1//3       # Rational{Int64}
+    else
+        return 0          # Int64
+    end
+end
 
-# ╔═╡ f3a4b5c6-d7e8-4f9a-ab1c-c3d4e5f6a7b8
+# ╔═╡ 11882288-3a90-11f0-4f07-69f099994798
+function bar()
+    s = rand()
+    if s > 2/3
+        return 0.666667
+    elseif s > 1/3
+        return 0.3333333
+    else
+        return 0.0
+    end
+end
+
+# ╔═╡ 22993399-3a90-11f0-4f07-69f099994798
+@benchmark baz()
+
+# ╔═╡ 33aa44aa-3a90-11f0-4f07-69f099994798
+@benchmark bar()
+
+# ╔═╡ 44bb55bb-3a90-11f0-4f07-69f099994798
+Base.return_types(baz), Base.return_types(bar)
+
+# ╔═╡ 55cc66cc-3a90-11f0-4f07-69f099994798
+md"""
+## Part 1 — Fixing `my_sum`
+
+The function below is type-unstable because the accumulator `output` starts as an `Int`
+but the array elements are `Float64`.
+
+```julia
+function my_sum(A)
+    output = 0      # Int!
+    for x in A
+        output += x
+    end
+    return output
+end
+```
+
+1. Copy `my_sum` into a cell and run `@code_warntype my_sum(rand(10))`.
+   Variables highlighted in red/yellow are type-unstable.
+2. Write a fixed version called `my_sum2` using `zero(eltype(A))` to initialise
+   the accumulator.
+3. Benchmark both with `@benchmark` on `rand(10^6)`.
+"""
+
+# ╔═╡ 66dd77dd-3a90-11f0-4f07-69f099994798
+# Paste my_sum here, then write my_sum2 below it
+
+# ╔═╡ 77ee88ee-3a90-11f0-4f07-69f099994798
 let
-	if !@isdefined(tmap_chunked)
-		func_not_defined(:tmap_chunked)
-	elseif tmap_chunked(x -> x^2, 1:10, 3) != map(x -> x^2, collect(1:10))
-		keep_working(md"`tmap_chunked(x -> x^2, 1:10, 3)` should equal `[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]`.")
+	if !@isdefined(my_sum2)
+		func_not_defined(:my_sum2)
+	else
+		A = rand(100)
+		result = my_sum2(A)
+		if !(result isa Float64)
+			keep_working(md"`my_sum2` should return a `Float64` for a `Float64` array — check your accumulator initialisation.")
+		elseif !(result ≈ sum(A))
+			keep_working(md"`my_sum2` gives the wrong result — it should equal `sum(A)`.")
+		else
+			correct()
+		end
+	end
+end
+
+# ╔═╡ 88ff99ff-3a90-11f0-4f07-69f099994798
+answer_box(hint(md"""
+```julia
+function my_sum2(A)
+    output = zero(eltype(A))   # Float64 for a Float64 array
+    for x in A
+        output += x
+    end
+    return output
+end
+```
+
+`@code_warntype my_sum(rand(10))` highlights `output` in red because the compiler
+infers `Union{Float64, Int64}`. After the fix the inferred type is just `Float64`.
+"""))
+
+# ╔═╡ 99001100-3a90-11f0-4f07-69f099994798
+md"""
+## Part 2 — Newton's square root
+
+Make the following function type-stable. The bug: `output` is initialised to `1` (an `Int`)
+regardless of the type of `x`.
+
+```julia
+function my_sqrt(x)
+    output = 1
+    for i in 1:1000
+        output = 0.5 * (output + x / output)
+    end
+    output
+end
+```
+
+After fixing it, verify that `my_sqrt(2.0) ≈ sqrt(2.0)` and that
+`my_sqrt(Float32(2)) isa Float32`.
+"""
+
+# ╔═╡ aa112233-3a90-11f0-4f07-69f099994798
+# Write your type-stable my_sqrt here
+
+# ╔═╡ bb223344-3a90-11f0-4f07-69f099994798
+let
+	if !@isdefined(my_sqrt)
+		func_not_defined(:my_sqrt)
+	elseif !(my_sqrt(2.0) ≈ sqrt(2.0))
+		keep_working(md"`my_sqrt(2.0)` should be approximately `sqrt(2.0)`.")
+	elseif !(my_sqrt(Float32(2)) isa Float32)
+		keep_working(md"`my_sqrt(Float32(2))` should return a `Float32`, not a `$(typeof(my_sqrt(Float32(2))))`.")
 	else
 		correct()
 	end
 end
 
-# ╔═╡ a4b5c6d7-e8f9-4a0b-bc1d-d4e5f6a7b8c9
+# ╔═╡ cc334455-3a90-11f0-4f07-69f099994798
 answer_box(hint(md"""
 ```julia
-function tmap_chunked(fn, itr, chunk_size)
-    chunks = Iterators.partition(itr, chunk_size)
-    tasks = map(chunk -> Threads.@spawn(map(fn, collect(chunk))), chunks)
-    vcat(fetch.(tasks)...)
+function my_sqrt(x)
+    output = one(x)           # same type as x
+    for i in 1:1000
+        output = (output + x / output) / 2
+    end
+    output
 end
 ```
+
+`one(x)` returns the multiplicative identity with the same type as `x`, keeping the
+accumulator type-stable throughout the loop.
 """))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
-BenchmarkTools = "~1.8.0"
-PlutoTeachingTools = "~0.4.7"
+BenchmarkTools = "~1.6"
+PlutoTeachingTools = "~0.4"
 PlutoUI = "~0.7"
 """
 
@@ -203,7 +213,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "2244d61da9ad65b88df21088362bbe912e868e38"
+project_hash = "60157c176b9eecd8ca9bf5ce0ec9c32e98e36bf8"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -224,10 +234,10 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
 [[deps.BenchmarkTools]]
-deps = ["Compat", "JSON", "Logging", "PrecompileTools", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "9670d3febc2b6da60a0ae57846ba74670290653f"
+deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "7fecfb1123b8d0232218e2da0c213004ff15358d"
 uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.8.0"
+version = "1.6.3"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
@@ -599,30 +609,24 @@ version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═75b9bee9-7d03-4c90-b828-43e9e946517b
-# ╟─8577787d-d72d-4d92-8c69-9e516a85b779
-# ╟─3e5c3c97-4401-41d4-a701-d9b24f9acdc6
-# ╟─19f63d1f-99e5-4063-9af1-9c457c1cbda5
-# ╟─64e33738-e7b0-4a7a-893c-69b0b48b6215
-# ╟─2d039f15-fe74-4296-8e26-53cce9dde7c6
-# ╠═cbbfe10c-2131-42a0-8db7-06e7518508d9
-# ╠═89858748-ebe6-4d00-b09c-6cb1064e101f
-# ╠═03228a70-2298-4dcd-96e8-2be48603b860
-# ╟─031dc47b-8a1c-48a2-abe6-de88050ae1c7
-# ╟─4e54a79b-4eb5-4f2d-adb4-cc4545a7930d
-# ╟─5d888f29-0204-4388-ab81-53aefafd5092
-# ╠═0331dc20-fa0b-4b7f-badc-a2040795f15a
-# ╠═91f3684d-ed56-4ee2-b914-79ab4b6ed87a
-# ╠═0c8cfee6-5edb-4400-b7cd-753c2975a1e4
-# ╠═b2aecd04-115e-4aef-90d9-077aa886e70e
-# ╠═4297ac26-de6b-4041-940e-531184860d84
-# ╠═1fe0391a-7cee-4b9a-a775-3b78335f475c
-# ╠═cb042477-6a3e-4940-b3e6-38511936d370
-# ╠═3923ae23-1000-49ab-b5a2-c31567822e5d
-# ╟─c88229ac-c421-41e5-8db8-c62afdb54322
-# ╟─d1e2f3a4-b5c6-4d7e-8f90-a1b2c3d4e5f6
-# ╠═e2f3a4b5-c6d7-4e8f-9a0b-b2c3d4e5f6a7
-# ╟─f3a4b5c6-d7e8-4f9a-ab1c-c3d4e5f6a7b8
-# ╟─a4b5c6d7-e8f9-4a0b-bc1d-d4e5f6a7b8c9
+# ╠═aa110011-3a90-11f0-4f07-69f099994798
+# ╠═bb220022-3a90-11f0-4f07-69f099994798
+# ╟─cc330033-3a90-11f0-4f07-69f099994798
+# ╟─dd440044-3a90-11f0-4f07-69f099994798
+# ╟─ee550055-3a90-11f0-4f07-69f099994798
+# ╟─ff660066-3a90-11f0-4f07-69f099994798
+# ╠═00771177-3a90-11f0-4f07-69f099994798
+# ╠═11882288-3a90-11f0-4f07-69f099994798
+# ╠═22993399-3a90-11f0-4f07-69f099994798
+# ╠═33aa44aa-3a90-11f0-4f07-69f099994798
+# ╠═44bb55bb-3a90-11f0-4f07-69f099994798
+# ╟─55cc66cc-3a90-11f0-4f07-69f099994798
+# ╠═66dd77dd-3a90-11f0-4f07-69f099994798
+# ╟─77ee88ee-3a90-11f0-4f07-69f099994798
+# ╟─88ff99ff-3a90-11f0-4f07-69f099994798
+# ╟─99001100-3a90-11f0-4f07-69f099994798
+# ╠═aa112233-3a90-11f0-4f07-69f099994798
+# ╟─bb223344-3a90-11f0-4f07-69f099994798
+# ╟─cc334455-3a90-11f0-4f07-69f099994798
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

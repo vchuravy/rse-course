@@ -2,13 +2,13 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "2.3"
-#> exercise_number = "3"
-#> title = "Type Stability"
+#> order = "2.5"
+#> exercise_number = "4"
+#> title = "Structs and Custom Types"
 #> tags = ["module1", "track_principles", "exercises"]
 #> layout = "layout.jlhtml"
 #> license = "MIT"
-#> description = "Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code"
+#> description = "Define custom Julia types with structs and extend them via multiple dispatch"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -17,192 +17,179 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ aa110011-3a90-11f0-4f07-69f099994798
+# ╔═╡ 1a2b3c4d-5a90-11f0-6209-8bf2bbbb6910
 using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ bb220022-3a90-11f0-4f07-69f099994798
-using BenchmarkTools
-
-# ╔═╡ cc330033-3a90-11f0-4f07-69f099994798
-ChooseDisplayMode()
-
-# ╔═╡ dd440044-3a90-11f0-4f07-69f099994798
+# ╔═╡ 4d5e6f7a-5a90-11f0-6209-8bf2bbbb6910
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ ee550055-3a90-11f0-4f07-69f099994798
+# ╔═╡ 5e6f7a8b-5a90-11f0-6209-8bf2bbbb6910
 md"""
-# Exercise: Type Stability
+# Exercise: Structs and Custom Types
 
-A function is *type-stable* if the compiler can determine the return type (and the types of
-all local variables) from the types of the inputs alone, without running the code.
-
-Type-unstable functions force the compiler to emit slower, boxed code that handles
-multiple possible types at runtime.
+Julia lets you define your own types with `struct` and extend any function — including
+those from `Base` — via multiple dispatch.
+This is the mechanism behind Julia's composability: packages can work together without
+knowing about each other in advance.
 """
 
-# ╔═╡ ff660066-3a90-11f0-4f07-69f099994798
+# ╔═╡ 6f7a8b9c-5a90-11f0-6209-8bf2bbbb6910
 md"""
-## Motivating example
+## Part 1 — A 2D point type
 
-`baz` returns different types depending on the branch taken; `bar` always returns `Float64`.
-Run the benchmarks and inspect `Base.return_types` to see the difference.
+Define a struct `Point2D` with two `Float64` fields, `x` and `y`.
+
+Then extend:
+- `Base.:+(a, b)` — pointwise addition
+- `Base.:-(a, b)` — pointwise subtraction
+- `Base.:*(s, p)` where `s::Real` — scalar multiplication
+- `LinearAlgebra.norm(p)` — Euclidean norm $\sqrt{x^2 + y^2}$
 """
 
-# ╔═╡ 00771177-3a90-11f0-4f07-69f099994798
-function baz()
-    s = rand()
-    if s > 2/3
-        return 0.666667   # Float64
-    elseif s > 1/3
-        return 1//3       # Rational{Int64}
-    else
-        return 0          # Int64
-    end
-end
+# ╔═╡ 7a8b9cad-5a90-11f0-6209-8bf2bbbb6910
+# Define Point2D and its methods here
 
-# ╔═╡ 11882288-3a90-11f0-4f07-69f099994798
-function bar()
-    s = rand()
-    if s > 2/3
-        return 0.666667
-    elseif s > 1/3
-        return 0.3333333
-    else
-        return 0.0
-    end
-end
-
-# ╔═╡ 22993399-3a90-11f0-4f07-69f099994798
-@benchmark baz()
-
-# ╔═╡ 33aa44aa-3a90-11f0-4f07-69f099994798
-@benchmark bar()
-
-# ╔═╡ 44bb55bb-3a90-11f0-4f07-69f099994798
-Base.return_types(baz), Base.return_types(bar)
-
-# ╔═╡ 55cc66cc-3a90-11f0-4f07-69f099994798
-md"""
-## Part 1 — Fixing `my_sum`
-
-The function below is type-unstable because the accumulator `output` starts as an `Int`
-but the array elements are `Float64`.
-
-```julia
-function my_sum(A)
-    output = 0      # Int!
-    for x in A
-        output += x
-    end
-    return output
-end
-```
-
-1. Copy `my_sum` into a cell and run `@code_warntype my_sum(rand(10))`.
-   Variables highlighted in red/yellow are type-unstable.
-2. Write a fixed version called `my_sum2` using `zero(eltype(A))` to initialise
-   the accumulator.
-3. Benchmark both with `@benchmark` on `rand(10^6)`.
-"""
-
-# ╔═╡ 66dd77dd-3a90-11f0-4f07-69f099994798
-# Paste my_sum here, then write my_sum2 below it
-
-# ╔═╡ 77ee88ee-3a90-11f0-4f07-69f099994798
+# ╔═╡ 8b9cadb0-5a90-11f0-6209-8bf2bbbb6910
 let
-	if !@isdefined(my_sum2)
-		func_not_defined(:my_sum2)
+	if !@isdefined(Point2D)
+		func_not_defined(:Point2D)
 	else
-		A = rand(100)
-		result = my_sum2(A)
-		if !(result isa Float64)
-			keep_working(md"`my_sum2` should return a `Float64` for a `Float64` array — check your accumulator initialisation.")
-		elseif !(result ≈ sum(A))
-			keep_working(md"`my_sum2` gives the wrong result — it should equal `sum(A)`.")
+		p1 = Point2D(3.0, 0.0)
+		p2 = Point2D(0.0, 4.0)
+		p3 = try p1 + p2 catch; nothing end
+		if isnothing(p3)
+			keep_working(md"Addition `p1 + p2` threw an error — implement `Base.:+` for `Point2D`.")
+		elseif !(p3 isa Point2D && p3.x ≈ 3.0 && p3.y ≈ 4.0)
+			keep_working(md"`Point2D(3,0) + Point2D(0,4)` should give `Point2D(3.0, 4.0)`.")
+		elseif !(norm(p3) ≈ 5.0)
+			keep_working(md"`norm(Point2D(3.0, 4.0))` should be `5.0`.")
+		elseif !(2 * p1 isa Point2D && (2 * p1).x ≈ 6.0)
+			keep_working(md"`2 * Point2D(3.0, 0.0)` should give `Point2D(6.0, 0.0)`.")
 		else
 			correct()
 		end
 	end
 end
 
-# ╔═╡ 88ff99ff-3a90-11f0-4f07-69f099994798
+# ╔═╡ 9cadb0c1-5a90-11f0-6209-8bf2bbbb6910
 answer_box(hint(md"""
 ```julia
-function my_sum2(A)
-    output = zero(eltype(A))   # Float64 for a Float64 array
-    for x in A
-        output += x
-    end
-    return output
+struct Point2D
+    x::Float64
+    y::Float64
 end
-```
 
-`@code_warntype my_sum(rand(10))` highlights `output` in red because the compiler
-infers `Union{Float64, Int64}`. After the fix the inferred type is just `Float64`.
+Base.:+(a::Point2D, b::Point2D)  = Point2D(a.x + b.x, a.y + b.y)
+Base.:-(a::Point2D, b::Point2D)  = Point2D(a.x - b.x, a.y - b.y)
+Base.:*(s::Real,    p::Point2D)  = Point2D(s * p.x, s * p.y)
+LinearAlgebra.norm(p::Point2D)   = sqrt(p.x^2 + p.y^2)
+```
 """))
 
-# ╔═╡ 99001100-3a90-11f0-4f07-69f099994798
+# ╔═╡ adb0c1d2-5a90-11f0-6209-8bf2bbbb6910
 md"""
-## Part 2 — Newton's square root
+## Part 2 — Parametric struct
 
-Make the following function type-stable. The bug: `output` is initialised to `1` (an `Int`)
-regardless of the type of `x`.
+The `Point2D` above always uses `Float64`. Make it parametric so it works for any
+numeric element type:
 
 ```julia
-function my_sqrt(x)
-    output = 1
-    for i in 1:1000
-        output = 0.5 * (output + x / output)
-    end
-    output
+struct Point{T<:Real}
+    x::T
+    y::T
 end
 ```
 
-After fixing it, verify that `my_sqrt(2.0) ≈ sqrt(2.0)` and that
-`my_sqrt(Float32(2)) isa Float32`.
+Re-implement `+`, `-`, `*`, and `norm` for `Point{T}`.
+
+Check that `Point(3, 4)` (integers) and `Point(3.0f0, 4.0f0)` (Float32) both work
+and that the norm result type follows from the element type.
 """
 
-# ╔═╡ aa112233-3a90-11f0-4f07-69f099994798
-# Write your type-stable my_sqrt here
+# ╔═╡ b0c1d2e3-5a90-11f0-6209-8bf2bbbb6910
+# Define Point{T} and its methods here
 
-# ╔═╡ bb223344-3a90-11f0-4f07-69f099994798
+# ╔═╡ c1d2e3f4-5a90-11f0-6209-8bf2bbbb6910
 let
-	if !@isdefined(my_sqrt)
-		func_not_defined(:my_sqrt)
-	elseif !(my_sqrt(2.0) ≈ sqrt(2.0))
-		keep_working(md"`my_sqrt(2.0)` should be approximately `sqrt(2.0)`.")
-	elseif !(my_sqrt(Float32(2)) isa Float32)
-		keep_working(md"`my_sqrt(Float32(2))` should return a `Float32`, not a `$(typeof(my_sqrt(Float32(2))))`.")
+	if !@isdefined(Point)
+		func_not_defined(:Point)
 	else
-		correct()
+		p_int = try Point(3, 4)   catch; nothing end
+		p_f32 = try Point(3.0f0, 4.0f0) catch; nothing end
+		if isnothing(p_int)
+			keep_working(md"`Point(3, 4)` threw an error.")
+		elseif isnothing(p_f32)
+			keep_working(md"`Point(3.0f0, 4.0f0)` threw an error.")
+		elseif !(norm(p_int) ≈ 5.0)
+			keep_working(md"`norm(Point(3, 4))` should be `5.0`.")
+		elseif !(norm(p_f32) isa Float32)
+			keep_working(md"`norm(Point(3.0f0, 4.0f0))` should return a `Float32`.")
+		else
+			correct()
+		end
 	end
 end
 
-# ╔═╡ cc334455-3a90-11f0-4f07-69f099994798
+# ╔═╡ d2e3f405-5a90-11f0-6209-8bf2bbbb6910
 answer_box(hint(md"""
 ```julia
-function my_sqrt(x)
-    output = one(x)           # same type as x
-    for i in 1:1000
-        output = (output + x / output) / 2
-    end
-    output
+struct Point{T<:Real}
+    x::T
+    y::T
 end
+
+Base.:+(a::Point, b::Point)  = Point(a.x + b.x, a.y + b.y)
+Base.:-(a::Point, b::Point)  = Point(a.x - b.x, a.y - b.y)
+Base.:*(s::Real,  p::Point)  = Point(s * p.x, s * p.y)
+LinearAlgebra.norm(p::Point) = sqrt(p.x^2 + p.y^2)
 ```
 
-`one(x)` returns the multiplicative identity with the same type as `x`, keeping the
-accumulator type-stable throughout the loop.
+`sqrt` preserves element type: `sqrt(3^2 + 4^2)` → `Float64`, `sqrt(3.0f0^2 + 4.0f0^2)` → `Float32`.
+"""))
+
+# ╔═╡ e3f40516-5a90-11f0-6209-8bf2bbbb6910
+md"""
+## Part 3 — Custom `show`
+
+Implement `Base.show(io::IO, p::Point)` so that a point displays as `(3.0, 4.0)`
+rather than the default `Point{Float64}(3.0, 4.0)`.
+"""
+
+# ╔═╡ f4051627-5a90-11f0-6209-8bf2bbbb6910
+# Implement show here
+
+# ╔═╡ 05162738-5a90-11f0-6209-8bf2bbbb6910
+let
+	if !@isdefined(Point)
+		func_not_defined(:Point)
+	else
+		p = Point(3.0, 4.0)
+		s = sprint(show, p)
+		if s == "(3.0, 4.0)"
+			correct()
+		else
+			keep_working(md"`show` should display the point as `(x, y)`, but got `$(s)`.")
+		end
+	end
+end
+
+# ╔═╡ 16273849-5a90-11f0-6209-8bf2bbbb6910
+answer_box(hint(md"""
+```julia
+Base.show(io::IO, p::Point) = print(io, "(", p.x, ", ", p.y, ")")
+```
+
+After defining this, `Point(3.0, 4.0)` will render as `(3.0, 4.0)` in Pluto cells
+and in the REPL.
 """))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-BenchmarkTools = "~1.6"
 PlutoTeachingTools = "~0.4"
 PlutoUI = "~0.7"
 """
@@ -213,7 +200,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "60157c176b9eecd8ca9bf5ce0ec9c32e98e36bf8"
+project_hash = "298d939e2def5605c9bbf33e4a51404869962d9d"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -233,12 +220,6 @@ version = "1.11.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
-[[deps.BenchmarkTools]]
-deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "7fecfb1123b8d0232218e2da0c213004ff15358d"
-uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.6.3"
-
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
 git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
@@ -248,16 +229,6 @@ weakdeps = ["StyledStrings"]
 
     [deps.ColorTypes.extensions]
     StyledStringsExt = "StyledStrings"
-
-[[deps.Compat]]
-deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "9d8a54ce4b17aa5bdce0ea5c34bc5e7c340d16ad"
-uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.18.1"
-weakdeps = ["Dates", "LinearAlgebra"]
-
-    [deps.Compat.extensions]
-    CompatLinearAlgebraExt = "LinearAlgebra"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -323,18 +294,6 @@ deps = ["Artifacts", "Preferences"]
 git-tree-sha1 = "0533e564aae234aff59ab625543145446d8b6ec2"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
 version = "1.7.1"
-
-[[deps.JSON]]
-deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
-git-tree-sha1 = "fe23330af47b8ab4e135b2ff65f7398c3a2bfc65"
-uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "1.5.2"
-
-    [deps.JSON.extensions]
-    JSONArrowExt = ["ArrowTypes"]
-
-    [deps.JSON.weakdeps]
-    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -446,12 +405,6 @@ git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.8.1"
 
-[[deps.Parsers]]
-deps = ["Dates", "PrecompileTools", "UUIDs"]
-git-tree-sha1 = "5d5e0a78e971354b1c7bff0655d11fdc1b0e12c8"
-uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.8.4"
-
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -475,12 +428,6 @@ git-tree-sha1 = "fbc875044d82c113a9dee6fc14e16cf01fd48872"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 version = "0.7.80"
 
-[[deps.PrecompileTools]]
-deps = ["Preferences"]
-git-tree-sha1 = "07a921781cab75691315adc645096ed5e370cb77"
-uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
-version = "1.3.3"
-
 [[deps.Preferences]]
 deps = ["TOML"]
 git-tree-sha1 = "8b770b60760d4451834fe79dd483e318eee709c4"
@@ -490,11 +437,6 @@ version = "1.5.2"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-version = "1.11.0"
-
-[[deps.Profile]]
-deps = ["StyledStrings"]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Random]]
@@ -532,22 +474,6 @@ version = "1.11.1"
 
     [deps.Statistics.weakdeps]
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-
-[[deps.StructUtils]]
-deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "dd974aefe288ef2898733aecf40858dc86742d74"
-uuid = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
-version = "2.8.1"
-
-    [deps.StructUtils.extensions]
-    StructUtilsMeasurementsExt = ["Measurements"]
-    StructUtilsStaticArraysCoreExt = ["StaticArraysCore"]
-    StructUtilsTablesExt = ["Tables"]
-
-    [deps.StructUtils.weakdeps]
-    Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-    StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-    Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
@@ -609,24 +535,20 @@ version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═aa110011-3a90-11f0-4f07-69f099994798
-# ╠═bb220022-3a90-11f0-4f07-69f099994798
-# ╟─cc330033-3a90-11f0-4f07-69f099994798
-# ╟─dd440044-3a90-11f0-4f07-69f099994798
-# ╟─ee550055-3a90-11f0-4f07-69f099994798
-# ╟─ff660066-3a90-11f0-4f07-69f099994798
-# ╠═00771177-3a90-11f0-4f07-69f099994798
-# ╠═11882288-3a90-11f0-4f07-69f099994798
-# ╠═22993399-3a90-11f0-4f07-69f099994798
-# ╠═33aa44aa-3a90-11f0-4f07-69f099994798
-# ╠═44bb55bb-3a90-11f0-4f07-69f099994798
-# ╟─55cc66cc-3a90-11f0-4f07-69f099994798
-# ╠═66dd77dd-3a90-11f0-4f07-69f099994798
-# ╟─77ee88ee-3a90-11f0-4f07-69f099994798
-# ╟─88ff99ff-3a90-11f0-4f07-69f099994798
-# ╟─99001100-3a90-11f0-4f07-69f099994798
-# ╠═aa112233-3a90-11f0-4f07-69f099994798
-# ╟─bb223344-3a90-11f0-4f07-69f099994798
-# ╟─cc334455-3a90-11f0-4f07-69f099994798
+# ╠═1a2b3c4d-5a90-11f0-6209-8bf2bbbb6910
+# ╟─4d5e6f7a-5a90-11f0-6209-8bf2bbbb6910
+# ╟─5e6f7a8b-5a90-11f0-6209-8bf2bbbb6910
+# ╟─6f7a8b9c-5a90-11f0-6209-8bf2bbbb6910
+# ╠═7a8b9cad-5a90-11f0-6209-8bf2bbbb6910
+# ╟─8b9cadb0-5a90-11f0-6209-8bf2bbbb6910
+# ╟─9cadb0c1-5a90-11f0-6209-8bf2bbbb6910
+# ╟─adb0c1d2-5a90-11f0-6209-8bf2bbbb6910
+# ╠═b0c1d2e3-5a90-11f0-6209-8bf2bbbb6910
+# ╟─c1d2e3f4-5a90-11f0-6209-8bf2bbbb6910
+# ╟─d2e3f405-5a90-11f0-6209-8bf2bbbb6910
+# ╟─e3f40516-5a90-11f0-6209-8bf2bbbb6910
+# ╠═f4051627-5a90-11f0-6209-8bf2bbbb6910
+# ╟─05162738-5a90-11f0-6209-8bf2bbbb6910
+# ╟─16273849-5a90-11f0-6209-8bf2bbbb6910
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
