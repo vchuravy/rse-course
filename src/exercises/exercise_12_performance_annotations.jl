@@ -2,13 +2,13 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "5.1"
-#> exercise_number = "11"
-#> title = "Type Stability"
+#> order = "5.2"
+#> exercise_number = "12"
+#> title = "Performance Annotations"
 #> tags = ["module1", "track_performance", "exercises"]
 #> layout = "layout.jlhtml"
 #> license = "MIT"
-#> description = "Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code"
+#> description = "Use @inbounds, @simd and @fastmath to accelerate inner loops and understand the trade-offs"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -17,166 +17,149 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ aa110011-3a90-11f0-4f07-69f099994798
+# ╔═╡ 12010001-0012-4000-8000-000000000001
 using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ bb220022-3a90-11f0-4f07-69f099994798
+# ╔═╡ 12010002-0012-4000-8000-000000000002
 using BenchmarkTools
 
-# ╔═╡ cc330033-3a90-11f0-4f07-69f099994798
+# ╔═╡ 12010003-0012-4000-8000-000000000003
 ChooseDisplayMode()
 
-# ╔═╡ dd440044-3a90-11f0-4f07-69f099994798
+# ╔═╡ 12010004-0012-4000-8000-000000000004
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ ee550055-3a90-11f0-4f07-69f099994798
+# ╔═╡ 12010005-0012-4000-8000-000000000005
 md"""
-# Exercise: Type Stability
+# Exercise: Performance Annotations
 
-A function is *type-stable* if the compiler can determine the return type (and the types of
-all local variables) from the types of the inputs alone, without running the code.
+Julia provides three macros for accelerating inner loops:
 
-Type-unstable functions force the compiler to emit slower, boxed code that handles
-multiple possible types at runtime.
+| Macro | Effect | Risk |
+|---|---|---|
+| `@inbounds` | Disables bounds-checking on array accesses | An out-of-bounds index gives undefined behaviour instead of a `BoundsError` |
+| `@simd` | Hints the compiler to auto-vectorise the loop | Loop must be a simple reduction with no cross-iteration dependencies |
+| `@fastmath` | Relaxes IEEE 754 strict floating-point rules (allows fused ops, reordering, etc.) | Results may differ slightly; `Inf`/`NaN` propagation changes |
+
+**Workflow:** always verify correctness *before* annotating, and profile first to confirm the loop is actually a hot-spot.
 """
 
-# ╔═╡ ff660066-3a90-11f0-4f07-69f099994798
+# ╔═╡ 12010006-0012-4000-8000-000000000006
 md"""
-## Motivating example
+## Part 1 — Sum reduction with `@inbounds` and `@simd`
 
-`baz` returns different types depending on the branch taken; `bar` always returns `Float64`.
-Run the benchmarks and inspect `Base.return_types` to see the difference.
-"""
-
-# ╔═╡ 00771177-3a90-11f0-4f07-69f099994798
-function baz()
-    s = rand()
-    if s > 2/3
-        return 0.666667   # Float64
-    elseif s > 1/3
-        return 1//3       # Rational{Int64}
-    else
-        return 0          # Int64
-    end
-end
-
-# ╔═╡ 11882288-3a90-11f0-4f07-69f099994798
-function bar()
-    s = rand()
-    if s > 2/3
-        return 0.666667
-    elseif s > 1/3
-        return 0.3333333
-    else
-        return 0.0
-    end
-end
-
-# ╔═╡ 22993399-3a90-11f0-4f07-69f099994798
-@benchmark baz()
-
-# ╔═╡ 33aa44aa-3a90-11f0-4f07-69f099994798
-@benchmark bar()
-
-# ╔═╡ 44bb55bb-3a90-11f0-4f07-69f099994798
-Base.return_types(baz), Base.return_types(bar)
-
-# ╔═╡ 55cc66cc-3a90-11f0-4f07-69f099994798
-md"""
-## Part 1 — Fixing `my_sum`
-
-The function below is type-unstable because the accumulator `output` starts as an `Int`
-but the array elements are `Float64`.
+The loop below is correct but limited: because IEEE 754 requires floating-point
+additions to be evaluated strictly left-to-right, the compiler cannot use vector
+registers for the accumulation without explicit permission.
 
 ```julia
-function my_sum(A)
-    output = 0      # Int!
-    for x in A
-        output += x
+function mysum_naive(x)
+    acc = zero(eltype(x))
+    for i in eachindex(x)
+        acc += x[i]
     end
-    return output
+    return acc
 end
 ```
 
-1. Copy `my_sum` into a cell and run `@code_warntype my_sum(rand(10))`.
-   Variables highlighted in red/yellow are type-unstable.
-2. Write a fixed version called `my_sum2` using `zero(eltype(A))` to initialise
-   the accumulator.
-3. Benchmark both with `@benchmark` on `rand(10^6)`.
+Implement `mysum_fast(x)` that adds:
+1. `@inbounds` — safe when iterating with `eachindex`, removes the per-element bounds check inside the loop.
+2. `@simd` — grants the compiler permission to reorder additions, enabling multi-lane vector reduction (e.g. 4 × `Float64` per cycle with AVX2).
 """
 
-# ╔═╡ 66dd77dd-3a90-11f0-4f07-69f099994798
-# Paste my_sum here, then write my_sum2 below it
+# ╔═╡ 12010007-0012-4000-8000-000000000007
+function mysum_naive(x)
+    acc = zero(eltype(x))
+    for i in eachindex(x)
+        acc += x[i]
+    end
+    return acc
+end
 
-# ╔═╡ 77ee88ee-3a90-11f0-4f07-69f099994798
+# ╔═╡ 12010008-0012-4000-8000-000000000008
+# TODO: Implement mysum_fast
+
+# ╔═╡ 12010009-0012-4000-8000-000000000009
 let
-	if !@isdefined(my_sum2)
-		func_not_defined(:my_sum2)
+	if !@isdefined(mysum_fast)
+		func_not_defined(:mysum_fast)
 	else
-		A = rand(100)
-		result = my_sum2(A)
-		if !(result isa Float64)
-			keep_working(md"`my_sum2` should return a `Float64` for a `Float64` array, but got a `$(typeof(result))` — check your accumulator initialisation.")
-		elseif !(result ≈ sum(A))
-			keep_working(md"`my_sum2` gives the wrong result — it should equal `sum(A)`.")
-		else
-			correct()
+		try
+			x = rand(1000)
+			result = mysum_fast(x)
+			if !(result ≈ mysum_naive(x))
+				keep_working(md"`mysum_fast(x)` returned `$(round(result, digits=6))` but expected approximately `$(round(mysum_naive(x), digits=6))`.")
+			else
+				correct()
+			end
+		catch e
+			keep_working(md"Your function threw an error: `$(sprint(showerror, e))`")
 		end
 	end
 end
 
-# ╔═╡ 88ff99ff-3a90-11f0-4f07-69f099994798
+# ╔═╡ 1201000a-0012-4000-8000-00000000000a
+let
+	n = 2^14
+	x = rand(n)
+	t_naive = @belapsed mysum_naive($x)
+	t_fast  = @isdefined(mysum_fast) ? @belapsed(mysum_fast($x)) : NaN
+	md"""
+	| Implementation | Time |
+	|---|---|
+	| `mysum_naive` | $(round(t_naive * 1e9, digits=1)) ns |
+	| `mysum_fast`  | $(round(t_fast  * 1e9, digits=1)) ns |
+	| speedup | $(round(t_naive / t_fast, digits=2))× |
+	"""
+end
+
+# ╔═╡ 1201000b-0012-4000-8000-00000000000b
 answer_box(hint(md"""
 ```julia
-function my_sum2(A)
-    output = zero(eltype(A))   # Float64 for a Float64 array
-    for x in A
-        output += x
+function mysum_fast(x)
+    acc = zero(eltype(x))
+    @inbounds @simd for i in eachindex(x)
+        acc += x[i]
     end
-    return output
+    return acc
 end
 ```
 
-`@code_warntype my_sum(rand(10))` highlights `output` in red because the compiler
-infers `Union{Float64, Int64}`. After the fix the inferred type is just `Float64`.
+Without `@simd`, strict IEEE 754 left-to-right ordering prevents the compiler from vectorising the reduction. `@simd` grants permission to reorder, so LLVM can maintain multiple partial sums across vector lanes — typically giving a 4–8× speedup on AVX2 hardware.
 """))
 
-# ╔═╡ 99001100-3a90-11f0-4f07-69f099994798
+# ╔═╡ 1201000c-0012-4000-8000-00000000000c
 md"""
-## Part 2 — Newton's square root
+## Part 2 — Dot product with `@simd` and `@fastmath`
 
-Make the following function type-stable. The bug: `output` is initialised to `1` (an `Int`)
-regardless of the type of `x`.
+Implement `dot_fast(x, y)` that computes the scalar dot product ``\sum_i x_i y_i`` using:
+- `@inbounds` inside the loop
+- `@simd` to enable vectorised reduction
+- `@fastmath` on the whole function body, which allows the compiler to fuse multiply-add operations into a single `fmadd` instruction and reorder partial sums
 
-```julia
-function my_sqrt(x)
-    output = 1
-    for i in 1:1000
-        output = 0.5 * (output + x / output)
-    end
-    output
-end
-```
-
-After fixing it, verify that `my_sqrt(2.0) ≈ sqrt(2.0)` and that
-`my_sqrt(Float32(2)) isa Float32`.
+The accumulator should be initialised with `zero(promote_type(eltype(x), eltype(y)))` so that `dot_fast` works for any numeric element type (e.g. `Float32` or `Float64`).
 """
 
-# ╔═╡ aa112233-3a90-11f0-4f07-69f099994798
-# Write your type-stable my_sqrt here
+# ╔═╡ 1201000d-0012-4000-8000-00000000000d
+# TODO: Implement dot_fast
 
-# ╔═╡ bb223344-3a90-11f0-4f07-69f099994798
+# ╔═╡ 1201000e-0012-4000-8000-00000000000e
 let
-	if !@isdefined(my_sqrt)
-		func_not_defined(:my_sqrt)
+	if !@isdefined(dot_fast)
+		func_not_defined(:dot_fast)
 	else
 		try
-			if !(my_sqrt(2.0) ≈ sqrt(2.0))
-				keep_working(md"`my_sqrt(2.0)` should be approximately `sqrt(2.0)`.")
+			x = rand(1000); y = rand(1000)
+			result   = dot_fast(x, y)
+			expected = sum(x[i] * y[i] for i in eachindex(x, y))
+			if !(result ≈ expected)
+				keep_working(md"`dot_fast(x, y)` returned `$(round(result, digits=6))` but expected approximately `$(round(expected, digits=6))`.")
 			else
-				r32 = my_sqrt(Float32(2))
+				# Also check Float32 type preservation
+				x32 = rand(Float32, 100); y32 = rand(Float32, 100)
+				r32 = dot_fast(x32, y32)
 				if !(r32 isa Float32)
-					keep_working(md"`my_sqrt(Float32(2))` should return a `Float32`, not a `$(typeof(r32))`.")
+					keep_working(md"`dot_fast` should return a `Float32` for `Float32` inputs, but got `$(typeof(r32))`.")
 				else
 					correct()
 				end
@@ -187,20 +170,33 @@ let
 	end
 end
 
-# ╔═╡ cc334455-3a90-11f0-4f07-69f099994798
+# ╔═╡ 1201000f-0012-4000-8000-00000000000f
+let
+	x = rand(2^20); y = rand(2^20)
+	t_base = @belapsed sum($x .* $y)
+	t_fast = @isdefined(dot_fast) ? @belapsed(dot_fast($x, $y)) : NaN
+	md"""
+	| Implementation | Time |
+	|---|---|
+	| `sum(x .* y)` (allocates a temporary) | $(round(t_base * 1e6, digits=2)) µs |
+	| `dot_fast(x, y)` (no allocation) | $(round(t_fast * 1e6, digits=2)) µs |
+	| speedup | $(round(t_base / t_fast, digits=2))× |
+	"""
+end
+
+# ╔═╡ 12010010-0012-4000-8000-000000000010
 answer_box(hint(md"""
 ```julia
-function my_sqrt(x)
-    output = one(x)           # same type as x
-    for i in 1:1000
-        output = (output + x / output) / 2
+function dot_fast(x, y)
+    acc = zero(promote_type(eltype(x), eltype(y)))
+    @fastmath @inbounds @simd for i in eachindex(x, y)
+        acc += x[i] * y[i]
     end
-    output
+    return acc
 end
 ```
 
-`one(x)` returns the multiplicative identity with the same type as `x`, keeping the
-accumulator type-stable throughout the loop.
+`@fastmath` lets the compiler emit `fmadd` (fused multiply-add) instructions and freely reorder the partial sums in the reduction — both of which can double throughput on modern CPUs. The result is still `≈` the true dot product; the error stays within a few ULPs.
 """))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -618,24 +614,21 @@ version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═aa110011-3a90-11f0-4f07-69f099994798
-# ╠═bb220022-3a90-11f0-4f07-69f099994798
-# ╟─cc330033-3a90-11f0-4f07-69f099994798
-# ╟─dd440044-3a90-11f0-4f07-69f099994798
-# ╟─ee550055-3a90-11f0-4f07-69f099994798
-# ╟─ff660066-3a90-11f0-4f07-69f099994798
-# ╠═00771177-3a90-11f0-4f07-69f099994798
-# ╠═11882288-3a90-11f0-4f07-69f099994798
-# ╠═22993399-3a90-11f0-4f07-69f099994798
-# ╠═33aa44aa-3a90-11f0-4f07-69f099994798
-# ╠═44bb55bb-3a90-11f0-4f07-69f099994798
-# ╟─55cc66cc-3a90-11f0-4f07-69f099994798
-# ╠═66dd77dd-3a90-11f0-4f07-69f099994798
-# ╟─77ee88ee-3a90-11f0-4f07-69f099994798
-# ╟─88ff99ff-3a90-11f0-4f07-69f099994798
-# ╟─99001100-3a90-11f0-4f07-69f099994798
-# ╠═aa112233-3a90-11f0-4f07-69f099994798
-# ╟─bb223344-3a90-11f0-4f07-69f099994798
-# ╟─cc334455-3a90-11f0-4f07-69f099994798
+# ╠═12010001-0012-4000-8000-000000000001
+# ╠═12010002-0012-4000-8000-000000000002
+# ╟─12010003-0012-4000-8000-000000000003
+# ╟─12010004-0012-4000-8000-000000000004
+# ╟─12010005-0012-4000-8000-000000000005
+# ╟─12010006-0012-4000-8000-000000000006
+# ╠═12010007-0012-4000-8000-000000000007
+# ╠═12010008-0012-4000-8000-000000000008
+# ╟─12010009-0012-4000-8000-000000000009
+# ╟─1201000a-0012-4000-8000-00000000000a
+# ╟─1201000b-0012-4000-8000-00000000000b
+# ╟─1201000c-0012-4000-8000-00000000000c
+# ╠═1201000d-0012-4000-8000-00000000000d
+# ╟─1201000e-0012-4000-8000-00000000000e
+# ╟─1201000f-0012-4000-8000-00000000000f
+# ╟─12010010-0012-4000-8000-000000000010
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
