@@ -4,5 +4,6 @@
     "module2" => "Module 2: Github & Reproducibility",
     "module3" => "Module 3: Parallelism",
     "module4" => "Module 4: Automatic Differentiation",
+    "module5" => "Module 5: Performance Engineering",
 ]
 
