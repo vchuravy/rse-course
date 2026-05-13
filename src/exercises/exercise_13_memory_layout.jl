@@ -2,13 +2,13 @@
 # v0.20.24
 
 #> [frontmatter]
-#> order = "5.1"
-#> exercise_number = "11"
-#> title = "Type Stability"
+#> order = "5.3"
+#> exercise_number = "13"
+#> title = "Memory Layout & Cache Effects"
 #> tags = ["module1", "track_performance", "exercises"]
 #> layout = "layout.jlhtml"
 #> license = "MIT"
-#> description = "Learn how type stability affects Julia performance and how to diagnose and fix type-unstable code"
+#> description = "Understand how column-major storage affects performance, and write cache-friendly matrix loops"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -17,181 +17,240 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ aa110011-3a90-11f0-4f07-69f099994798
+# ╔═╡ 13010001-0013-4000-8000-000000000001
 using PlutoTeachingTools, PlutoUI
 
-# ╔═╡ bb220022-3a90-11f0-4f07-69f099994798
+# ╔═╡ 13010002-0013-4000-8000-000000000002
 using BenchmarkTools
 
-# ╔═╡ cc330033-3a90-11f0-4f07-69f099994798
+# ╔═╡ 13010003-0013-4000-8000-000000000003
 ChooseDisplayMode()
 
-# ╔═╡ dd440044-3a90-11f0-4f07-69f099994798
+# ╔═╡ 13010004-0013-4000-8000-000000000004
 PlutoUI.TableOfContents(; depth=4)
 
-# ╔═╡ ee550055-3a90-11f0-4f07-69f099994798
+# ╔═╡ 13010005-0013-4000-8000-000000000005
 md"""
-# Exercise: Type Stability
+# Exercise: Memory Layout & Cache Effects
 
-A function is *type-stable* if the compiler can determine the return type (and the types of
-all local variables) from the types of the inputs alone, without running the code.
+Modern CPUs are many times faster than RAM. To bridge this gap, every CPU has a hierarchy of caches (L1 → L2 → L3) that hold recently-used data. Accessing a value already in L1 cache takes ~4 cycles; a main-memory access costs ~200 cycles.
 
-Type-unstable functions force the compiler to emit slower, boxed code that handles
-multiple possible types at runtime.
+When you read one element, the hardware fetches an entire **cache line** (64 bytes = 8 `Float64`s) from memory. If your next access is to the neighbouring element, it's already in cache — a **cache hit**. If it's to a distant address, the line is evicted and a new one is fetched — a **cache miss**.
+
+Julia stores matrices in **column-major order**: elements in the same column are contiguous in memory. A `3×4` matrix is laid out as:
+
+```
+A[1,1], A[2,1], A[3,1],   A[1,2], A[2,2], A[3,2],   A[1,3], ...
+└── column 1 ──────────┘  └── column 2 ──────────┘
+```
+
+This means:
+- Iterating down a **column** (`A[1,j], A[2,j], ...`) is cache-**friendly** — sequential memory.
+- Iterating across a **row** (`A[i,1], A[i,2], ...`) is cache-**unfriendly** — strides of `m` elements.
 """
 
-# ╔═╡ ff660066-3a90-11f0-4f07-69f099994798
-md"""
-## Motivating example
+# ╔═╡ 13010006-0013-4000-8000-000000000006
+let
+	A = zeros(Int, 4, 4)
+	for i in 1:length(A)
+		A[i] = i
+	end
+	md"""
+	Memory layout of a `4×4` matrix (numbers show linear index = memory order):
 
-`baz` returns different types depending on the branch taken; `bar` always returns `Float64`.
-Run the benchmarks and inspect `Base.return_types` to see the difference.
-"""
+	$(A)
 
-# ╔═╡ 00771177-3a90-11f0-4f07-69f099994798
-function baz()
-    s = rand()
-    if s > 2/3
-        return 0.666667   # Float64
-    elseif s > 1/3
-        return 1//3       # Rational{Int64}
-    else
-        return 0          # Int64
-    end
+	Columns run top-to-bottom; rows run left-to-right but are **not** contiguous in memory.
+	"""
 end
 
-# ╔═╡ 11882288-3a90-11f0-4f07-69f099994798
-function bar()
-    s = rand()
-    if s > 2/3
-        return 0.666667
-    elseif s > 1/3
-        return 0.3333333
-    else
-        return 0.0
-    end
-end
-
-# ╔═╡ 22993399-3a90-11f0-4f07-69f099994798
-@benchmark baz()
-
-# ╔═╡ 33aa44aa-3a90-11f0-4f07-69f099994798
-@benchmark bar()
-
-# ╔═╡ 44bb55bb-3a90-11f0-4f07-69f099994798
-Base.return_types(baz), Base.return_types(bar)
-
-# ╔═╡ 55cc66cc-3a90-11f0-4f07-69f099994798
+# ╔═╡ 13010007-0013-4000-8000-000000000007
 md"""
-## Part 1 — Fixing `my_sum`
+## Part 1 — Cache-friendly matrix sum
 
-The function below is type-unstable because the accumulator `output` starts as an `Int`
-but the array elements are `Float64`.
+Below is a matrix sum that iterates **row-first** (outer loop `i`, inner loop `j`).
+For each row `i` it steps through all columns: `A[i,1], A[i,2], ...`, striding `m` elements each step.
 
 ```julia
-function my_sum(A)
-    output = 0      # Int!
-    for x in A
-        output += x
+function sum_rowfirst(A)
+    acc = zero(eltype(A))
+    m, n = size(A)
+    for i in 1:m
+        for j in 1:n
+            acc += A[i, j]
+        end
     end
-    return output
+    return acc
 end
 ```
 
-1. Copy `my_sum` into a cell and run `@code_warntype my_sum(rand(10))`.
-   Variables highlighted in red/yellow are type-unstable.
-2. Write a fixed version called `my_sum2` using `zero(eltype(A))` to initialise
-   the accumulator.
-3. Benchmark both with `@benchmark` on `rand(10^6)`.
+Implement `sum_colfirst(A)` that iterates **column-first** (outer loop `j`, inner loop `i`), so the inner loop walks through `A[1,j], A[2,j], ...` — consecutive memory addresses.
 """
 
-# ╔═╡ 66dd77dd-3a90-11f0-4f07-69f099994798
-# Paste my_sum here, then write my_sum2 below it
+# ╔═╡ 13010008-0013-4000-8000-000000000008
+function sum_rowfirst(A)
+	acc = zero(eltype(A))
+	m, n = size(A)
+	for i in 1:m
+		for j in 1:n
+			acc += A[i, j]
+		end
+	end
+	return acc
+end
 
-# ╔═╡ 77ee88ee-3a90-11f0-4f07-69f099994798
+# ╔═╡ 13010009-0013-4000-8000-000000000009
+# TODO: Implement sum_colfirst
+
+# ╔═╡ 1301000a-0013-4000-8000-00000000000a
 let
-	if !@isdefined(my_sum2)
-		func_not_defined(:my_sum2)
+	if !@isdefined(sum_colfirst)
+		func_not_defined(:sum_colfirst)
 	else
-		A = rand(100)
-		result = my_sum2(A)
-		if !(result isa Float64)
-			keep_working(md"`my_sum2` should return a `Float64` for a `Float64` array, but got a `$(typeof(result))` — check your accumulator initialisation.")
-		elseif !(result ≈ sum(A))
-			keep_working(md"`my_sum2` gives the wrong result — it should equal `sum(A)`.")
-		else
-			correct()
+		try
+			A = rand(50, 60)
+			result = sum_colfirst(A)
+			if !(result ≈ sum(A))
+				keep_working(md"`sum_colfirst(A)` returned `$(round(result, digits=6))` but expected `$(round(sum(A), digits=6))`.")
+			elseif !(result ≈ sum_rowfirst(A))
+				keep_working(md"`sum_colfirst` and `sum_rowfirst` disagree — make sure you're summing all elements.")
+			else
+				correct()
+			end
+		catch e
+			keep_working(md"Your function threw an error: `$(sprint(showerror, e))`")
 		end
 	end
 end
 
-# ╔═╡ 88ff99ff-3a90-11f0-4f07-69f099994798
-answer_box(hint(md"""
-```julia
-function my_sum2(A)
-    output = zero(eltype(A))   # Float64 for a Float64 array
-    for x in A
-        output += x
-    end
-    return output
-end
-```
-
-`@code_warntype my_sum(rand(10))` highlights `output` in red because the compiler
-infers `Union{Float64, Int64}`. After the fix the inferred type is just `Float64`.
-"""))
-
-# ╔═╡ 99001100-3a90-11f0-4f07-69f099994798
-md"""
-## Part 2 — Newton's square root
-
-Make the following function type-stable. The bug: `output` is initialised to `1` (an `Int`)
-regardless of the type of `x`.
-
-```julia
-function my_sqrt(x)
-    output = 1
-    for i in 1:1000
-        output = 0.5 * (output + x / output)
-    end
-    output
-end
-```
-
-After fixing it, verify that `my_sqrt(2.0) ≈ sqrt(2.0)` and that
-`my_sqrt(Float32(2)) isa Float32`.
-"""
-
-# ╔═╡ aa112233-3a90-11f0-4f07-69f099994798
-# Write your type-stable my_sqrt here
-
-# ╔═╡ bb223344-3a90-11f0-4f07-69f099994798
-let
-	if !@isdefined(my_sqrt)
-		func_not_defined(:my_sqrt)
-	elseif !(my_sqrt(2.0) ≈ sqrt(2.0))
-		keep_working(md"`my_sqrt(2.0)` should be approximately `sqrt(2.0)`.")
-	elseif !(my_sqrt(Float32(2)) isa Float32)
-		keep_working(md"`my_sqrt(Float32(2))` should return a `Float32`, not a `$(typeof(my_sqrt(Float32(2))))`.")
-	else
-		correct()
+# ╔═╡ 1301000b-0013-4000-8000-00000000000b
+if @isdefined(sum_colfirst)
+	let
+		A = rand(1024, 1024)
+		t_row = @belapsed sum_rowfirst($A)
+		t_col = @belapsed sum_colfirst($A)
+		md"""
+		| Loop order | Time | Speedup |
+		|---|---|---|
+		| row-first (cache-unfriendly) | $(round(t_row * 1e3, digits=2)) ms | 1× |
+		| col-first (cache-friendly) | $(round(t_col * 1e3, digits=2)) ms | $(round(t_row / t_col, digits=2))× |
+		"""
 	end
 end
 
-# ╔═╡ cc334455-3a90-11f0-4f07-69f099994798
+# ╔═╡ 1301000c-0013-4000-8000-00000000000c
 answer_box(hint(md"""
 ```julia
-function my_sqrt(x)
-    output = one(x)           # same type as x
-    for i in 1:1000
-        output = (output + x / output) / 2
+function sum_colfirst(A)
+    acc = zero(eltype(A))
+    m, n = size(A)
+    for j in 1:n
+        for i in 1:m
+            acc += A[i, j]
+        end
     end
-    output
+    return acc
 end
 ```
 
-`one(x)` returns the multiplicative identity with the same type as `x`, keeping the
-accumulator type-stable throughout the loop.
+Swapping the loop order means the inner loop walks through `A[1,j], A[2,j], ..., A[m,j]` — these are consecutive in memory, so the CPU pre-fetches them into cache lines efficiently.
+"""))
+
+# ╔═╡ 1301000d-0013-4000-8000-00000000000d
+md"""
+## Part 2 — Cache-friendly matrix–vector multiply
+
+The matrix–vector product `y = A * x` can be written two ways:
+
+**Row form** (inner product of each row with `x`):
+```
+for i = 1:m
+    y[i] = sum(A[i, j] * x[j] for j in 1:n)   # walks row i: cache-unfriendly
+```
+
+**Column form** ("axpy" form — each column of `A` contributes `x[j] * A[:,j]` to `y`):
+```
+for j = 1:n
+    for i = 1:m
+        y[i] += A[i, j] * x[j]                 # walks column j: cache-friendly
+```
+
+Implement `matvec_colfirst!(y, A, x)` that uses the column form.
+Remember to initialise `y` to zero before accumulating.
+"""
+
+# ╔═╡ 1301000e-0013-4000-8000-00000000000e
+function matvec_rowfirst!(y, A, x)
+	m, n = size(A)
+	for i in 1:m
+		s = zero(eltype(y))
+		for j in 1:n
+			s += A[i, j] * x[j]
+		end
+		y[i] = s
+	end
+	return y
+end
+
+# ╔═╡ 1301000f-0013-4000-8000-00000000000f
+# TODO: Implement matvec_colfirst!
+
+# ╔═╡ 13010010-0013-4000-8000-000000000010
+let
+	if !@isdefined(matvec_colfirst!)
+		func_not_defined(:matvec_colfirst!)
+	else
+		try
+			m, n = 50, 40
+			A = rand(m, n); x = rand(n)
+			y_ref = [sum(A[i, j] * x[j] for j in 1:n) for i in 1:m]
+			y_student = zeros(m)
+			matvec_colfirst!(y_student, A, x)
+			if !(y_student ≈ y_ref)
+				keep_working(md"`matvec_colfirst!(y, A, x)` gives the wrong result — check your loop order and that you initialise `y` to zero.")
+			else
+				correct()
+			end
+		catch e
+			keep_working(md"Your function threw an error: `$(sprint(showerror, e))`")
+		end
+	end
+end
+
+# ╔═╡ 13010011-0013-4000-8000-000000000011
+if @isdefined(matvec_colfirst!)
+	let
+		m, n = 1024, 1024
+		A = rand(m, n); x = rand(n)
+		y = zeros(m)
+		t_row = @belapsed matvec_rowfirst!($y, $A, $x)
+		t_col = @belapsed matvec_colfirst!($y, $A, $x)
+		md"""
+		| Implementation | Time | Speedup |
+		|---|---|---|
+		| `matvec_rowfirst!` | $(round(t_row * 1e3, digits=2)) ms | 1× |
+		| `matvec_colfirst!` | $(round(t_col * 1e3, digits=2)) ms | $(round(t_row / t_col, digits=2))× |
+		"""
+	end
+end
+
+# ╔═╡ 13010012-0013-4000-8000-000000000012
+answer_box(hint(md"""
+```julia
+function matvec_colfirst!(y, A, x)
+    m, n = size(A)
+    fill!(y, zero(eltype(y)))
+    for j in 1:n
+        xj = x[j]
+        for i in 1:m
+            y[i] += A[i, j] * xj
+        end
+    end
+    return y
+end
+```
+
+The inner loop accesses `A[1,j], A[2,j], ..., A[m,j]` — a full column, which is contiguous in memory. Caching `x[j]` in a local variable `xj` avoids repeated indirect reads of `x` inside the hot loop.
 """))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -609,24 +668,23 @@ version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═aa110011-3a90-11f0-4f07-69f099994798
-# ╠═bb220022-3a90-11f0-4f07-69f099994798
-# ╟─cc330033-3a90-11f0-4f07-69f099994798
-# ╟─dd440044-3a90-11f0-4f07-69f099994798
-# ╟─ee550055-3a90-11f0-4f07-69f099994798
-# ╟─ff660066-3a90-11f0-4f07-69f099994798
-# ╠═00771177-3a90-11f0-4f07-69f099994798
-# ╠═11882288-3a90-11f0-4f07-69f099994798
-# ╠═22993399-3a90-11f0-4f07-69f099994798
-# ╠═33aa44aa-3a90-11f0-4f07-69f099994798
-# ╠═44bb55bb-3a90-11f0-4f07-69f099994798
-# ╟─55cc66cc-3a90-11f0-4f07-69f099994798
-# ╠═66dd77dd-3a90-11f0-4f07-69f099994798
-# ╟─77ee88ee-3a90-11f0-4f07-69f099994798
-# ╟─88ff99ff-3a90-11f0-4f07-69f099994798
-# ╟─99001100-3a90-11f0-4f07-69f099994798
-# ╠═aa112233-3a90-11f0-4f07-69f099994798
-# ╟─bb223344-3a90-11f0-4f07-69f099994798
-# ╟─cc334455-3a90-11f0-4f07-69f099994798
+# ╠═13010001-0013-4000-8000-000000000001
+# ╠═13010002-0013-4000-8000-000000000002
+# ╟─13010003-0013-4000-8000-000000000003
+# ╟─13010004-0013-4000-8000-000000000004
+# ╟─13010005-0013-4000-8000-000000000005
+# ╠═13010006-0013-4000-8000-000000000006
+# ╟─13010007-0013-4000-8000-000000000007
+# ╠═13010008-0013-4000-8000-000000000008
+# ╠═13010009-0013-4000-8000-000000000009
+# ╟─1301000a-0013-4000-8000-00000000000a
+# ╠═1301000b-0013-4000-8000-00000000000b
+# ╟─1301000c-0013-4000-8000-00000000000c
+# ╟─1301000d-0013-4000-8000-00000000000d
+# ╠═1301000e-0013-4000-8000-00000000000e
+# ╠═1301000f-0013-4000-8000-00000000000f
+# ╟─13010010-0013-4000-8000-000000000010
+# ╠═13010011-0013-4000-8000-000000000011
+# ╟─13010012-0013-4000-8000-000000000012
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

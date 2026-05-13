@@ -787,7 +787,8 @@ md"""
 @pprof profile_test(10)
 
 # ╔═╡ 1a2b3c4d-0001-0001-000a-00000000000a
-PProf.refresh()
+# Re-generate the pprof profile data for the running server (interactive use only)
+try PProf.refresh() catch end
 
 # ╔═╡ 1a2b3c4d-0001-0001-000b-00000000000b
 md"""
