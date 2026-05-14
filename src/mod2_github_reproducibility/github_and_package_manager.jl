@@ -3,10 +3,10 @@
 
 #> [frontmatter]
 #> chapter = "2"
-#> section = "2"
-#> order = "6"
-#> title = "Reproducibility"
-#> date = "2025-05-21"
+#> section = "1"
+#> order = "5"
+#> title = "Github & Package Manager"
+#> date = "2025-05-14"
 #> tags = ["module2", "track_principles"]
 #> layout = "layout.jlhtml"
 #> 
@@ -17,26 +17,923 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 5c4c21e4-1a90-11f0-2f05-47d877772576
 begin
-	using PlutoUI, PlutoTeachingTools
+	using PlutoUI, PlutoTeachingTools, Kroki
 	using PlutoUI: Slider
 	PlutoUI.TableOfContents(; depth=4)
-end
-
-# ╔═╡ 4a74b127-85c2-40a3-a759-8adedd6a032e
-begin
-	using CairoMakie
-	set_theme!(theme_latexfonts();
-			   fontsize = 16,
-			   Lines = (linewidth = 2,),
-			   markersize = 16)
 end
 
 # ╔═╡ 03335a53-18de-47f8-87b0-d0c742e52f72
 ChooseDisplayMode()
 
 # ╔═╡ 0be73b29-7780-4be0-bf07-9b62c99fc4b4
+md"""
+# Git & Github
+"""
+
+# ╔═╡ d4b60dfe-0067-47ec-8608-9a34e088aeae
+using Kroki
+
+# ╔═╡ ecaaf7eb-f748-4ab8-99e8-63c436f2045b
+md"""
+## What is Git?
+
+[Git](https://git-scm.com/) is a **d**istributed-**v**ersion-**c**ontrol-system.
+
+1. Version-Control-System
+    - Keeps track of "state" of a repository.
+    - Keeps a history of previous changes
+2. Distributed
+    - Local-first
+    - Many different "views" on the state of the project
+    - Explicit synchronization
+"""
+
+# ╔═╡ c6a2d68f-b8c0-4d77-82a8-265a287336f2
+md"""
+!!! note 
+    The [GitBook](https://git-scm.com/book/en/v2) is a usefull resource.
+"""
+
+# ╔═╡ 1c908c9e-f287-4f35-85a8-0089b1104838
+md"""
+### Git concepts
+
+- **Repository**: A top-level folder tracked by git. 
+- **Checkout**: The current local state of the working directory.
+- **Commit**: A set of changes.
+- **Hash**/**SHA**: The hash of a commit (includes the history/parents).
+- **Tag**: A named commit.
+- **Branch**: A named "state" currently pointing at a commit.
+"""
+
+# ╔═╡ d5a72daf-b1dc-4e42-8d01-73a358b48a36
+md"""
+### Git commands
+"""
+
+# ╔═╡ 4d9710dd-ebd8-4a60-a2d6-b43ce9b6a990
+md"""
+#### `git init`
+
+```sh
+> mkdir MyPackage.jl
+> cd MyPackage.jl
+> git init
+Initialized empty Git repository in /tmp/MyPackage.jl/.git/
+```
+
+Creates the `.git` folder and initializes a git repository.
+
+!!! note
+    `git` will walk up the directory tree until it finds a `.git` folder. 
+"""
+
+# ╔═╡ a375415a-b89c-4155-bf34-cd66c37407af
+mermaid"""
+gitGraph
+"""
+
+# ╔═╡ d87edbd4-e75c-4a97-9a10-c581a698e923
+md"""
+#### `git status`
+
+```sh
+> git status 
+On branch main
+
+No commits yet
+
+nothing to commit (create/copy files and use "git add" to track)
+```
+"""
+
+# ╔═╡ a0626ce0-5969-475c-ab18-5dcf6bb36732
+md"""
+#### `git add`
+"""
+
+# ╔═╡ 2c682f34-0164-4840-a52f-fe06f17a2456
+md"""
+```sh
+> echo "# MyPackage" > README.md
+> git status
+On branch main
+
+No commits yet
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	README.md
+
+nothing added to commit but untracked files present (use "git add" to track)
+```
+"""
+
+# ╔═╡ 15e93a07-c0a9-4fd6-b84c-4055ec79e78a
+md"""
+```sh
+> git add README.md
+> git status
+On branch main
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+	new file:   README.md
+```
+"""
+
+# ╔═╡ 53366fdd-1558-4b07-98f4-6a898004b923
+md"""
+Git has three simultaneous "states"
+
+- The state of the current commit
+- The state of the working directory: **untracked**
+- The "staged" state: "Changes to be committed"
+"""
+
+# ╔═╡ 278d924c-b4f6-4802-98da-a67797b3d426
+md"""
+!!! note
+	`git add -p` is an **extremely** useful variant that let's you see what changes you are staging.
+"""
+
+# ╔═╡ 31cae475-1cba-466a-a87c-cc4dfd03d552
+md"""
+#### `git commit`
+
+Git commit creates a new commit.
+
+```sh
+> git commit -m "initial commit"
+[main (root-commit) d3af9e2] initial commit
+ 1 file changed, 1 insertion(+)
+ create mode 100644 README.md
+```
+
+```sh
+> git status
+On branch main
+nothing to commit, working tree clean
+```
+"""
+
+# ╔═╡ 177d84b7-8d25-4978-822e-cf07091b1f63
+mermaid"""
+gitGraph
+  commit
+"""
+
+# ╔═╡ e112373c-24fd-4e0d-8766-a5cfb1747f78
+md"""
+#### `git log`
+```sh
+> git log
+commit d3af9e273c4b1d42fca6093f63a9560a3b2cf767 (HEAD -> main)
+Author: Valentin Churavy <...>
+Date:   Tue May 13 18:28:24 2025 +0200
+
+    initial commit
+```
+"""
+
+# ╔═╡ 6756ace4-eab3-47e7-9fdf-abcfb37029e5
+md"""
+!!! note
+    If you need to remove a file from Git, you can use the `git rm` command.
+    Note, that this only removes the file from the current commit, but it's previous content is always available in the history.
+"""
+
+# ╔═╡ c4053d4f-fadf-4b87-8f2d-ca4c2166c46d
+md"""
+#### Working with branches
+"""
+
+# ╔═╡ 9f48c2dd-f445-4efd-91f2-35d0bbcae765
+md"""
+##### `git branch`
+```sh
+> git branch
+* main
+```
+
+```sh
+> git branch -v
+* main 504d898 initial commit
+```
+"""
+
+# ╔═╡ f5973d0a-043d-4cdc-ba79-15e9a3eb3046
+md"""
+You can use `git branch` to create a new branch
+```sh
+> git branch develop
+```
+
+```sh
+> git branch -v
+* develop 504d898 initial commit
+* main 504d898 initial commit
+```
+"""
+
+# ╔═╡ 363ebe92-ea01-43f9-9150-a01609a6cfca
+md"""
+
+Deleting a branch.
+
+```sh
+> git branch -D develop
+```
+"""
+
+# ╔═╡ 8e402dae-e10a-4736-bdd8-e2844f79d859
+mermaid"""
+gitGraph
+  commit
+"""
+
+# ╔═╡ f6e64181-479b-47b3-99d2-405ed2b9be15
+md"""
+##### `git switch`
+
+`git switch` switches branches!
+
+```sh
+> git switch develop
+```
+
+!!! note
+    You will sometimes see me use `git checkout` instead, which is an older form.
+    [Learn more!](https://refine.dev/blog/git-switch-and-git-checkout/#using-git-switch-vs-git-checkout)
+"""
+
+# ╔═╡ 1e1a58b4-98a9-4b27-be11-b67fc329a6a6
+md"""
+With `-c` git switch creates a new branch.
+
+```sh
+> git switch -c feature
+```
+
+"""
+
+# ╔═╡ 05ad0829-84ed-494f-80bb-c1da1991a238
+md"""
+##### `git merge`
+
+Given a state that looks like this, we may want to add changes from `feature` back to `main`.
+"""
+
+# ╔═╡ 54fac0b7-e3d0-4bb2-a9cb-34a4ec629422
+mermaid"""
+gitGraph
+  commit
+  branch feature
+  commit
+  commit
+"""
+
+# ╔═╡ 7515ed27-d5c6-45c1-8793-12e5db294983
+md"""
+```sh
+> git switch main
+> git merge feature
+```
+"""
+
+# ╔═╡ 1bae1dbb-c428-406e-ad22-be4255c47fdc
+mermaid"""
+gitGraph
+  commit
+  branch feature
+  commit
+  commit
+  checkout main
+  merge feature
+"""
+
+# ╔═╡ 80e832d7-ede2-4e13-86fd-f92429a53011
+md"""
+Due to the nature of Git, work may have happen on `main`
+"""
+
+# ╔═╡ 3cd28b53-281c-4934-a399-eb75f64cf5a6
+mermaid"""
+gitGraph
+  commit
+  branch feature
+  commit
+  commit
+  checkout main
+  commit
+"""
+
+# ╔═╡ 6f021238-0d2f-4821-b407-a230dc7814bc
+md"""
+```sh
+> git switch feature
+> git merge main
+```
+"""
+
+# ╔═╡ 7efce24a-c294-4c26-8297-76cd0fb12081
+mermaid"""
+gitGraph
+  commit
+  branch feature
+  commit
+  commit
+  checkout main
+  commit
+  checkout feature
+  merge main
+"""
+
+# ╔═╡ 02c596c5-080f-4c5a-98c9-cd13b32df5c3
+md"""
+##### `git rebase`
+
+Instead of merging a branch we may want to `rebase`. Rebase is particularly useful when working with feature branches and it's variant `git rebase -i` allows you to cleanup your messy state.
+"""
+
+# ╔═╡ 70fd6057-1f46-414f-b0b8-0928fde77341
+mermaid"""
+gitGraph
+  commit id: "A"
+  branch feature
+  commit id: "B"
+  commit id: "C"
+  checkout main
+  commit id: "D"
+"""
+
+# ╔═╡ ecc31d48-35ca-4e89-986f-cc2f191b26b9
+md"""
+```sh
+> git switch feature
+> git rebase main
+```
+"""
+
+# ╔═╡ 3d6871e7-bb7a-4276-8180-b5f388a73cc9
+mermaid"""
+gitGraph
+  commit id: "A"
+  commit id: "D"
+  branch feature
+  commit id: "B"
+  commit id: "C"
+"""
+
+# ╔═╡ 168d9204-4aa3-4c3a-8c62-7dd4af5dba15
+md"""
+#### `git stash`
+
+A more advanced utility command is `git stash`.
+
+It "saves" the current state of your working directory
+
+"""
+
+# ╔═╡ 8fcfbb4a-940c-44bd-9528-d7d18ff27cbb
+md"""
+```sh
+> echo "Hey" > README.md
+> git status
+On branch main
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   README.md
+
+no changes added to commit (use "git add" and/or "git commit -a")
+```
+"""
+
+# ╔═╡ e907d4a0-e904-41eb-be39-b6ef8a1679d4
+md"""
+```sh
+> git diff
+diff --git a/README.md b/README.md
+index f266118..a72832b 100644
+--- a/README.md
++++ b/README.md
+@@ -1 +1 @@
+-# MyPackage
++Hey
+```
+"""
+
+# ╔═╡ 25de521d-2f56-4e5b-ae87-b8f7312796d3
+md"""
+```sh
+> git stash
+Saved working directory and index state WIP on main: 504d898 initial commit
+> git status
+On branch main
+nothing to commit, working tree clean
+```
+"""
+
+# ╔═╡ cea48abe-5d02-4e3b-8781-3eae51545481
+md"""
+```sh
+> git stash list
+stash@{0}: WIP on main: 504d898 initial commit
+> git stash pop
+On branch main
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   README.md
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Dropped refs/stash@{0} (a6287e30602f575adba45fa10ee48ee48e0326fc)
+> git stash list
+```
+"""
+
+# ╔═╡ b970dc0b-9991-4849-a6d9-099e19471946
+md"""
+!!! note
+    `git stash` only works for current dirty files. Use `git stash -s` for all files.
+"""
+
+# ╔═╡ ffdc7bb5-9cec-42b5-9819-78ca7beabf6c
+md"""
+#### Working with remotes
+
+A remote is a Git repository "somewhere" else. Most often this means it's hosted on Github or another Git forge like Gitlab.
+"""
+
+# ╔═╡ 14e24118-fa8b-4d50-9e23-0f3901a7a1be
+md"""
+The core commands are
+
+- `git fetch` & `git pull` to synchronize the state of a repository
+- `git push` to publish the state of our local repository
+"""
+
+# ╔═╡ 29ccbb9d-edef-4101-99c6-15c417a41d1f
+md"""
+Checking with `git remote` we can see that we currently don't have a remote setup
+"""
+
+# ╔═╡ 8cb9853d-3bc1-4e78-bc2b-3a2aa4f328cb
+md"""
+```sh
+> git remote
+```
+"""
+
+# ╔═╡ 3955fc29-e3c3-49a1-b4dd-1864111eabe4
+md"""
+## Github
+"""
+
+# ╔═╡ 30f74532-20f9-4f80-bdfd-01cbcd3e68ff
+md"""
+Going to [https://github.com/new](https://github.com/new) allows use setup a new repository.
+
+Doing that without ticking any of the boxes, presents us with two options.
+"""
+
+# ╔═╡ 627af63b-d863-495c-b2ee-e101746c49e5
+md"""
+
+**…or create a new repository on the command line**
+```
+echo "# MyPackage.jl" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/vchuravy/MyPackage.jl.git
+git push -u origin main
+```
+
+**…or push an existing repository from the command line**
+```
+git remote add origin https://github.com/vchuravy/MyPackage.jl.git
+git branch -M main
+git push -u origin main
+```
+"""
+
+# ╔═╡ c86e608a-1a6e-4fbd-9584-e1d3de905f1c
+md"""
+Since we already have a local repository setup we choose the second option.
+
+!!! note
+    To authenticate to Github there are two different ways.
+    1. Passwords
+    2. SSH-Keys
+"""
+
+# ╔═╡ 82cbab70-a328-4bd2-b084-b292ed3a85aa
+md"""
+!!! note
+    The [Github CLI](https://cli.github.com/) simplifies some of these operations.
+"""
+
+# ╔═╡ b0b37d43-8001-405a-8f67-73e94c8d41b5
+md"""
+```sh
+> git remote add origin git@github.com:vchuravy/MyPackage.jl.git
+> git branch -M main
+> git push -u origin main
+Enumerating objects: 3, done.
+Counting objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 229 bytes | 229.00 KiB/s, done.
+Total 3 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To github.com:vchuravy/MyPackage.jl.git
+ * [new branch]      main -> main
+branch 'main' set up to track 'origin/main'.
+```
+"""
+
+# ╔═╡ 88b670c9-6ba2-4c92-8abb-dc33bc3d4191
+md"""
+```sh
+> git remote -v
+origin	git@github.com:vchuravy/MyPackage.jl.git (fetch)
+origin	git@github.com:vchuravy/MyPackage.jl.git (push)
+```
+"""
+
+# ╔═╡ d93f3b6f-a727-4c5c-9069-c9f171ae94fe
+md"""
+### What to do on a merge conflict!?
+
+When working with other people each local repository may diverge from the common root. So sometimes you may run into merge conflicts.
+"""
+
+# ╔═╡ b3b3d443-ea18-456a-aabf-23c2b2f854db
+md"""
+When a  merge conflict occurs you will see something like:
+
+```
+<<<<<<< HEAD
+this is some content to mess with
+content to append
+=======
+totally different content to merge later
+>>>>>>> new_branch_to_merge_later
+```
+
+You need to choose which side of the merge you want, and maybe you need to combine them! I recommend VS Code for this.
+"""
+
+# ╔═╡ f25b352a-52b1-424d-8d4a-da210cbd442f
+md"""
+## Julia & Github
+"""
+
+# ╔═╡ a88718a1-ba41-40ef-b09f-fc53ed70893d
+md"""
+!!! note
+	Below we will walk through the manual setup of a Julia reposirtory,
+	but you may want to use [`PkgTemplates.jl`](https://github.com/JuliaCI/PkgTemplates.jl) to simplify the initial setup.
+"""
+
+# ╔═╡ 14ee3dcc-9070-49f4-a562-0f8ba918d87f
+md"""
+## Structure of a Julia Github repository
+
+```shell
+.github/workflows/
+src/
+  MyPackage.jl
+test/
+  Project.toml
+  runtests.jl
+docs/
+  src/
+  Project.toml
+  make.jl
+benchmark/
+  Project.toml
+  benchmarks.jl
+Project.toml
+README.md
+LICENSE.md
+.gitignore
+```
+"""
+
+# ╔═╡ c14d85f3-9d4d-4ec6-a15b-4918a5761312
+md"""
+### Licensing
+
+There are many licenses to choose from. In short a license protects you and others and allows you to use other people code without being sued later...
+
+[Chose A License](https://choosealicense.com/)
+
+The Julia community at large prefers the [MIT license](https://choosealicense.com/licenses/mit/).
+
+When contributing to someone elses project check the license!
+
+The most important thing is that it is something like an [OSI Approved License](https://opensource.org/licenses) and not something made up.
+"""
+
+# ╔═╡ 24203379-cc7b-451a-b52b-02f0075563f5
+md"""
+### `Project.toml`
+```toml
+name = "MyPackage"
+uuid = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+authors = ["Author <autor@somehost.de>"]
+version = "0.1.0"
+
+[deps]
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+
+[compat]
+Enzyme = "0.13.41"
+```
+"""
+
+# ╔═╡ b115a56b-600a-4032-a42b-6ff5172b7417
+md"""
+```
+] generate MyPackage
+```
+"""
+
+# ╔═╡ 10b96a54-9d02-4fbf-ba69-d8c27304c48a
+md"""
+### Testing: `test/`
+
+A foundational best practice for research software development is testing.
+Testing can both be
+
+1. Unit-tests: Small scale test of functionality
+2. End-to-end tests: Testing that a task functions
+
+Julia has the [`Test.jl`](https://docs.julialang.org/en/v1/stdlib/Test/) package that helps to write unit tests.
+
+Other helpful package:
+- [TestItems.jl](https://www.julia-vscode.org/docs/stable/userguide/testitems/)
+
+#### `runtests.jl`
+```julia
+using Test
+using MyPackage
+
+@testset "Group of Tests" begin
+	@test my_fun() == 1
+	@test_broken my_other_fun() == 2 
+end
+```
+
+#### `Project.toml`
+
+```toml
+[deps]
+MyPackage = "..."
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+MyPackage = {path = ".."}
+```
+
+
+"""
+
+# ╔═╡ 3712e9a2-eeea-444f-9741-4576f3b7d49a
+md"""
+### Documentation
+
+The package [`Documenter.jl`](https://documenter.juliadocs.org/) turns doc-strings and manual written docs into an webpage.
+
+#### Doc-strings
+"""
+
+# ╔═╡ 3a2b059a-15c0-40e3-8f62-b1b2acc6d676
+"""
+    toss_coin(p=0.5)::Bool
+
+Toss a coin to your witcher.
+
+### Arguments
+- `p`: The propability that the coin comes up head.
+"""
+function toss_coin(p=0.5)
+	rand() < p
+end
+
+# ╔═╡ 1944a721-3b5d-402c-b78f-0449af1c787f
+md"""
+!!! note
+	The [Documenter Guide](https://documenter.juliadocs.org/stable/man/guide/) has a full setup.
+"""
+
+# ╔═╡ 0dbbf025-b5db-4be7-a720-162beadc5d20
+md"""
+### Benchmarking
+
+- Using [`BenchmarkTools.jl`](https://github.com/JuliaCI/BenchmarkTools.jl) we can write and define benchmark suites.
+- Using [`PkgBenchmark.jl`](https://github.com/JuliaCI/PkgBenchmark.jl) or [`AirSpeedVelocity.jl`](https://github.com/MilesCranmer/AirspeedVelocity.jl) we can run those benchmarks.
+- For CI [`AirSpeedVelocity.jl`](https://github.com/MilesCranmer/AirspeedVelocity.jl) or [`github-action-benchmark`](https://github.com/benchmark-action/github-action-benchmark) may be options. Send me feedback!
+"""
+
+# ╔═╡ b4b3fbc4-1a9e-4977-8b5b-f9c8f9b3c6b8
+md"""
+```
+benchmark/
+  Project.toml
+  benchmarks.jl
+  runbenchmarks.jl
+```
+"""
+
+# ╔═╡ 763c41b5-c9f8-42e1-a3a1-992006dde0ee
+md"""
+##### Project.toml
+```toml
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+MyPackage = "..."
+
+[sources]
+MyPackage = {path = ".."}
+```
+"""
+
+# ╔═╡ 519e251d-27f3-440f-a69e-bbb5dff1c7f1
+md"""
+##### `benchmarks.jl`
+```julia
+using BenchmarkTools
+using TowerOfEnzyme
+
+const SUITE = BenchmarkGroup()
+
+SUITE["basics"] = BenchmarkGroup()
+
+SUITE["basics"]["overhead"] = @benchmarkable nth_derivative(sin, 1.0, Val(0))
+```
+"""
+
+# ╔═╡ 73a38c14-8865-4be2-860c-46018e534289
+md"""
+##### `runbenchmarks.jl`
+```julia
+# For CI
+
+using BenchmarkTools
+
+include("benchmarks.jl")
+
+tune!(SUITE)
+results = run(SUITE, verbose = true)
+
+BenchmarkTools.save("output.json", median(results))
+```
+"""
+
+# ╔═╡ 86658337-5837-4a19-86b3-76459ed38785
+md"""
+### Continous integration
+
+- Matrix
+- Triggers
+- Secrets
+"""
+
+# ╔═╡ 6824a0fc-77a6-4c9e-8244-c71682d103e2
+md"""
+#### Example `.github/workflows/CI.yml`
+
+```yml
+name: Run tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# needed to allow julia-actions/cache to delete old caches that it has created
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        julia-version: ['lts', '1', 'pre']
+        julia-arch: [x64]
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+          arch: ${{ matrix.julia-arch }}
+      - uses: julia-actions/cache@v2
+        id: julia-cache
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+      - name: Save Julia depot cache on cancel or failure
+        id: julia-cache-save
+        if: cancelled() || failure()
+        uses: actions/cache/save@v4
+        with: 
+          path: |
+            ${{ steps.julia-cache.outputs.cache-paths }}
+          key: ${{ steps.julia-cache.outputs.cache-key }}
+```
+
+"""
+
+# ╔═╡ 1856800c-346b-42af-bb58-3947a01d9a85
+md"""
+#### Example: `.github/workflows/Documenter.yml`
+"""
+
+# ╔═╡ 574b9572-df2f-4c8f-ab14-80b4ecf5c70a
+md"""
+!!! note
+    Read the manual on setting up Documenter with [`GitHub Actions`](https://documenter.juliadocs.org/stable/man/hosting/#GitHub-Actions) in particular you will need to setup a secret.
+"""
+
+# ╔═╡ 692700d1-e71d-4246-8c5b-0554408cae88
+md"""
+```yml
+name: Documentation
+
+on:
+  push:
+    branches:
+      - main
+    tags: '*'
+  pull_request:
+
+jobs:
+  build:
+    # These permissions are needed to:
+    # - Deploy the documentation: https://documenter.juliadocs.org/stable/man/hosting/#Permissions
+    # - Delete old caches: https://github.com/julia-actions/cache#usage
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+      statuses: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v2
+      - name: Install dependencies
+        shell: julia --color=yes --project=docs {0}
+        run: |
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
+          Pkg.instantiate()
+      - name: Build and deploy
+        run: julia --color=yes --project=docs docs/make.jl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
+```
+"""
+
+# ╔═╡ a4e3be29-8553-410e-9842-96aba6d9e127
+md"""
+#### Example: `.github/workflows/TagBot.yml`
+
+https://github.com/JuliaRegistries/TagBot
+
+```yml
+name: TagBot
+on:
+  issue_comment:
+    types:
+      - created
+  workflow_dispatch:
+jobs:
+  TagBot:
+    if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: JuliaRegistries/TagBot@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ssh: ${{ secrets.DOCUMENTER_KEY }}
+```
+"""
+
+
+# ╔═╡ aabb0001-0001-4000-8000-000000000001
 md"""
 # Reproducibility
 
@@ -333,510 +1230,12 @@ julia_version = "1.11.5"
     Instantiate will not resolve the environment again, it will just install all the dependencies listed in the `Manifest.toml`. Make sure to match the version.
 """
 
-# ╔═╡ 18cfbe65-8895-4c89-a90a-c9620efd5ab2
-md"""
-## Numerical reproducibility
 
-- [What every Computer Scientist should know about Floating-Point arithmetic](https://dl.acm.org/doi/10.1145/103162.103163) 
-"""
-
-# ╔═╡ e07a7759-4316-45e2-a7ac-11cba9a260d7
-md"""
-### Randomness
-
-We sometimes "desire" randomness, but true randomness is hard in a computer.
-In computer programs we talk about "pseudo-random number generators", given a seed they generate a "unpredicatble" sequence of numbers with a very large period.
-"""
-
-# ╔═╡ d8bf66d2-bfc7-40fa-a865-ac05de77e05a
-using Random
-
-# ╔═╡ e13709c2-47f9-4f3c-9e96-eadf6f7bb20e
-rand()
-
-# ╔═╡ 564f0d8d-41da-4a41-88a8-8bb5e5484902
-rand()
-
-# ╔═╡ a6397c7f-1afd-4a55-ac16-337c54707b36
-let
-	Random.seed!(182)
-	rand()
-end
-
-# ╔═╡ 10918c07-75de-4dae-938a-9c8faa2f5617
-let
-	Random.seed!(182)
-	rand()
-end
-
-# ╔═╡ b1ea870f-0cdb-4463-8c4e-8cd2704a7cd7
-walk(x) = rand((x-1, x+1))
-
-# ╔═╡ 072ae92f-ec9f-4398-be1b-6e3d59bedfbb
-function walk_nsteps(N)
-	steps = [0]
-	for _ in 2:N
-		push!(steps, walk(steps[end]))
-	end
-	return steps
-end
-
-# ╔═╡ d27ca184-5884-454b-ba64-3f1689e05db9
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1], xlabel="Position", ylabel="Steps", title="Unseeded")
-	N = 100
-	lines!(ax, walk_nsteps(N), 1:N)
-	lines!(ax, walk_nsteps(N), 1:N)
-	lines!(ax, walk_nsteps(N), 1:N)
-	lines!(ax, walk_nsteps(N), 1:N)
-	fig
-end
-
-# ╔═╡ 6177d937-e936-4ce3-a1b3-414c59eb84f2
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1], xlabel="Position", ylabel="Steps", title="Seeded")
-	N = 100
-	Random.seed!(12)
-	lines!(ax, walk_nsteps(N), 1:N)
-	lines!(ax, walk_nsteps(N), 1:N)
-	lines!(ax, walk_nsteps(N), 1:N)
-	lines!(ax, walk_nsteps(N), 1:N)
-	fig
-end
-
-# ╔═╡ e865a795-5704-49ec-8548-195399cbae20
-md"""
-### Order of summing
-- [Kahan summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm)
-- [Pairwise summation used in Julia](https://github.com/JuliaLang/julia/pull/4039)
-"""
-
-# ╔═╡ 017ad668-0cb6-4e12-9672-9f917a902939
-(0.1 + 0.2) + 0.3
-
-# ╔═╡ 2ab18473-2cbc-4508-8e02-3346b3f10512
- 0.1 + (0.2 + 0.3)
-
-# ╔═╡ 1aa2c9f5-bb89-4289-8459-5632bbcd40b7
-md"""
-!!! note
-    My first ["silly question"](https://stackoverflow.com/questions/21872854/floating-point-math-in-different-programming-languages)
-"""
-
-# ╔═╡ 692aaf7a-6697-4e1e-83f1-64ee2443850f
-md"""
-Floating point arithmetic doesn't quite follow the rules of real arithmetic.
-Instead the rules are defined in a standard called `IEEE-754`.
-
-Because summation in different order will give different answers, the compiler has no lease to reorder operations for us. This is in particular relevant for vectorization and parallel computation.
-
-Code may give different answers due to different execution order.
-"""
-
-# ╔═╡ cb4980f7-4285-437d-9dfd-1ee14aa10a02
-md"""
-#### 2046 floating pointer numbers that sum to (almost) anything
-
-Thanks to [Stefan Karpinski](https://discourse.julialang.org/t/array-ordering-and-naive-summation/1929)
-"""
-
-# ╔═╡ 7fab467c-9277-4a28-a854-121bbf279fa1
-md"""
-The `sumsto` function always returns the same 2046 floating-point numbers but returns them in a different order based on `x`: for any 64-bit float value of `x` from 0 up to (but not including) 2^970, the naive left-to-right sum of the vector returned by `sumsto(x)` is precisely `x`:
-"""
-
-# ╔═╡ 76149ceb-e19b-415e-8c3e-8e752a0b33f7
-function sumsto(x::Float64)
-    0 <= x < exp2(970) || throw(ArgumentError("sum must be in [0,2^970)"))
-    n, p₀ = Base.decompose(x) # integers such that `n*exp2(p₀) == x`
-    [floatmax(); [exp2(p) for p in -1074:969 if iseven(n >> (p-p₀))]
-    -floatmax(); [exp2(p) for p in -1074:969 if isodd(n >> (p-p₀))]]
-end
-
-# ╔═╡ beb3ac00-d5e6-4ba5-b130-34db904c0d06
-foldl(+, sumsto(0.0))
-
-# ╔═╡ 954aea7f-229d-486e-8bec-92bc323dee86
-foldl(+, sumsto(eps(0.0)))
-
-# ╔═╡ be837dec-8b71-4a13-86c3-71012f7c3382
-foldl(+, sumsto(1.23))
-
-# ╔═╡ 4813d655-706c-4ccf-91fb-19f4bc0dabaa
-foldl(+, sumsto(pi+0))
-
-# ╔═╡ b5ec5cac-3316-411c-9de6-63ebf5c2aa53
-foldl(+, sumsto(6.0221409e23))
-
-# ╔═╡ e078fa8e-6c28-4a7a-8553-077206068725
-foldl(+, sumsto(9.979201547673598e291))
-
-# ╔═╡ e499f486-0839-4430-80ea-afd2da5d8621
-md"""
-When adding the values from left to right, all the powers of two after `floatmax()` but before `-floatmax()` have no effect on the sum. Then `-floatmax()` cancels `floatmax()` out, bringing the sum back to zero so the remaining powers of two are added up as expected, giving the final result, `x`. There are 2044 powers of two that can be represented as 64-bit floating-point value below 2^970 since the smallest representable power of 2 is `eps(0.0) == exp2(-1074) == 5.0e-324`. So the number of values we’re summing is 1074 + 970 + 2, one for each power of two and two more for `floatmax()` and `-floatmax()`.
-"""
-
-# ╔═╡ d71b32cf-a506-4ff0-8e75-4f6064b66b5a
-md"""
-### Fast-math
-
-- [Simon Byrne notes on Fast-Math](https://simonbyrne.github.io/notes/fastmath/)
-- [Towards Useful Fast-Math](https://llvm.org/devmtg/2024-10/slides/techtalk/Kaylor-Towards-Useful-Fast-Math.pdf)
-"""
-
-# ╔═╡ 4169bd7e-f88d-46a7-8ac9-a878b0535709
-function foo()
-	A = 1.0f0
-	C = 1.0f0
-
-	# Find the smallest value A = 2^k  for which (A + 1 - A) != 1
-	while C == 1.0f0
-		A *= 2.0f0
-		C = A + 1.0f0 - A
-	end
-
-	return A
-end
-
-# ╔═╡ 03050d92-c1bf-4ff8-8695-daa52cbbf9fe
-foo()
-
-# ╔═╡ 88dfd9d8-5438-492e-afdf-cdc53d60fed8
-md"""
-!!! warning
-    Do not execute `foo_fast`! It will loop forever.
-"""
-
-# ╔═╡ e9ccfcea-c13b-4525-bb99-72ed99c360fb
-function foo_fast()
-	A = 1.0f0
-	C = 1.0f0
-
-	# Find the smallest value A = 2^k  for which (A + 1 - A) != 1
-	@fastmath while C == 1.0f0
-		A *= 2.0f0
-		C = A + 1.0f0 - A
-	end
-
-	return A
-end
-
-# ╔═╡ ce5c465d-0de4-4980-a138-08d1617879bb
-with_terminal() do
-	@code_llvm foo_fast()
-end
-
-# ╔═╡ c158b69f-beb9-4aef-bc48-e6cdbb9a15a9
-md"""
-### Precision of mathematical implementations
-- CPU vs GPU?
-- `muladd` can given different answer
-- expansion of precsion...
-"""
-
-# ╔═╡ a43157ba-c0e9-425b-b57f-3f07ce00a228
-md"""
-Extending precision, can change the answer, as an example in Swift, operations may be executed in extended precision and one might get different answers under transformations.
-
-Take the code below and run it in https://swiftwasm.org/
-
-```swift
-func foo(x: Float16) -> Float16 {
-  let s: Float16 = 1024
-  let t: Float16 = 3*s
-  let rx: Float16 = x-((x+t)-t)
-  return rx
-}
-
-print(foo(x: 0.5))
-// 0.0
-
-func bar(x: Float16) -> Float16 {
-  let s: Float16 = 1024
-  let t: Float16 = 3*s
-  let rx: Float16 = x-(bar_plus(a:x, b:t)-t)
-  return rx
-}
-
-@inline(never) func bar_plus(a: Float16, b: Float16) -> Float16 {
-  return a+b
-}
-
-print(bar(x: 0.5))
-// 0.5
-```
-"""
-
-# ╔═╡ c7587ded-eea0-4ddd-bbca-fa72156d56d2
-md"""
-Our goal in Julia for `Float16` is to emulate what hardware with real Float16 support would do. 
-"""
-
-# ╔═╡ 92f1ad42-c14a-4af1-83f4-4e1e8ea0bbb7
-md"""
-This behavior is important when we implement our own [trigonometic functions](https://github.com/JuliaLang/julia/blob/8987f7ac6d284cb512d336279a74b5414c635757/base/special/trig.jl#L764)
-
-If we look at `foo` we would think that `x-((x+t)-t)` should always return `0.0`,
-but we choose `t` specially for that to not be the case.
-"""
-
-# ╔═╡ 8b4aa283-c61c-4a62-9696-12d87c0b000d
-maxintfloat(Float16) / 2 == Float16(1024)
-
-# ╔═╡ dfe25ec0-c310-4aa3-9c08-a68fe0034561
-function foo(x::T) where T
-	s = maxintfloat(T) / 2
-	t = 3*s
-	rx = x-((x+t)-t)
-end
-
-# ╔═╡ 6ea401df-9a34-4aa3-a13a-0dde8b4161bf
-foo(Float32(0.5))
-
-# ╔═╡ e7d65af2-ef14-44ee-8c5d-685a916b159c
-foo(Float64(0.5))
-
-# ╔═╡ 93e0cd30-a97d-4ab0-86d8-a16789789748
-foo(Float16(0.5))
-
-# ╔═╡ 1c809e29-f38f-4a7b-b332-c0c7725177c6
-function bar(x::Float16)
-	s = Float16(1024)
-	t = 3*s
-	rx = x-((bar_plus(x,t))-t)
-end
-
-# ╔═╡ db1751fe-a8e4-486a-b179-d78b7c6c53aa
-@noinline function bar_plus(a, b)
-	return a+b
-end
-
-# ╔═╡ 9da43115-c6cc-4475-9b83-0dfc10815030
-bar(Float16(0.5))
-
-# ╔═╡ 271f8f08-b6df-46e0-8960-1e570e49249d
-md"""
-So what happens is that Swift (and Julia in olden times) internally expanded `Float16` operations to `Float32`
-"""
-
-# ╔═╡ bb16118d-7a44-473d-93a4-1d19d492b70e
-begin
-	extend(x::Float16) = Float32(x)
-	extend(x::Float32) = Float64(x)
-end
-
-# ╔═╡ 2043df93-77ff-4a94-b079-383dc6400ccb
-function foo_extended(x::T) where T
-	s = maxintfloat(T) / 2
-	t = extend(3*s) # extend precision
-	rx = T(x-((x+t)-t))
-end
-
-# ╔═╡ 22ccd87c-0ff5-4ce2-b807-485a95ce9a6b
-foo_extended(Float16(0.5))
-
-# ╔═╡ d1a8850c-de9d-4d1d-9fa3-d3b9863d035d
-foo_extended(Float32(0.5))
-
-# ╔═╡ 01cc47b1-a43f-4199-ac99-525292e5eaa8
-md"""
-This answer is seemingly "more" correct since it calculates our "real" understanding of x-((x+t)-t), but it is more useless since it does not accuratly implement floating-point semantics.
-"""
-
-# ╔═╡ 760e6987-0631-4fcb-8355-1d81b8067680
-md"""
-### Implementation of Float16
-"""
-
-# ╔═╡ 49e158a5-43fb-44e3-a0fe-ff8dcecc6cab
-md"""
-```julia
-abstract type Number end
-abstract type Real <: Number end
-abstract type AbstractFloat <: Real end
-primitive type Float64 <: AbstractFloat 64 end
-primitive type Float32 <: AbstractFloat 32 end
-primitive type Float16 <: AbstractFloat 16 end
-```
-"""
-
-# ╔═╡ 4a7d7c1d-2586-4be3-8da1-747a2ab52e74
-methods(cbrt)
-
-# ╔═╡ 4ce03161-6375-4ee3-91ce-6d50f5f8fefd
-md"""
-First attempt: Naively lowering Float16 to LLVM’s half type.
-
-
-What to do on platforms with no/limited hardware support
-
-
-Extended precision (thanks x87) rears it’s ugly head
-
-
-Lesson: In order to implement numerical routines that are portable we must be very careful in what semantics we promise.
-
-
-Solution: On targets without hardware support for `Float16`, truncate after each operation.
-GCC 12 supports this as: `-fexcess-precision=16`
-"""
-
-# ╔═╡ eae704b8-97bf-4b82-a9dc-ec0453cdd37b
-md"""
-On x86
-"""
-
-# ╔═╡ 5a783949-59a5-4cbf-8563-dde81f3f2d80
-md"""
-```llvm
-define half @julia_muladd(half %0, half %1, half %2) {
-top:
-  %3 = fmul half %0, %1
-  %4 = fadd half %3, %2
-  ret half %4
-}
-```
-"""
-
-# ╔═╡ 2762ac92-7ed2-4ad1-9ac0-5894e218404f
-md"""
-turns into:
-"""
-
-# ╔═╡ 0202368f-ae34-4b23-b33a-f1552d3df85c
-md"""
-```
-define half @julia_muladd(half %0, half %1, half %2){
-top:
-  %3 = fpext half %0 to float
-  %4 = fpext half %1 to float
-  %5 = fmul float %3, %4
-  %6 = fptrunc float %5 to half
-  %7 = fpext half %6 to float
-  %8 = fpext half %2 to float
-  %9 = fadd float %7, %8
-  %10 = fptrunc float %9 to half
-  ret half %10
-```
-"""
-
-# ╔═╡ ed224fe1-4b82-4b20-a5ba-6b0021d14628
-md"""
-On your machine?:
-"""
-
-# ╔═╡ 1f4619c4-5bfe-47f3-a721-6f37b3a2fc26
-with_terminal() do
-	code_llvm(muladd, (Float16, Float16, Float16), optimize=false)
-end
-
-# ╔═╡ cfa19d3a-1e4d-420e-8760-b0e1019d7516
-with_terminal() do
-	code_llvm(muladd, (Float16, Float16, Float16))
-end
-
-# ╔═╡ 115ca2cf-cc4f-4761-9646-7ead91ee7f5b
-md"""
-### Stochastic rounding 🎲
-
-Sometimes randomness can be quite useful!
-
-Real numbers constitue a continuous set $\mathbb{R}$, but finite precision numbers used in computers are a part of a discrete set $F \subset \mathbb{R}$.
-When computers do operations involving floating point numbers in $F$, the true result $x \in \mathbb{R}$ will be approximated by a number $\hat{x} \in F$, which is typically chosen deterministically to be the nearest number in $F$: this is called "nearest rounding".
-
-Stochastic rounding is an alternative rounding mode to classic deterministic rounding, which randomly rounds a number $x \in \mathbb{R}$ to either of the two nearest floating point numbers of the result $\lfloor x \rfloor$ (previous number in $F$) or $\lceil x \rceil$ (following number in $F$) with the following rule:
-
-```math
-\mathrm{round}(x) = \begin{cases}
-\lfloor x \rfloor & \text{with probability } P(x) \\[6pt]
-\lceil x \rceil   & \text{with probability } 1 - P(x)
-\end{cases}
-```
-
-Common choices are $P(x) = 1/2$ or, more interestingly,
-
-```math
-P(x) = \frac{x - \lfloor x \rfloor}{\lceil x \rceil - \lfloor x \rfloor}
-```
-
-In the following we'll always talk about the latter probability function $P(x)$.
-
-$(Resource("https://nickhigham.files.wordpress.com/2020/06/stoch_round_fig2.jpg"))
-(source: "[What Is Stochastic Rounding?](https://nhigham.com/2020/07/07/what-is-stochastic-rounding/)" by Nick Higham)
-
-Stochastic rounding is useful because the _average_ result of operations matches the expected mathematical result.
-In a statistical sense, it retains some of the information that is discarded by a deterministic rounding scheme, smoothing out numerical rounding errors due to limited precisions.
-This is particularly important when using low-precision floating point numbers like `Float16`.
-For contrast, deterministic rounding modes like nearest rounding introduce a bias, which is more severe as the precision of the numbers is lower.
-
-The IPU is one of the very few processors available with hardware support for stochastic rounding.
-
-Let's do an exercise on the CPU with classical nearest rounding.
-We define a function to do the naive sequential sum of a vector of numbers, because the `sum` function in Julia uses [pairwise summation](https://en.wikipedia.org/wiki/Pairwise_summation), which would have better accuracy.
-
-From [Mosè Giordano talk on using Julia on IPU](
-https://giordano.github.io/talks/2024-06-20-julia-ipu-ornl/#b11731af-d8f3-4714-839d-1535f459a278)
-"""
-
-# ╔═╡ 7775bc29-19ca-49ea-88ec-5a22730319ce
-naive_sum(v) = foldl(+, v)
-
-# ╔═╡ da33274b-1daa-45a4-a7e4-057cff7f922d
-x = fill(Float16(0.9), 3000);
-
-# ╔═╡ f1dbf7bc-61b2-4854-9bb8-fbd7eed4cdc8
-naive_sum(x)
-
-# ╔═╡ d15f54b5-1663-4b38-92ac-6cd5ba20b973
-eps(Float16(2048))
-
-# ╔═╡ 39bbe306-7fcc-451d-a405-83b339308c73
-naive_sum(x) ≈ x[1] * length(x)
-
-# ╔═╡ c7d8c3eb-e5fb-4344-8f25-3f7e77722083
-using StochasticRounding
-
-# ╔═╡ 7897ad92-c80f-4709-9348-5cc4d4adca02
-using Statistics
-
-# ╔═╡ bfd10bb9-0565-463c-ac09-16acb747b6c1
-x_sr = Float16sr.(x);
-
-# ╔═╡ d642ea52-59d8-455e-a661-9516eed5581c
-naive_sum(x_sr)
-
-# ╔═╡ d2b6349f-6e65-45ff-9ec2-b88a16e1e5a9
-sums_sr = map(_-> naive_sum(x_sr), 1:10000)
-
-# ╔═╡ c84f8688-e6f6-4f23-9330-4802701a94ec
-extrema(sums_sr)
-
-# ╔═╡ 5a5d0141-0987-43cd-91cf-8e92ffea2481
-mean(Float64.(sums_sr))
-
-# ╔═╡ f5f2295a-776c-45bc-85df-8d828b29c02a
-std(Float64.(sums_sr))
-
-# ╔═╡ f51401b2-c0f8-44b7-8db7-b612455c87ca
-median(sums_sr)
-
-# ╔═╡ c7b384e4-6179-4d21-be07-ea12851a1aaf
-let 
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	stephist!(ax, sums_sr, label="Stochastic Rounding", color=:green)
-	vlines!(ax, [naive_sum(x),], label="Nearest Rounding")
-	vlines!(ax, [x[1] * length(x)], label="True value")
-	axislegend(ax; position=:ct)
-	fig
-end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Kroki = "b3565e16-c1f2-4fe9-b4ab-221c88942068"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
@@ -844,7 +1243,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StochasticRounding = "3843c9a1-1f18-49ff-9d99-1b4c8a8e97ed"
 
 [compat]
-CairoMakie = "~0.15.0"
+Kroki = "~1.0.0"
 PlutoTeachingTools = "~0.4.1"
 PlutoUI = "~0.7.65"
 StochasticRounding = "~0.8.3"
@@ -2496,13 +2895,145 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "dcc541bb19ed5b0ede95581fb2e41ecf179527d2"
 uuid = "dfaa095f-4041-5dcd-9319-2fabd8486b76"
 version = "3.6.0+0"
+[[deps.CodecZlib]]
+deps = ["TranscodingStreams", "Zlib_jll"]
+git-tree-sha1 = "962834c22b66e32aa10f7611c08c8ca4e20749a9"
+uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
+version = "0.7.8"
+
+
+[[deps.ExceptionUnwrapping]]
+deps = ["Test"]
+git-tree-sha1 = "d36f682e590a83d63d1c7dbd287573764682d12a"
+uuid = "460bff9d-24e4-43bc-9d9f-a8973cb893f4"
+version = "0.1.11"
+
+
+[[deps.HTTP]]
+deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "PrecompileTools", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
+git-tree-sha1 = "ed5e9c58612c4e081aecdb6e1a479e18462e041e"
+uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+version = "1.10.17"
+
+
+[[deps.Kroki]]
+deps = ["Base64", "CodecZlib", "DocStringExtensions", "HTTP", "JSON", "Markdown", "Reexport"]
+git-tree-sha1 = "8ff3884b3f5613214b520d6054f8df8ce0de1396"
+uuid = "b3565e16-c1f2-4fe9-b4ab-221c88942068"
+version = "1.0.0"
+
+
+[[deps.LoggingExtras]]
+deps = ["Dates", "Logging"]
+git-tree-sha1 = "f02b56007b064fbfddb4c9cd60161b6dd0f40df3"
+uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
+version = "1.1.0"
+
+
+[[deps.MbedTLS]]
+deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "NetworkOptions", "Random", "Sockets"]
+git-tree-sha1 = "c067a280ddc25f196b5e7df3877c6b226d390aaf"
+uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
+version = "1.1.9"
+
+
+[[deps.OpenSSL]]
+deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
+git-tree-sha1 = "f1a7e086c677df53e064e0fdd2c9d0b0833e3f6e"
+uuid = "4d8831e6-92b7-49fb-bdf8-b643e874388c"
+version = "1.5.0"
+
+
+[[deps.SimpleBufferStream]]
+git-tree-sha1 = "f305871d2f381d21527c770d4788c06c097c9bc1"
+uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
+version = "1.2.0"
+
+
 """
 
 # ╔═╡ Cell order:
 # ╠═5c4c21e4-1a90-11f0-2f05-47d877772576
-# ╠═4a74b127-85c2-40a3-a759-8adedd6a032e
 # ╟─03335a53-18de-47f8-87b0-d0c742e52f72
-# ╟─0be73b29-7780-4be0-bf07-9b62c99fc4b4
+# ╠═0be73b29-7780-4be0-bf07-9b62c99fc4b4
+# ╠═d4b60dfe-0067-47ec-8608-9a34e088aeae
+# ╟─ecaaf7eb-f748-4ab8-99e8-63c436f2045b
+# ╟─c6a2d68f-b8c0-4d77-82a8-265a287336f2
+# ╟─1c908c9e-f287-4f35-85a8-0089b1104838
+# ╟─d5a72daf-b1dc-4e42-8d01-73a358b48a36
+# ╟─4d9710dd-ebd8-4a60-a2d6-b43ce9b6a990
+# ╟─a375415a-b89c-4155-bf34-cd66c37407af
+# ╟─d87edbd4-e75c-4a97-9a10-c581a698e923
+# ╟─a0626ce0-5969-475c-ab18-5dcf6bb36732
+# ╟─2c682f34-0164-4840-a52f-fe06f17a2456
+# ╟─15e93a07-c0a9-4fd6-b84c-4055ec79e78a
+# ╟─53366fdd-1558-4b07-98f4-6a898004b923
+# ╟─278d924c-b4f6-4802-98da-a67797b3d426
+# ╟─31cae475-1cba-466a-a87c-cc4dfd03d552
+# ╟─177d84b7-8d25-4978-822e-cf07091b1f63
+# ╟─e112373c-24fd-4e0d-8766-a5cfb1747f78
+# ╟─6756ace4-eab3-47e7-9fdf-abcfb37029e5
+# ╟─c4053d4f-fadf-4b87-8f2d-ca4c2166c46d
+# ╟─9f48c2dd-f445-4efd-91f2-35d0bbcae765
+# ╟─f5973d0a-043d-4cdc-ba79-15e9a3eb3046
+# ╟─363ebe92-ea01-43f9-9150-a01609a6cfca
+# ╟─8e402dae-e10a-4736-bdd8-e2844f79d859
+# ╟─f6e64181-479b-47b3-99d2-405ed2b9be15
+# ╟─1e1a58b4-98a9-4b27-be11-b67fc329a6a6
+# ╟─05ad0829-84ed-494f-80bb-c1da1991a238
+# ╟─54fac0b7-e3d0-4bb2-a9cb-34a4ec629422
+# ╟─7515ed27-d5c6-45c1-8793-12e5db294983
+# ╟─1bae1dbb-c428-406e-ad22-be4255c47fdc
+# ╟─80e832d7-ede2-4e13-86fd-f92429a53011
+# ╟─3cd28b53-281c-4934-a399-eb75f64cf5a6
+# ╟─6f021238-0d2f-4821-b407-a230dc7814bc
+# ╟─7efce24a-c294-4c26-8297-76cd0fb12081
+# ╟─02c596c5-080f-4c5a-98c9-cd13b32df5c3
+# ╟─70fd6057-1f46-414f-b0b8-0928fde77341
+# ╟─ecc31d48-35ca-4e89-986f-cc2f191b26b9
+# ╟─3d6871e7-bb7a-4276-8180-b5f388a73cc9
+# ╟─168d9204-4aa3-4c3a-8c62-7dd4af5dba15
+# ╟─8fcfbb4a-940c-44bd-9528-d7d18ff27cbb
+# ╟─e907d4a0-e904-41eb-be39-b6ef8a1679d4
+# ╟─25de521d-2f56-4e5b-ae87-b8f7312796d3
+# ╟─cea48abe-5d02-4e3b-8781-3eae51545481
+# ╟─b970dc0b-9991-4849-a6d9-099e19471946
+# ╟─ffdc7bb5-9cec-42b5-9819-78ca7beabf6c
+# ╟─14e24118-fa8b-4d50-9e23-0f3901a7a1be
+# ╟─29ccbb9d-edef-4101-99c6-15c417a41d1f
+# ╟─8cb9853d-3bc1-4e78-bc2b-3a2aa4f328cb
+# ╟─3955fc29-e3c3-49a1-b4dd-1864111eabe4
+# ╟─30f74532-20f9-4f80-bdfd-01cbcd3e68ff
+# ╟─627af63b-d863-495c-b2ee-e101746c49e5
+# ╟─c86e608a-1a6e-4fbd-9584-e1d3de905f1c
+# ╟─82cbab70-a328-4bd2-b084-b292ed3a85aa
+# ╟─b0b37d43-8001-405a-8f67-73e94c8d41b5
+# ╟─88b670c9-6ba2-4c92-8abb-dc33bc3d4191
+# ╟─d93f3b6f-a727-4c5c-9069-c9f171ae94fe
+# ╟─b3b3d443-ea18-456a-aabf-23c2b2f854db
+# ╟─f25b352a-52b1-424d-8d4a-da210cbd442f
+# ╟─a88718a1-ba41-40ef-b09f-fc53ed70893d
+# ╟─14ee3dcc-9070-49f4-a562-0f8ba918d87f
+# ╟─c14d85f3-9d4d-4ec6-a15b-4918a5761312
+# ╟─24203379-cc7b-451a-b52b-02f0075563f5
+# ╟─b115a56b-600a-4032-a42b-6ff5172b7417
+# ╟─10b96a54-9d02-4fbf-ba69-d8c27304c48a
+# ╟─3712e9a2-eeea-444f-9741-4576f3b7d49a
+# ╠═3a2b059a-15c0-40e3-8f62-b1b2acc6d676
+# ╟─1944a721-3b5d-402c-b78f-0449af1c787f
+# ╟─0dbbf025-b5db-4be7-a720-162beadc5d20
+# ╟─b4b3fbc4-1a9e-4977-8b5b-f9c8f9b3c6b8
+# ╟─763c41b5-c9f8-42e1-a3a1-992006dde0ee
+# ╟─519e251d-27f3-440f-a69e-bbb5dff1c7f1
+# ╟─73a38c14-8865-4be2-860c-46018e534289
+# ╟─86658337-5837-4a19-86b3-76459ed38785
+# ╟─6824a0fc-77a6-4c9e-8244-c71682d103e2
+# ╟─1856800c-346b-42af-bb58-3947a01d9a85
+# ╟─574b9572-df2f-4c8f-ab14-80b4ecf5c70a
+# ╟─692700d1-e71d-4246-8c5b-0554408cae88
+# ╟─a4e3be29-8553-410e-9842-96aba6d9e127
+# ╟─03335a53-18de-47f8-87b0-d0c742e52f72
+# ╟─aabb0001-0001-4000-8000-000000000001
 # ╟─b9ab169a-451f-4d45-8e98-2965e4284153
 # ╟─87b6ebd8-2c07-4750-aeba-8ce237403689
 # ╠═7477c827-d8e3-4e73-9946-e4aab74cb737
@@ -2523,82 +3054,5 @@ version = "3.6.0+0"
 # ╟─23cadca0-de88-43d4-8838-b05ac14cafb5
 # ╟─dcfd1a1a-e9cf-4216-ad66-48775dfe3d90
 # ╟─e2663784-2c02-419c-9965-2989631fd307
-# ╟─18cfbe65-8895-4c89-a90a-c9620efd5ab2
-# ╟─e07a7759-4316-45e2-a7ac-11cba9a260d7
-# ╠═d8bf66d2-bfc7-40fa-a865-ac05de77e05a
-# ╠═e13709c2-47f9-4f3c-9e96-eadf6f7bb20e
-# ╠═564f0d8d-41da-4a41-88a8-8bb5e5484902
-# ╠═a6397c7f-1afd-4a55-ac16-337c54707b36
-# ╠═10918c07-75de-4dae-938a-9c8faa2f5617
-# ╠═b1ea870f-0cdb-4463-8c4e-8cd2704a7cd7
-# ╠═072ae92f-ec9f-4398-be1b-6e3d59bedfbb
-# ╠═d27ca184-5884-454b-ba64-3f1689e05db9
-# ╠═6177d937-e936-4ce3-a1b3-414c59eb84f2
-# ╟─e865a795-5704-49ec-8548-195399cbae20
-# ╠═017ad668-0cb6-4e12-9672-9f917a902939
-# ╠═2ab18473-2cbc-4508-8e02-3346b3f10512
-# ╟─1aa2c9f5-bb89-4289-8459-5632bbcd40b7
-# ╟─692aaf7a-6697-4e1e-83f1-64ee2443850f
-# ╟─cb4980f7-4285-437d-9dfd-1ee14aa10a02
-# ╟─7fab467c-9277-4a28-a854-121bbf279fa1
-# ╠═76149ceb-e19b-415e-8c3e-8e752a0b33f7
-# ╠═beb3ac00-d5e6-4ba5-b130-34db904c0d06
-# ╠═954aea7f-229d-486e-8bec-92bc323dee86
-# ╠═be837dec-8b71-4a13-86c3-71012f7c3382
-# ╠═4813d655-706c-4ccf-91fb-19f4bc0dabaa
-# ╠═b5ec5cac-3316-411c-9de6-63ebf5c2aa53
-# ╠═e078fa8e-6c28-4a7a-8553-077206068725
-# ╟─e499f486-0839-4430-80ea-afd2da5d8621
-# ╟─d71b32cf-a506-4ff0-8e75-4f6064b66b5a
-# ╠═4169bd7e-f88d-46a7-8ac9-a878b0535709
-# ╠═03050d92-c1bf-4ff8-8695-daa52cbbf9fe
-# ╟─88dfd9d8-5438-492e-afdf-cdc53d60fed8
-# ╠═e9ccfcea-c13b-4525-bb99-72ed99c360fb
-# ╠═ce5c465d-0de4-4980-a138-08d1617879bb
-# ╟─c158b69f-beb9-4aef-bc48-e6cdbb9a15a9
-# ╟─a43157ba-c0e9-425b-b57f-3f07ce00a228
-# ╟─c7587ded-eea0-4ddd-bbca-fa72156d56d2
-# ╟─92f1ad42-c14a-4af1-83f4-4e1e8ea0bbb7
-# ╠═8b4aa283-c61c-4a62-9696-12d87c0b000d
-# ╠═dfe25ec0-c310-4aa3-9c08-a68fe0034561
-# ╠═6ea401df-9a34-4aa3-a13a-0dde8b4161bf
-# ╠═e7d65af2-ef14-44ee-8c5d-685a916b159c
-# ╠═93e0cd30-a97d-4ab0-86d8-a16789789748
-# ╠═1c809e29-f38f-4a7b-b332-c0c7725177c6
-# ╠═db1751fe-a8e4-486a-b179-d78b7c6c53aa
-# ╠═9da43115-c6cc-4475-9b83-0dfc10815030
-# ╠═271f8f08-b6df-46e0-8960-1e570e49249d
-# ╠═bb16118d-7a44-473d-93a4-1d19d492b70e
-# ╠═2043df93-77ff-4a94-b079-383dc6400ccb
-# ╠═22ccd87c-0ff5-4ce2-b807-485a95ce9a6b
-# ╠═d1a8850c-de9d-4d1d-9fa3-d3b9863d035d
-# ╟─01cc47b1-a43f-4199-ac99-525292e5eaa8
-# ╟─760e6987-0631-4fcb-8355-1d81b8067680
-# ╟─49e158a5-43fb-44e3-a0fe-ff8dcecc6cab
-# ╠═4a7d7c1d-2586-4be3-8da1-747a2ab52e74
-# ╟─4ce03161-6375-4ee3-91ce-6d50f5f8fefd
-# ╟─eae704b8-97bf-4b82-a9dc-ec0453cdd37b
-# ╟─5a783949-59a5-4cbf-8563-dde81f3f2d80
-# ╟─2762ac92-7ed2-4ad1-9ac0-5894e218404f
-# ╟─0202368f-ae34-4b23-b33a-f1552d3df85c
-# ╟─ed224fe1-4b82-4b20-a5ba-6b0021d14628
-# ╠═1f4619c4-5bfe-47f3-a721-6f37b3a2fc26
-# ╠═cfa19d3a-1e4d-420e-8760-b0e1019d7516
-# ╟─115ca2cf-cc4f-4761-9646-7ead91ee7f5b
-# ╠═7775bc29-19ca-49ea-88ec-5a22730319ce
-# ╠═da33274b-1daa-45a4-a7e4-057cff7f922d
-# ╠═f1dbf7bc-61b2-4854-9bb8-fbd7eed4cdc8
-# ╠═d15f54b5-1663-4b38-92ac-6cd5ba20b973
-# ╠═39bbe306-7fcc-451d-a405-83b339308c73
-# ╠═c7d8c3eb-e5fb-4344-8f25-3f7e77722083
-# ╠═7897ad92-c80f-4709-9348-5cc4d4adca02
-# ╠═bfd10bb9-0565-463c-ac09-16acb747b6c1
-# ╠═d642ea52-59d8-455e-a661-9516eed5581c
-# ╠═d2b6349f-6e65-45ff-9ec2-b88a16e1e5a9
-# ╠═c84f8688-e6f6-4f23-9330-4802701a94ec
-# ╠═5a5d0141-0987-43cd-91cf-8e92ffea2481
-# ╠═f5f2295a-776c-45bc-85df-8d828b29c02a
-# ╠═f51401b2-c0f8-44b7-8db7-b612455c87ca
-# ╟─c7b384e4-6179-4d21-be07-ea12851a1aaf
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
