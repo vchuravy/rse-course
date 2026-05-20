@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.13
+# v0.20.24
 
 #> [frontmatter]
 #> chapter = "2"
@@ -34,6 +34,15 @@ begin
 			   markersize = 16)
 end
 
+# ╔═╡ d8bf66d2-bfc7-40fa-a865-ac05de77e05a
+using Random
+
+# ╔═╡ c7d8c3eb-e5fb-4344-8f25-3f7e77722083
+using StochasticRounding
+
+# ╔═╡ 7897ad92-c80f-4709-9348-5cc4d4adca02
+using Statistics
+
 # ╔═╡ 03335a53-18de-47f8-87b0-d0c742e52f72
 ChooseDisplayMode()
 
@@ -52,9 +61,6 @@ md"""
 We sometimes "desire" randomness, but true randomness is hard in a computer.
 In computer programs we talk about "pseudo-random number generators", given a seed they generate a "unpredicatble" sequence of numbers with a very large period.
 """
-
-# ╔═╡ d8bf66d2-bfc7-40fa-a865-ac05de77e05a
-using Random
 
 # ╔═╡ e13709c2-47f9-4f3c-9e96-eadf6f7bb20e
 rand()
@@ -205,9 +211,6 @@ function foo()
 	return A
 end
 
-# ╔═╡ 03050d92-c1bf-4ff8-8695-daa52cbbf9fe
-foo()
-
 # ╔═╡ 88dfd9d8-5438-492e-afdf-cdc53d60fed8
 md"""
 !!! warning
@@ -297,6 +300,9 @@ function foo(x::T) where T
 	rx = x-((x+t)-t)
 end
 
+# ╔═╡ 03050d92-c1bf-4ff8-8695-daa52cbbf9fe
+foo()
+
 # ╔═╡ 6ea401df-9a34-4aa3-a13a-0dde8b4161bf
 foo(Float32(0.5))
 
@@ -306,16 +312,16 @@ foo(Float64(0.5))
 # ╔═╡ 93e0cd30-a97d-4ab0-86d8-a16789789748
 foo(Float16(0.5))
 
+# ╔═╡ db1751fe-a8e4-486a-b179-d78b7c6c53aa
+@noinline function bar_plus(a, b)
+	return a+b
+end
+
 # ╔═╡ 1c809e29-f38f-4a7b-b332-c0c7725177c6
 function bar(x::Float16)
 	s = Float16(1024)
 	t = 3*s
 	rx = x-((bar_plus(x,t))-t)
-end
-
-# ╔═╡ db1751fe-a8e4-486a-b179-d78b7c6c53aa
-@noinline function bar_plus(a, b)
-	return a+b
 end
 
 # ╔═╡ 9da43115-c6cc-4475-9b83-0dfc10815030
@@ -500,12 +506,6 @@ eps(Float16(2048))
 # ╔═╡ 39bbe306-7fcc-451d-a405-83b339308c73
 naive_sum(x) ≈ x[1] * length(x)
 
-# ╔═╡ c7d8c3eb-e5fb-4344-8f25-3f7e77722083
-using StochasticRounding
-
-# ╔═╡ 7897ad92-c80f-4709-9348-5cc4d4adca02
-using Statistics
-
 # ╔═╡ bfd10bb9-0565-463c-ac09-16acb747b6c1
 x_sr = Float16sr.(x);
 
@@ -560,9 +560,9 @@ StochasticRounding = "~0.8.3"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "eb7db061afe4d6cc3d876ee9dc28460a0678deda"
+project_hash = "68ec13b9a0892789700eb0abda92d2c3dbf7ba00"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -761,7 +761,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.1+0"
+version = "1.3.0+1"
 
 [[deps.ComputePipeline]]
 deps = ["Observables", "Preferences"]
@@ -847,7 +847,7 @@ version = "1.4.3"
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
-version = "1.6.0"
+version = "1.7.0"
 
 [[deps.EarCut_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1237,6 +1237,11 @@ git-tree-sha1 = "eac1206917768cb54957c65a615460d87b455fc1"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.1.1+0"
 
+[[deps.JuliaSyntaxHighlighting]]
+deps = ["StyledStrings"]
+uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
+version = "1.12.0"
+
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
 git-tree-sha1 = "7d703202e65efa1369de1279c162b915e245eed1"
@@ -1306,24 +1311,24 @@ uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
 version = "0.6.4"
 
 [[deps.LibCURL_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.6.0+0"
+version = "8.15.0+0"
 
 [[deps.LibGit2]]
-deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
+deps = ["LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 version = "1.11.0"
 
 [[deps.LibGit2_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll"]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll"]
 uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
-version = "1.7.2+0"
+version = "1.9.0+0"
 
 [[deps.LibSSH2_jll]]
-deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
+deps = ["Artifacts", "Libdl", "OpenSSL_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.0+1"
+version = "1.11.3+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -1368,7 +1373,7 @@ version = "2.41.0+0"
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-version = "1.11.0"
+version = "1.12.0"
 
 [[deps.LogExpFunctions]]
 deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
@@ -1418,7 +1423,7 @@ uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
 version = "0.4.2"
 
 [[deps.Markdown]]
-deps = ["Base64"]
+deps = ["Base64", "JuliaSyntaxHighlighting", "StyledStrings"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 version = "1.11.0"
 
@@ -1427,11 +1432,6 @@ deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "Geo
 git-tree-sha1 = "6e64d2321257cc52f47e193407d0659ea1b2b431"
 uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
 version = "0.6.5"
-
-[[deps.MbedTLS_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.6+0"
 
 [[deps.Missings]]
 deps = ["DataAPI"]
@@ -1451,7 +1451,7 @@ version = "0.3.4"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2023.12.12"
+version = "2025.11.4"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -1467,7 +1467,7 @@ version = "1.1.1"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
-version = "1.2.0"
+version = "1.3.0"
 
 [[deps.Observables]]
 git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
@@ -1498,7 +1498,7 @@ version = "0.3.29+0"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.27+1"
+version = "0.3.29+0"
 
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
@@ -1515,13 +1515,12 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.7+0"
 
 [[deps.OpenSSL_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "9216a80ff3682833ac4b733caa8c00390620ba5d"
+deps = ["Artifacts", "Libdl"]
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.5.0+0"
+version = "3.5.4+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -1543,7 +1542,7 @@ version = "1.8.1"
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
-version = "10.42.0+1"
+version = "10.44.0+1"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
@@ -1590,7 +1589,7 @@ version = "0.44.2+0"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.11.0"
+version = "1.12.1"
 weakdeps = ["REPL"]
 
     [deps.Pkg.extensions]
@@ -1696,7 +1695,7 @@ uuid = "be4d8f0f-7fa4-5f49-b795-2f01399ab2dd"
 version = "0.5.13"
 
 [[deps.REPL]]
-deps = ["InteractiveUtils", "Markdown", "Sockets", "StyledStrings", "Unicode"]
+deps = ["InteractiveUtils", "JuliaSyntaxHighlighting", "Markdown", "Sockets", "StyledStrings", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 version = "1.11.0"
 
@@ -1840,7 +1839,7 @@ version = "1.2.1"
 [[deps.SparseArrays]]
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-version = "1.11.0"
+version = "1.12.0"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
@@ -1951,7 +1950,7 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 [[deps.SuiteSparse_jll]]
 deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "7.7.0+0"
+version = "7.8.3+2"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -2114,7 +2113,7 @@ version = "1.6.0+0"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.13+1"
+version = "1.3.1+2"
 
 [[deps.Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2143,7 +2142,7 @@ version = "0.15.2+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.11.0+0"
+version = "5.15.0+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2178,18 +2177,18 @@ version = "1.5.0+0"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.59.0+0"
+version = "1.64.0+1"
 
 [[deps.oneTBB_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
 git-tree-sha1 = "d5a767a3bb77135a99e433afe0eb14cd7f6914c3"
 uuid = "1317d2d5-d96f-522e-a858-c73665f53c3e"
 version = "2022.0.0+0"
 
 [[deps.p7zip_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.4.0+2"
+version = "17.7.0+0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2252,7 +2251,7 @@ version = "3.6.0+0"
 # ╠═1c809e29-f38f-4a7b-b332-c0c7725177c6
 # ╠═db1751fe-a8e4-486a-b179-d78b7c6c53aa
 # ╠═9da43115-c6cc-4475-9b83-0dfc10815030
-# ╠═271f8f08-b6df-46e0-8960-1e570e49249d
+# ╟─271f8f08-b6df-46e0-8960-1e570e49249d
 # ╠═bb16118d-7a44-473d-93a4-1d19d492b70e
 # ╠═2043df93-77ff-4a94-b079-383dc6400ccb
 # ╠═22ccd87c-0ff5-4ce2-b807-485a95ce9a6b
