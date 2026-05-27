@@ -44,7 +44,7 @@ Part of this presentation will use material from the workshop [Julia for HPC @ U
 
 # ╔═╡ a4906361-f71d-4376-8d64-a4c8fa9153fa
 md"""
-!!! warn
+!!! warning
     This notebook uses and LIKWID & LinuxPerf.jl, which requires Linux!
 """
 
