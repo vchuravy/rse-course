@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.13
+# v0.20.24
 
 #> [frontmatter]
 #> chapter = "3"
@@ -29,6 +29,30 @@ macro bind(def, element)
     #! format: on
 end
 
+# ╔═╡ c7f41ccc-062d-4446-b121-a009334c6b64
+using ThreadPinning
+
+# ╔═╡ a282a68c-f485-4c61-9ba0-6867c9b445e1
+using CpuId
+
+# ╔═╡ c63b5e94-dbbc-11ee-1324-796a50760998
+using LIKWID
+
+# ╔═╡ c0f6be74-fa11-48a5-b4d2-5b14b333a064
+using LinuxPerf
+
+# ╔═╡ 6eeea444-5126-4776-a2e7-f3ba76605c2d
+using PlutoUI
+
+# ╔═╡ ba59bed0-132b-4ee7-bd5c-b941108fe80e
+using BenchmarkTools
+
+# ╔═╡ 9cbd0d6d-ebc3-4f15-a59e-e42e37d4af37
+using Base.Threads
+
+# ╔═╡ 8524cf32-3535-48a1-8439-a399d04eb160
+using ChunkSplitters
+
 # ╔═╡ bbbe6c9c-f032-41b7-a976-c6fd5666adf5
 TableOfContents()
 
@@ -48,9 +72,6 @@ md"""
     This notebook uses and LIKWID & LinuxPerf.jl, which requires Linux!
 """
 
-# ╔═╡ c7f41ccc-062d-4446-b121-a009334c6b64
-using ThreadPinning
-
 # ╔═╡ b2e4f4a1-e516-42d4-bd34-09ba3bdeecc9
 # ThreadPinning.pinthreads(Int.(log2.(parse.(BigInt, first(split(ENV["SLURM_CPU_BIND_LIST"], ','), Threads.nthreads())))); warn=false)
 
@@ -59,9 +80,6 @@ ThreadPinning.pinthreads(:cores)
 
 # ╔═╡ 1cf0469b-664a-4ae8-948b-044c3b11d60e
 with_terminal(() -> ThreadPinning.threadinfo())
-
-# ╔═╡ a282a68c-f485-4c61-9ba0-6867c9b445e1
-using CpuId
 
 # ╔═╡ fe999d9b-9684-4d4a-ac87-b826a476c6e1
 cpuinfo()
@@ -74,26 +92,6 @@ md"""
 ## Simple linear algebra
 """
 
-# ╔═╡ c63b5e94-dbbc-11ee-1324-796a50760998
-using LIKWID
-
-# ╔═╡ c0f6be74-fa11-48a5-b4d2-5b14b333a064
-using LinuxPerf
-
-# ╔═╡ 6eeea444-5126-4776-a2e7-f3ba76605c2d
-using PlutoUI
-
-# ╔═╡ ba59bed0-132b-4ee7-bd5c-b941108fe80e
-using Chairmarks
-
-# ╔═╡ 7c536724-845e-4156-aa44-38d6a00189a7
-begin
-	a = T(pi)
-	x = rand(T, N);
-	y = rand(T, N);
-	z = zeros(T, N);
-end;
-
 # ╔═╡ 7585b514-0b16-45cf-ba03-b1f40b0c86b6
 md"""T = $(@bind T Select([Float32, Float64]))"""
 
@@ -103,6 +101,14 @@ let
 	md"N = $(@bind N Slider(range, default=10_000, show_value=true))"
 end
 
+# ╔═╡ 7c536724-845e-4156-aa44-38d6a00189a7
+begin
+	a = T(pi)
+	x = rand(T, N);
+	y = rand(T, N);
+	z = zeros(T, N);
+end;
+
 # ╔═╡ 8d9eb2e4-4421-483f-86cf-3bc932c40061
 function axpy!(z, a, x, y)
 	for idx in eachindex(z, x, y)
@@ -111,18 +117,12 @@ function axpy!(z, a, x, y)
 end
 
 # ╔═╡ 0c4e95fe-ac44-4f4e-a3b2-0abe18bc896f
-@b axpy!(z, a, x, y)
+@benchmark axpy!($z, $a, $x, $y)
 
 # ╔═╡ d7f86859-2fcf-4b83-8330-d236ac91b168
 md"""
 We can use [`LIKWID.jl`](https://github.com/JuliaPerf/LIKWID.jl) to measure the number of floating point operations performed in the `axpy!` function (details below 👇).
 """
-
-# ╔═╡ 235a7a10-d5e6-4043-9385-22547e1663a0
-N_FLOPs = first(events[perf_group])["RETIRED_SSE_AVX_FLOPS_ALL"]
-
-# ╔═╡ 05c48ee8-b8cc-46e7-9a60-2ac7b7eb7934
-N_FLOPs_per_iteration = N_FLOPs / N
 
 # ╔═╡ d8f66172-6e8d-4530-bad7-067d6e67ca3d
 with_terminal(() -> @code_llvm debuginfo=:none axpy!(z, a, x, y))
@@ -136,6 +136,12 @@ perf_group = T==Float32 ? "FLOPS_SP" : "FLOPS_DP";
 # ╔═╡ ce26cf0f-4ce5-404d-8ea1-7455b88faf6d
 # ╠═╡ show_logs = false
 metrics, events = @perfmon perf_group axpy!(z, a, x, y);
+
+# ╔═╡ 235a7a10-d5e6-4043-9385-22547e1663a0
+N_FLOPs = first(events[perf_group])["RETIRED_SSE_AVX_FLOPS_ALL"]
+
+# ╔═╡ 05c48ee8-b8cc-46e7-9a60-2ac7b7eb7934
+N_FLOPs_per_iteration = N_FLOPs / N
 
 # ╔═╡ af1209dc-31ae-4d7d-bbf2-5c83169f27e0
 first(metrics[perf_group])
@@ -169,13 +175,7 @@ data = rand(1_000_000 * Threads.nthreads());
 sum(data)
 
 # ╔═╡ f21573da-4d5b-4ce4-a2e9-9e3ef1d9712c
-@b sum(data)
-
-# ╔═╡ 9cbd0d6d-ebc3-4f15-a59e-e42e37d4af37
-using Base.Threads
-
-# ╔═╡ 8524cf32-3535-48a1-8439-a399d04eb160
-using ChunkSplitters
+@benchmark sum($data)
 
 # ╔═╡ adbd49bd-8401-4160-9f94-0cbbb6c8d1d4
 function sum_threads_chunks(data; nchunks=nthreads())
@@ -192,7 +192,7 @@ end
 sum(data) ≈ sum_threads_chunks(data)
 
 # ╔═╡ 8c550b58-d6e4-40e1-abc4-413a71bab8de
-@b sum_threads_chunks(data)
+@benchmark sum_threads_chunks($data)
 
 # ╔═╡ ef905da5-ddc0-4209-a5a3-3ae6fee16e43
 # ╠═╡ show_logs = false
@@ -228,7 +228,7 @@ end
 sum(data) ≈ sum_threads_chunks_local(data)
 
 # ╔═╡ 7cfb6d26-9523-4a20-9934-b5c131e6281f
-@b sum_threads_chunks_local(data)
+@benchmark sum_threads_chunks_local($data)
 
 # ╔═╡ b80e85d4-0f9a-402c-a38d-8b60feec6962
 # ╠═╡ show_logs = false
@@ -254,7 +254,7 @@ end
 sum(data) ≈ sum_map_spawn(data)
 
 # ╔═╡ 0bc93e84-39cf-4ad4-969f-6259aff876df
-@b sum_map_spawn(data)
+@benchmark sum_map_spawn($data)
 
 # ╔═╡ 68639105-4b7b-44ac-9244-588291e73d53
 # ╠═╡ show_logs = false
@@ -271,7 +271,7 @@ end
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-Chairmarks = "0ca39b1e-fe0b-4e98-acfc-b1656634c4de"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 ChunkSplitters = "ae650224-84b6-46f8-82ea-d812ca08434e"
 CpuId = "adafc99b-e345-5852-983c-f28acb93d879"
 LIKWID = "bf22376a-e803-4184-b2ed-56326e3bff83"
@@ -280,12 +280,12 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 ThreadPinning = "811555cd-349b-4f26-b7bc-1f208b848042"
 
 [compat]
-Chairmarks = "~1.1.0"
+BenchmarkTools = "~1.8.0"
 ChunkSplitters = "~2.6.0"
 CpuId = "~0.3.1"
-LIKWID = "~0.4.4"
-LinuxPerf = "~0.3.7"
-PlutoUI = "~0.7.58"
+LIKWID = "~0.4.5"
+LinuxPerf = "~0.3.8"
+PlutoUI = "~0.7.65"
 ThreadPinning = "~0.7.22"
 """
 
@@ -293,9 +293,9 @@ ThreadPinning = "~0.7.22"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "a5f953475df66ccc391f96c556d66daa9effcded"
+project_hash = "1643ee044f757c9986a42246c80b3da3531507be"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -315,20 +315,16 @@ version = "1.11.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
+[[deps.BenchmarkTools]]
+deps = ["Compat", "JSON", "Logging", "PrecompileTools", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "9670d3febc2b6da60a0ae57846ba74670290653f"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.8.0"
+
 [[deps.CEnum]]
 git-tree-sha1 = "389ad5c84de1ae7cf0e28e381131c98ea87d54fc"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.5.0"
-
-[[deps.Chairmarks]]
-deps = ["Printf"]
-git-tree-sha1 = "86530628eda93c49dc637b0e74bcb3362aa61e2f"
-uuid = "0ca39b1e-fe0b-4e98-acfc-b1656634c4de"
-version = "1.1.2"
-weakdeps = ["Statistics"]
-
-    [deps.Chairmarks.extensions]
-    StatisticsChairmarksExt = ["Statistics"]
 
 [[deps.ChunkSplitters]]
 deps = ["TestItems"]
@@ -341,17 +337,25 @@ deps = ["FixedPointNumbers", "Random"]
 git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
 uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
 version = "0.12.1"
+weakdeps = ["StyledStrings"]
 
     [deps.ColorTypes.extensions]
     StyledStringsExt = "StyledStrings"
 
-    [deps.ColorTypes.weakdeps]
-    StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
+[[deps.Compat]]
+deps = ["TOML", "UUIDs"]
+git-tree-sha1 = "9d8a54ce4b17aa5bdce0ea5c34bc5e7c340d16ad"
+uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
+version = "4.18.1"
+weakdeps = ["Dates", "LinearAlgebra"]
+
+    [deps.Compat.extensions]
+    CompatLinearAlgebraExt = "LinearAlgebra"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.1+0"
+version = "1.3.0+1"
 
 [[deps.CpuId]]
 deps = ["Markdown"]
@@ -393,7 +397,7 @@ version = "0.9.5"
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
-version = "1.6.0"
+version = "1.7.0"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -439,6 +443,11 @@ git-tree-sha1 = "31e996f0a15c7b280ba9f76636b3ff9e2ae58c9a"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.4"
 
+[[deps.JuliaSyntaxHighlighting]]
+deps = ["StyledStrings"]
+uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
+version = "1.12.0"
+
 [[deps.LIKWID]]
 deps = ["CEnum", "Libdl", "OrderedCollections", "PrettyTables", "Unitful"]
 git-tree-sha1 = "b21dcbf20aca355bd2e1039d9731dd1d879cc0d4"
@@ -456,24 +465,24 @@ uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
 version = "0.6.4"
 
 [[deps.LibCURL_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.6.0+0"
+version = "8.15.0+0"
 
 [[deps.LibGit2]]
-deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
+deps = ["LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 version = "1.11.0"
 
 [[deps.LibGit2_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll"]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll"]
 uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
-version = "1.7.2+0"
+version = "1.9.0+0"
 
 [[deps.LibSSH2_jll]]
-deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
+deps = ["Artifacts", "Libdl", "OpenSSL_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.0+1"
+version = "1.11.3+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -482,7 +491,7 @@ version = "1.11.0"
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-version = "1.11.0"
+version = "1.12.0"
 
 [[deps.LinuxPerf]]
 deps = ["PrettyTables", "Printf"]
@@ -500,14 +509,9 @@ uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
 version = "1.1.0"
 
 [[deps.Markdown]]
-deps = ["Base64"]
+deps = ["Base64", "JuliaSyntaxHighlighting", "StyledStrings"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 version = "1.11.0"
-
-[[deps.MbedTLS_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.6+0"
 
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
@@ -515,16 +519,21 @@ version = "1.11.0"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2023.12.12"
+version = "2025.11.4"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
-version = "1.2.0"
+version = "1.3.0"
 
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.27+1"
+version = "0.3.29+0"
+
+[[deps.OpenSSL_jll]]
+deps = ["Artifacts", "Libdl"]
+uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
+version = "3.5.4+0"
 
 [[deps.OrderedCollections]]
 git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
@@ -540,7 +549,7 @@ version = "2.8.3"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.11.0"
+version = "1.12.1"
 
     [deps.Pkg.extensions]
     REPLExt = "REPL"
@@ -575,6 +584,11 @@ version = "2.4.0"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+version = "1.11.0"
+
+[[deps.Profile]]
+deps = ["StyledStrings"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Random]]
@@ -617,6 +631,10 @@ deps = ["PrecompileTools"]
 git-tree-sha1 = "725421ae8e530ec29bcbdddbe91ff8053421d023"
 uuid = "892a3eda-7b42-436c-8928-eab12a02cf0e"
 version = "0.4.1"
+
+[[deps.StyledStrings]]
+uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
+version = "1.11.0"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -696,22 +714,22 @@ version = "1.23.1"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.13+1"
+version = "1.3.1+2"
 
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.11.0+0"
+version = "5.15.0+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.59.0+0"
+version = "1.64.0+1"
 
 [[deps.p7zip_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.4.0+2"
+version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
