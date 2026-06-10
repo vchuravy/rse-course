@@ -21,4 +21,4 @@ and Google Colab also provides some GPU support for free.
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/vchuravy/rse-course/blob/main/src/mod3_parallelism/Introduction_to_KernelAbstractions.ipynb)
 
-<iframe src="https://nbviewer.org/urls/vchuravy.dev/rse-course/mod3_parallelism/Introduction_to_KernelAbstractions.ipynb" width="800" height="600"></iframe>
+<iframe src="https://nbviewer.org/urls/vchuravy.dev/rse-course/2026/mod3_parallelism/Introduction_to_KernelAbstractions.ipynb" width="800" height="600"></iframe>
