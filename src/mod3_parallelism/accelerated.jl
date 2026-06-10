@@ -32,11 +32,32 @@ end
 # ╔═╡ 07565449-7cf6-47f2-b8f7-5a1bb2cd56ce
 using PlutoUI, PlutoTeachingTools
 
-# ╔═╡ e8ccd3eb-f315-43cb-909a-416dce3f28f9
-import PlutoUI: Slider
-
 # ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
 using CairoMakie
+
+# ╔═╡ e59410c8-bf6d-4fda-805d-c27c460926fe
+using ThreadPinning: pinthreads, threadinfo
+
+# ╔═╡ b99be66c-bacb-4051-a9f4-c38a5d90437a
+using KernelAbstractions, BenchmarkTools
+
+# ╔═╡ cde615e8-6301-4a3e-89f2-3f6de25f2f9f
+using MultiFloats
+
+# ╔═╡ 6aeda033-5739-43f7-9502-03f526e1e4f4
+using Atomix: @atomic, @atomicswap, @atomicreplace
+
+# ╔═╡ 0048148a-f7ed-49db-89da-c64d4a94f4a2
+using GPUArraysCore
+
+# ╔═╡ 30871c58-c0fc-42cf-acae-386f1bd15353
+using Adapt
+
+# ╔═╡ 04afb813-e4c5-48ed-b94e-7d74b4a97bd4
+using LinearAlgebra
+
+# ╔═╡ e8ccd3eb-f315-43cb-909a-416dce3f28f9
+import PlutoUI: Slider
 
 # ╔═╡ df284ffd-14eb-41eb-a4b8-94f4d7cee298
 ChooseDisplayMode()
@@ -304,18 +325,12 @@ md"""
 ## Many backends
 """
 
-# ╔═╡ e59410c8-bf6d-4fda-805d-c27c460926fe
-using ThreadPinning: pinthreads, threadinfo
-
 # ╔═╡ ca627b9b-6c00-4cf0-b4b4-278908bcc7a8
 begin
 	pinthreads(:cores)
 	threadinfo()
 	tp_marker = nothing
 end
-
-# ╔═╡ b99be66c-bacb-4051-a9f4-c38a5d90437a
-using KernelAbstractions, BenchmarkTools
 
 # ╔═╡ d6302d69-662a-4d10-b12a-20c861fd0bad
 begin
@@ -359,9 +374,6 @@ md"""
 
 based on material from Mosè Giordano
 """
-
-# ╔═╡ cde615e8-6301-4a3e-89f2-3f6de25f2f9f
-using MultiFloats
 
 # ╔═╡ b2c13cf1-3e17-44c4-994d-af3c9c48a839
 @kernel function pi_kernel!(results::AbstractVector{FT}, step, work_per_thread) where {FT}
@@ -410,7 +422,7 @@ function picalc(backend, blocks, threads_per_block, numsteps, FT=Float64)
 end
 
 # ╔═╡ 03a64484-6577-4c72-a10c-43104c7b6e42
-	md"pi\_backend = $(@bind pi_backend Select(available_backends))"
+md"pi\_backend = $(@bind pi_backend Select(available_backends))"
 
 # ╔═╡ 88bf84ae-a885-4dc8-ba8b-d9f463121d38
 let
@@ -435,18 +447,18 @@ let
     nothing
 end
 
+# ╔═╡ bc6617a8-5f8a-47c1-bbda-70c685da4be4
+blocks = 4096
+
+# ╔═╡ 20d56e67-2220-4e90-8791-8c477c1f8117
+threads_per_block = 1024
+
 # ╔═╡ 30fdbd3a-5b5c-4443-9ef5-a672d4f28dd5
 let
 	values = filter(>=(blocks * threads_per_block), 2 .^ (20:42))
 	default = max(minimum(values), 2 ^ 28)
 	md"num\_steps = $(@bind num_steps Slider(values; default, show_value=true))"
 end
-
-# ╔═╡ bc6617a8-5f8a-47c1-bbda-70c685da4be4
-blocks = 4096
-
-# ╔═╡ 20d56e67-2220-4e90-8791-8c477c1f8117
-threads_per_block = 1024
 
 # ╔═╡ 42124f2d-c655-4e06-b301-265ddda81c5c
 with_terminal() do
@@ -545,9 +557,6 @@ md"""
     This looks similar to our issues from last week! Data races galore!
 	Let's use Atomix again to avoid these issues.
 """
-
-# ╔═╡ 6aeda033-5739-43f7-9502-03f526e1e4f4
-using Atomix: @atomic, @atomicswap, @atomicreplace
 
 # ╔═╡ 475af402-ada0-452c-a465-be9f67c4f7dc
 @kernel function naive_atomic_sum(val, data)
@@ -683,9 +692,6 @@ end
 	end
 end
 
-# ╔═╡ 0048148a-f7ed-49db-89da-c64d4a94f4a2
-using GPUArraysCore
-
 # ╔═╡ bd15bebe-ee6f-4959-99a3-9a676b1515bc
 function my_mapsum(f, data)
 	backend = get_backend(data)
@@ -721,17 +727,23 @@ So our hand-written `naive_shmem_mapsum` / `my_mapsum` is really just a special 
 # ╔═╡ 15fddede-51bc-45b7-a3d0-1edb37870d94
 import AcceleratedKernels as AK
 
+# ╔═╡ 9754dd99-915f-492c-b9ad-9a1ae7094a78
+md"ak\_backend = $(@bind ak_backend Select(available_backends))"
+
+# ╔═╡ 44c635a8-d6dd-4630-af1c-51419b67193a
+ak_data = KernelAbstractions.ones(ak_backend, Int, 1024^2);
+
 # ╔═╡ 5de74315-0fdb-46d8-8231-3681305b963a
-AK.reduce(+, data; init=zero(eltype(data)))
+AK.reduce(+, ak_data; init=zero(eltype(ak_data)))
 
 # ╔═╡ 1159a475-35d5-4d2d-bd95-1a0380ba71ac
-AK.mapreduce(x->x^2, +, data; init=zero(eltype(data)))
+AK.mapreduce(x->x^2, +, ak_data; init=zero(eltype(ak_data)))
 
 # ╔═╡ c6d220bc-76b8-4466-ad6d-e06e3d4fefe9
 let
 	@benchmark begin
-		AK.mapreduce(x->x^2, +, data; init=zero(eltype(data)))
-		KernelAbstractions.synchronize($backend)
+		AK.mapreduce(x->x^2, +, ak_data; init=zero(eltype(ak_data)))
+		KernelAbstractions.synchronize($ak_backend)
 	end
 end
 
@@ -745,7 +757,7 @@ But the very same operation over a lazy host iterator like `1:N` is just an ordi
 """
 
 # ╔═╡ 67e36a4e-e9c4-482c-b9e9-fbeecdef2a48
-mapreduce(x->x^2, +, 1:length(data))   # plain sequential CPU reduction
+mapreduce(x->x^2, +, 1:length(ak_data))   # plain sequential CPU reduction
 
 # ╔═╡ 9b4063ca-eccd-4703-b7c0-2db7a6dc71ca
 md"""
@@ -755,22 +767,19 @@ md"""
 AK.mapreduce(x->x^2, +, 1:length(data), backend; init=zero(Int))
 ```
 
-Run on the selected backend (`$(backend)`), this evaluates the reduction over a host range *on the GPU*:
+Run on the selected backend ($(ak_backend)), this evaluates the reduction over a host range *on the GPU*:
 """
 
 # ╔═╡ e0b34cf3-2e54-4d63-97b6-298ee8b0cc03
-AK.mapreduce(x->x^2, +, 1:length(data), backend; init=zero(Int))
+AK.mapreduce(x->x^2, +, 1:length(ak_data), ak_backend; init=zero(Int))
 
 # ╔═╡ f520778c-c66d-4cb4-a90d-0e8c9865c3e0
 md"""
 ### Custom array types
 """
 
-# ╔═╡ 30871c58-c0fc-42cf-acae-386f1bd15353
-using Adapt
-
-# ╔═╡ 04afb813-e4c5-48ed-b94e-7d74b4a97bd4
-using LinearAlgebra
+# ╔═╡ ee83d480-27ed-48d9-93d0-16e53fecd0e4
+md"adapt\_backend = $(@bind adapt_backend Select(available_backends))"
 
 # ╔═╡ abe28a86-ed78-4b60-831b-8fd39f774ffc
 struct MyMatrix{A}
@@ -786,14 +795,11 @@ md"""
 # ╔═╡ 46c29ca2-3eec-4020-858c-02a87e39e464
 Adapt.adapt_structure(to, x::MyMatrix) = MyMatrix(adapt(to, x.v))
 
-# ╔═╡ 84c17ade-04a3-4793-beb2-9d390041f47d
-adapt(backend, MyMatrix(X))
-
 # ╔═╡ 1ef5e72d-8648-405e-90af-7c0b774c28ba
-# ╠═╡ disabled = true
-#=╠═╡
 X = randn(1024)
-  ╠═╡ =#
+
+# ╔═╡ 84c17ade-04a3-4793-beb2-9d390041f47d
+adapt(adapt_backend, MyMatrix(X))
 
 # ╔═╡ 33778678-1273-4698-a062-b98fb72c0402
 md"""
@@ -831,7 +837,7 @@ eigmax(diagm(X) + X*X')
 eigmax(MyMatrix(X))
 
 # ╔═╡ 4777bb70-1824-4c84-876b-48beb7d04688
-eigmax(adapt(backend, MyMatrix(X)))
+eigmax(adapt(adapt_backend, MyMatrix(X)))
 
 # ╔═╡ b6fc9302-5998-4dac-bf6a-b4e808de6c17
 backend
@@ -3172,6 +3178,8 @@ version = "4.1.0+0"
 # ╠═68928b3f-59ff-4183-84f3-2512e0a6e9d7
 # ╟─b16a1225-36e2-4e9f-a8f6-72c5322606fc
 # ╠═15fddede-51bc-45b7-a3d0-1edb37870d94
+# ╟─9754dd99-915f-492c-b9ad-9a1ae7094a78
+# ╠═44c635a8-d6dd-4630-af1c-51419b67193a
 # ╠═5de74315-0fdb-46d8-8231-3681305b963a
 # ╠═1159a475-35d5-4d2d-bd95-1a0380ba71ac
 # ╠═c6d220bc-76b8-4466-ad6d-e06e3d4fefe9
@@ -3180,6 +3188,7 @@ version = "4.1.0+0"
 # ╟─9b4063ca-eccd-4703-b7c0-2db7a6dc71ca
 # ╠═e0b34cf3-2e54-4d63-97b6-298ee8b0cc03
 # ╟─f520778c-c66d-4cb4-a90d-0e8c9865c3e0
+# ╟─ee83d480-27ed-48d9-93d0-16e53fecd0e4
 # ╠═30871c58-c0fc-42cf-acae-386f1bd15353
 # ╠═04afb813-e4c5-48ed-b94e-7d74b4a97bd4
 # ╠═abe28a86-ed78-4b60-831b-8fd39f774ffc
@@ -3191,7 +3200,7 @@ version = "4.1.0+0"
 # ╠═26eb4664-5769-484d-92ca-5102ddc77e7b
 # ╠═db9362dc-f50d-4ae8-88c8-8e1be999eeeb
 # ╠═2ced775b-4bbf-4e23-b390-7438fabbd62e
-# ╠═660fe1ad-2c1b-437f-b528-51376199cc24
+# ╟─660fe1ad-2c1b-437f-b528-51376199cc24
 # ╠═a7e0c2eb-1f31-4a18-abd2-a9f0aab02664
 # ╠═f0eb238f-753e-4007-8077-1c7e61cd4723
 # ╠═4777bb70-1824-4c84-876b-48beb7d04688
