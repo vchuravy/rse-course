@@ -32,32 +32,11 @@ end
 # ╔═╡ 07565449-7cf6-47f2-b8f7-5a1bb2cd56ce
 using PlutoUI, PlutoTeachingTools
 
-# ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
-using CairoMakie
-
-# ╔═╡ e59410c8-bf6d-4fda-805d-c27c460926fe
-using ThreadPinning: pinthreads, threadinfo
-
-# ╔═╡ b99be66c-bacb-4051-a9f4-c38a5d90437a
-using KernelAbstractions, BenchmarkTools
-
-# ╔═╡ cde615e8-6301-4a3e-89f2-3f6de25f2f9f
-using MultiFloats
-
-# ╔═╡ 6aeda033-5739-43f7-9502-03f526e1e4f4
-using Atomix: @atomic, @atomicswap, @atomicreplace
-
-# ╔═╡ 0048148a-f7ed-49db-89da-c64d4a94f4a2
-using GPUArraysCore
-
-# ╔═╡ 30871c58-c0fc-42cf-acae-386f1bd15353
-using Adapt
-
-# ╔═╡ 04afb813-e4c5-48ed-b94e-7d74b4a97bd4
-using LinearAlgebra
-
 # ╔═╡ e8ccd3eb-f315-43cb-909a-416dce3f28f9
 import PlutoUI: Slider
+
+# ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
+using CairoMakie
 
 # ╔═╡ df284ffd-14eb-41eb-a4b8-94f4d7cee298
 ChooseDisplayMode()
@@ -325,12 +304,18 @@ md"""
 ## Many backends
 """
 
+# ╔═╡ e59410c8-bf6d-4fda-805d-c27c460926fe
+using ThreadPinning: pinthreads, threadinfo
+
 # ╔═╡ ca627b9b-6c00-4cf0-b4b4-278908bcc7a8
 begin
 	pinthreads(:cores)
 	threadinfo()
 	tp_marker = nothing
 end
+
+# ╔═╡ b99be66c-bacb-4051-a9f4-c38a5d90437a
+using KernelAbstractions, BenchmarkTools
 
 # ╔═╡ d6302d69-662a-4d10-b12a-20c861fd0bad
 begin
@@ -374,6 +359,9 @@ md"""
 
 based on material from Mosè Giordano
 """
+
+# ╔═╡ cde615e8-6301-4a3e-89f2-3f6de25f2f9f
+using MultiFloats
 
 # ╔═╡ b2c13cf1-3e17-44c4-994d-af3c9c48a839
 @kernel function pi_kernel!(results::AbstractVector{FT}, step, work_per_thread) where {FT}
@@ -447,18 +435,18 @@ let
     nothing
 end
 
-# ╔═╡ bc6617a8-5f8a-47c1-bbda-70c685da4be4
-blocks = 4096
-
-# ╔═╡ 20d56e67-2220-4e90-8791-8c477c1f8117
-threads_per_block = 1024
-
 # ╔═╡ 30fdbd3a-5b5c-4443-9ef5-a672d4f28dd5
 let
 	values = filter(>=(blocks * threads_per_block), 2 .^ (20:42))
 	default = max(minimum(values), 2 ^ 28)
 	md"num\_steps = $(@bind num_steps Slider(values; default, show_value=true))"
 end
+
+# ╔═╡ bc6617a8-5f8a-47c1-bbda-70c685da4be4
+blocks = 4096
+
+# ╔═╡ 20d56e67-2220-4e90-8791-8c477c1f8117
+threads_per_block = 1024
 
 # ╔═╡ 42124f2d-c655-4e06-b301-265ddda81c5c
 with_terminal() do
@@ -557,6 +545,9 @@ md"""
     This looks similar to our issues from last week! Data races galore!
 	Let's use Atomix again to avoid these issues.
 """
+
+# ╔═╡ 6aeda033-5739-43f7-9502-03f526e1e4f4
+using Atomix: @atomic, @atomicswap, @atomicreplace
 
 # ╔═╡ 475af402-ada0-452c-a465-be9f67c4f7dc
 @kernel function naive_atomic_sum(val, data)
@@ -692,6 +683,9 @@ end
 	end
 end
 
+# ╔═╡ 0048148a-f7ed-49db-89da-c64d4a94f4a2
+using GPUArraysCore
+
 # ╔═╡ bd15bebe-ee6f-4959-99a3-9a676b1515bc
 function my_mapsum(f, data)
 	backend = get_backend(data)
@@ -772,6 +766,12 @@ md"""
 ### Custom array types
 """
 
+# ╔═╡ 30871c58-c0fc-42cf-acae-386f1bd15353
+using Adapt
+
+# ╔═╡ 04afb813-e4c5-48ed-b94e-7d74b4a97bd4
+using LinearAlgebra
+
 # ╔═╡ abe28a86-ed78-4b60-831b-8fd39f774ffc
 struct MyMatrix{A}
 	v::A
@@ -787,9 +787,7 @@ md"""
 Adapt.adapt_structure(to, x::MyMatrix) = MyMatrix(adapt(to, x.v))
 
 # ╔═╡ 84c17ade-04a3-4793-beb2-9d390041f47d
-#=╠═╡
 adapt(backend, MyMatrix(X))
-  ╠═╡ =#
 
 # ╔═╡ 1ef5e72d-8648-405e-90af-7c0b774c28ba
 # ╠═╡ disabled = true
@@ -827,19 +825,13 @@ md"""
 """
 
 # ╔═╡ a7e0c2eb-1f31-4a18-abd2-a9f0aab02664
-#=╠═╡
 eigmax(diagm(X) + X*X')
-  ╠═╡ =#
 
 # ╔═╡ f0eb238f-753e-4007-8077-1c7e61cd4723
-#=╠═╡
 eigmax(MyMatrix(X))
-  ╠═╡ =#
 
 # ╔═╡ 4777bb70-1824-4c84-876b-48beb7d04688
-#=╠═╡
 eigmax(adapt(backend, MyMatrix(X)))
-  ╠═╡ =#
 
 # ╔═╡ b6fc9302-5998-4dac-bf6a-b4e808de6c17
 backend
@@ -877,7 +869,7 @@ pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 [compat]
 AMDGPU = "~2.5.1"
 AcceleratedKernels = "~0.4.3"
-Adapt = "~4.6.0"
+Adapt = "~4.6.1"
 Atomix = "~1.1.3"
 BenchmarkTools = "~1.8.0"
 CUDA = "~6.1.0"
@@ -889,7 +881,7 @@ MultiFloats = "~3.2.6"
 OpenCL = "~0.10.2"
 PlutoTeachingTools = "~0.4.7"
 PlutoUI = "~0.7.83"
-ThreadPinning = "~1.0.2"
+ThreadPinning = "~1.1.1"
 oneAPI = "~2.4.0"
 pocl_jll = "~7.1.2"
 """
@@ -900,7 +892,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "50066f7d2c16740651e5feec44d1c797ad8b5851"
+project_hash = "cc116a5687c8d83e0f53af20e72a06fae95ee2e2"
 
 [[deps.AMDGPU]]
 deps = ["AbstractFFTs", "AcceleratedKernels", "Adapt", "Atomix", "BFloat16s", "CEnum", "ExprTools", "GPUArrays", "GPUCompiler", "GPUToolbox", "KernelAbstractions", "LLD_jll", "LLVM", "LLVM_jll", "Libdl", "LinearAlgebra", "Pkg", "Preferences", "PrettyTables", "Printf", "ROCmDeviceLibs_jll", "Random", "Random123", "RandomNumbers", "SparseArrays", "SpecialFunctions", "StaticArraysCore", "Statistics", "UnsafeAtomics"]
@@ -951,9 +943,9 @@ weakdeps = ["oneAPI"]
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "28e1637322d4019ed2577cbec9268fab9b7da117"
+git-tree-sha1 = "7715e5b2b186c4d9b664d299d2c9e48b9a778c88"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-version = "4.6.0"
+version = "4.6.1"
 weakdeps = ["SparseArrays", "StaticArrays"]
 
     [deps.Adapt.extensions]
@@ -2692,9 +2684,9 @@ version = "7.8.3+2"
 
 [[deps.SysInfo]]
 deps = ["Dates", "DelimitedFiles", "Hwloc", "PrecompileTools", "Random", "Serialization"]
-git-tree-sha1 = "7aaebfbf5b3a39268f4a0caaa43e878e1138d25c"
+git-tree-sha1 = "dbe0126f74fba2f6e378b81271a6e9538cf490ef"
 uuid = "90a7ee08-a23f-48b9-9006-0e0e2a9e4608"
-version = "0.3.0"
+version = "0.3.1"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -2731,9 +2723,9 @@ version = "1.11.0"
 
 [[deps.ThreadPinning]]
 deps = ["DelimitedFiles", "Libdl", "LinearAlgebra", "PrecompileTools", "Preferences", "Random", "StableTasks", "SysInfo", "ThreadPinningCore"]
-git-tree-sha1 = "d47dbc7862f69ce1973fff227237275ff4a10781"
+git-tree-sha1 = "d125980124c8a02da76d03590b4cae9f3d5df077"
 uuid = "811555cd-349b-4f26-b7bc-1f208b848042"
-version = "1.0.2"
+version = "1.1.1"
 
     [deps.ThreadPinning.extensions]
     DistributedExt = "Distributed"
