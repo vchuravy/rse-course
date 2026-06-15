@@ -6,7 +6,7 @@
 #> section = "1"
 #> order = "5"
 #> title = "Github & Package Manager"
-#> date = "2025-05-14"
+#> date = "2026-05-14"
 #> tags = ["module2", "track_principles"]
 #> layout = "layout.jlhtml"
 #> 

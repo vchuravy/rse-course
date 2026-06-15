@@ -6,7 +6,7 @@
 #> section = "2"
 #> order = "6.1"
 #> title = "Numerical Reproducibility"
-#> date = "2025-05-21"
+#> date = "2026-05-21"
 #> tags = ["module2", "track_principles"]
 #> layout = "layout.jlhtml"
 #> indepth_number = "1"
