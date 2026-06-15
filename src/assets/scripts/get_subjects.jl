@@ -1,3 +1,7 @@
+# NOTE: if you re-enable this in `_includes/welcome.jlmd`, collapse each card to a
+# single line with no blank/whitespace-only lines first — see the comment in
+# `get_schedule.jl`. The multi-line `@htl` cards below break when interpolated into
+# Markdown (CommonMark ends the raw-HTML block on the first blank line).
 let
     sections = metadata["sidebar"]
     sections = [
