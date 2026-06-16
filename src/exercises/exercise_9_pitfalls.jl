@@ -24,20 +24,20 @@ begin
 	PlutoUI.TableOfContents(; depth=4)
 end
 
-# ╔═╡ aabbccdd-0001-4000-8000-000000000007
-using LinearAlgebra
-
-# ╔═╡ 6bd9908e-944d-47d4-ad61-1ed79cdc5ac8
-using HypertextLiteral
-
 # ╔═╡ 8577787d-d72d-4d92-8c69-9e516a85b779
 ChooseDisplayMode()
 
 # ╔═╡ 03524177-1749-4697-9927-d1ddb2ce3785
 import ForwardDiff
 
+# ╔═╡ aabbccdd-0001-4000-8000-000000000007
+using LinearAlgebra
+
 # ╔═╡ 4d5fa063-73c5-4fb4-9d9a-b153502524df
 import Enzyme
+
+# ╔═╡ 6bd9908e-944d-47d4-ad61-1ed79cdc5ac8
+using HypertextLiteral
 
 # ╔═╡ e5b72189-9a74-4b5c-8d19-b2f5d94726cd
 function expected_failure(f)
@@ -63,6 +63,11 @@ function expected_failure(f)
 		</div>
 		"""
 	end
+end
+
+# ╔═╡ 5dfa6e38-7382-4632-9ead-27ee56e25592
+function derivative_enzyme(f, x) 
+	Enzyme.autodiff(Enzyme.Forward, f, Enzyme.Duplicated(x, one(x))) |> only
 end
 
 # ╔═╡ aabbccdd-0001-4000-8000-000000000002
@@ -91,6 +96,9 @@ md"""
 !!! note
 	ForwardDiff fails but Enzyme (cell below) succeeds.
 """
+
+# ╔═╡ a03c51b6-2601-4b6b-bfc4-0530c036ac11
+derivative_enzyme(f, 2.0)
 
 # ╔═╡ 421d866d-498a-43b0-91fb-5634d463e9e5
 question_box(
@@ -164,6 +172,9 @@ md"""
 	ForwardDiff fails but Enzyme (cell below) succeeds.
 """
 
+# ╔═╡ aabbccdd-0001-4000-8000-000000000006
+derivative_enzyme(g, 2.0)
+
 # ╔═╡ d52b9598-37ed-4823-8624-654c7aa69637
 question_box(
 md"""
@@ -215,6 +226,27 @@ A somewhat natural question is: **How would we obtain higher-order derivatives**
 Interstingly we can define higher order derivatives as a recursive application of AD.
 """
 
+# ╔═╡ ed90483f-5800-40db-b140-635464513422
+function nth_derivative_forwarddiff(f::F, x, ::Val{N}) where {F, N}
+   if N == 0
+	  return f(x)
+   else
+	  return ForwardDiff.derivative(y->nth_derivative_forwarddiff(f, y, Val(N-1)), x)
+   end
+end
+
+# ╔═╡ 4ddea8b8-e647-46d3-95b2-b38a010b2504
+nth_derivative_forwarddiff(sin, 1.0, Val(1)) == cos(1.0)
+
+# ╔═╡ 0ffba4a9-68f4-4ac0-8908-df98c2daef99
+nth_derivative_forwarddiff(sin, 1.0, Val(2)) == -sin(1.0)
+
+# ╔═╡ 6ff9d6fc-d0d9-478f-baeb-c65a261c0dc4
+nth_derivative_forwarddiff(sin, 1.0, Val(3)) == -cos(1.0)
+
+# ╔═╡ ca80b204-687f-48c7-88b9-06cc465a4a9b
+nth_derivative_forwarddiff(sin, 1.0, Val(4)) == sin(1.0)
+
 # ╔═╡ d5ca1e3b-0f42-4438-b4cc-2a3d839b1bff
 md"""
 ### Simple AD system
@@ -251,38 +283,6 @@ begin
 	Base.one(x::Dual) = Dual(one(x.value), zero(x.deriv))
 	Base.:-(x::Dual) = Dual(-x.value, -x.deriv)
 end
-
-# ╔═╡ 5dfa6e38-7382-4632-9ead-27ee56e25592
-function derivative_enzyme(f, x) 
-	Enzyme.autodiff(Enzyme.Forward, f, Enzyme.Duplicated(x, one(x))) |> only
-end
-
-# ╔═╡ a03c51b6-2601-4b6b-bfc4-0530c036ac11
-derivative_enzyme(f, 2.0)
-
-# ╔═╡ aabbccdd-0001-4000-8000-000000000006
-derivative_enzyme(g, 2.0)
-
-# ╔═╡ ed90483f-5800-40db-b140-635464513422
-function nth_derivative_forwarddiff(f::F, x, ::Val{N}) where {F, N}
-   if N == 0
-	  return f(x)
-   else
-	  return ForwardDiff.derivative(y->nth_derivative_forwarddiff(f, y, Val(N-1)), x)
-   end
-end
-
-# ╔═╡ 4ddea8b8-e647-46d3-95b2-b38a010b2504
-nth_derivative_forwarddiff(sin, 1.0, Val(1)) == cos(1.0)
-
-# ╔═╡ 0ffba4a9-68f4-4ac0-8908-df98c2daef99
-nth_derivative_forwarddiff(sin, 1.0, Val(2)) == -sin(1.0)
-
-# ╔═╡ 6ff9d6fc-d0d9-478f-baeb-c65a261c0dc4
-nth_derivative_forwarddiff(sin, 1.0, Val(3)) == -cos(1.0)
-
-# ╔═╡ ca80b204-687f-48c7-88b9-06cc465a4a9b
-nth_derivative_forwarddiff(sin, 1.0, Val(4)) == sin(1.0)
 
 # ╔═╡ 62357e53-6ccc-4d86-92da-3ae090a93e5a
 begin
@@ -528,11 +528,11 @@ PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-Enzyme = "~0.13.140"
-ForwardDiff = "~1.3.3"
+Enzyme = "~0.13.159"
+ForwardDiff = "~1.4.1"
 HypertextLiteral = "~1.0.0"
 PlutoTeachingTools = "~0.4.7"
-PlutoUI = "~0.7.80"
+PlutoUI = "~0.7.83"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -541,13 +541,12 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "5ed64085a581fb7979fbcd7cd0cfe88f09f6f26a"
+project_hash = "3bbe479a42e15364b06e62172e69d0a815ddea16"
 
 [[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
+git-tree-sha1 = "6c3913f4e9bdf6ba3c08041a446fb1332716cbc2"
 uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.3.2"
+version = "1.4.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -600,9 +599,9 @@ version = "1.1.0"
 
 [[deps.DiffRules]]
 deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
-git-tree-sha1 = "23163d55f885173722d1e4cf0f6110cdbaf7e272"
+git-tree-sha1 = "79a2aca180a85c690c58a020d47b426954b590f8"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
-version = "1.15.1"
+version = "1.16.0"
 
 [[deps.DocStringExtensions]]
 git-tree-sha1 = "7442a5dfe1ebb773c29cc2962a8980f47221d76c"
@@ -616,9 +615,9 @@ version = "1.7.0"
 
 [[deps.Enzyme]]
 deps = ["CEnum", "EnzymeCore", "Enzyme_jll", "GPUCompiler", "InteractiveUtils", "LLVM", "Libdl", "LinearAlgebra", "ObjectFile", "PrecompileTools", "Preferences", "Printf", "Random", "SparseArrays"]
-git-tree-sha1 = "78704dd8d84c93a7f2ac5af0bbb95d26763ec9b9"
+git-tree-sha1 = "adf8d414290092b377af5003be467d30dfb844af"
 uuid = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-version = "0.13.140"
+version = "0.13.159"
 
     [deps.Enzyme.extensions]
     EnzymeBFloat16sExt = "BFloat16s"
@@ -652,9 +651,9 @@ version = "0.8.20"
 
 [[deps.Enzyme_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "d3ad8f5eca369ac8803ff7db660028d47debc75d"
+git-tree-sha1 = "e382f2b17521367f0bd2c0aeb0d5c52ebd3dbde7"
 uuid = "7cc45869-7501-5eee-bdea-0790c847d4ef"
-version = "0.0.258+0"
+version = "0.0.267+0"
 
 [[deps.ExprTools]]
 git-tree-sha1 = "27415f162e6028e81c72b82ef756bf321213b6ec"
@@ -666,10 +665,10 @@ uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 version = "1.11.0"
 
 [[deps.FixedPointNumbers]]
-deps = ["Statistics"]
-git-tree-sha1 = "05882d6995ae5c12bb5f36dd2ed3f61c98cbb172"
+deps = ["Random", "Statistics"]
+git-tree-sha1 = "59af96b98217c6ef4ae0dfe065ac7c20831d1a84"
 uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
-version = "0.8.5"
+version = "0.8.6"
 
 [[deps.Format]]
 git-tree-sha1 = "9c68794ef81b08086aeb32eeaf33531668d5f5fc"
@@ -678,9 +677,9 @@ version = "1.3.7"
 
 [[deps.ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions"]
-git-tree-sha1 = "cddeab6487248a39dae1a960fff0ac17b2a28888"
+git-tree-sha1 = "2c5d0b0e12088cde2cf84afb2784415b1ea3dfee"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "1.3.3"
+version = "1.4.1"
 
     [deps.ForwardDiff.extensions]
     ForwardDiffStaticArraysExt = "StaticArrays"
@@ -690,9 +689,13 @@ version = "1.3.3"
 
 [[deps.GPUCompiler]]
 deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
-git-tree-sha1 = "fedfe5e7db7035271c3f58359007f971da1dde87"
+git-tree-sha1 = "e6e7327988c9ad47470636834eb811869a78bdef"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "1.9.1"
+version = "1.21.0"
+
+    [deps.GPUCompiler.weakdeps]
+    LLVMDowngrader_jll = "f52de702-fb25-5922-94ba-81dd59b07444"
+    NVPTX_LLVM_Backend_jll = "ef6e0fe3-e6ef-59c0-bde6-4989574699e0"
 
 [[deps.Ghostscript_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Zlib_jll"]
@@ -730,9 +733,9 @@ version = "0.2.6"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
-git-tree-sha1 = "0533e564aae234aff59ab625543145446d8b6ec2"
+git-tree-sha1 = "7204148362dafe5fe6a273f855b8ccbe4df8173e"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.7.1"
+version = "1.8.0"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -747,9 +750,9 @@ version = "1.12.0"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "PrecompileTools", "Preferences", "Printf", "Unicode"]
-git-tree-sha1 = "85592339c4363f40863f0b61f9cba80b885070c3"
+git-tree-sha1 = "57639f07d4670fc6537e97d2686c4c99c13fdd67"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "9.7.1"
+version = "9.9.0"
 
     [deps.LLVM.extensions]
     BFloat16sExt = "BFloat16s"
@@ -759,9 +762,9 @@ version = "9.7.1"
 
 [[deps.LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "f1d1adfff151fd02b4062d1af82df02052dc4a0c"
+git-tree-sha1 = "70c96f133c78c3cdc06234157144fab3744c6b38"
 uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
-version = "0.0.42+0"
+version = "0.0.43+1"
 
 [[deps.LaTeXStrings]]
 git-tree-sha1 = "dda21b8cbd6a6c40d9d02a73230f9d70fed6918c"
@@ -833,9 +836,9 @@ version = "1.12.0"
 
 [[deps.LogExpFunctions]]
 deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "13ca9e2586b89836fd20cccf56e57e2b9ae7f38f"
+git-tree-sha1 = "bba2d9aa057d8f126415de240573e86a8f39d2a1"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.29"
+version = "1.0.1"
 
     [deps.LogExpFunctions.extensions]
     LogExpFunctionsChainRulesCoreExt = "ChainRulesCore"
@@ -872,9 +875,9 @@ version = "2025.11.4"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
-git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
+git-tree-sha1 = "dbd2e8cd2c1c27f0b584f6661b4309609c5a685e"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
-version = "1.1.3"
+version = "1.1.4"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
@@ -908,9 +911,9 @@ uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.6+0"
 
 [[deps.OrderedCollections]]
-git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
+git-tree-sha1 = "94ba93778373a53bfd5a0caaf7d809c445292ff4"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.8.1"
+version = "1.8.2"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
@@ -931,15 +934,15 @@ version = "0.4.7"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "fbc875044d82c113a9dee6fc14e16cf01fd48872"
+git-tree-sha1 = "e189d0623e7ce9c37389bac17e80aac3b0302e75"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.80"
+version = "0.7.83"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
-git-tree-sha1 = "07a921781cab75691315adc645096ed5e370cb77"
+git-tree-sha1 = "edbeefc7a4889f528644251bdb5fc9ab5348bc2c"
 uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
-version = "1.3.3"
+version = "1.3.4"
 
 [[deps.Preferences]]
 deps = ["TOML"]
@@ -989,9 +992,9 @@ version = "1.12.0"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "2700b235561b0335d5bef7097a111dc513b8655e"
+git-tree-sha1 = "6547cbdd8ce32efba0d21c5a40fa96d1a3548f9f"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.7.2"
+version = "2.8.0"
 
     [deps.SpecialFunctions.extensions]
     SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"

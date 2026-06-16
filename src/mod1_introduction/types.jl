@@ -157,6 +157,14 @@ end
 # ╔═╡ a0000017-0000-4000-8000-000000000017
 c = Counter(0, "events")
 
+# ╔═╡ a0000018-0000-4000-8000-000000000018
+begin
+    c.count += 1
+    c.count += 1
+    c.count += 1
+    c
+end
+
 # ╔═╡ a0000019-0000-4000-8000-000000000019
 tip(md"""
 `mutable struct` values are **heap-allocated** and accessed through a pointer, which means:
@@ -182,10 +190,36 @@ md"""
 First, compare how closures capture state in plain functions:
 """
 
+# ╔═╡ b000001c-0000-4000-8000-000000000003
+function make_adder(n)
+    x -> x + n      # anonymous function closes over n
+end
+
+# ╔═╡ b000001d-0000-4000-8000-000000000004
+add5 = make_adder(5)
+
+# ╔═╡ b000001e-0000-4000-8000-000000000005
+add5(10)
+
+# ╔═╡ b000001f-0000-4000-8000-000000000006
+add5 |> dump      # shows the captured field
+
 # ╔═╡ b0000020-0000-4000-8000-000000000007
 md"""
 The same idea expressed as a callable struct — all state is explicit in the fields:
 """
+
+# ╔═╡ b0000021-0000-4000-8000-000000000008
+begin
+    struct Adder
+        n::Int
+    end
+    # Define call syntax: Adder(3)(10) == 13
+    (a::Adder)(x) = x + a.n
+end
+
+# ╔═╡ b0000022-0000-4000-8000-000000000009
+Adder(5)(10)
 
 # ╔═╡ b0000023-0000-4000-8000-00000000000a
 tip(md"""
@@ -202,6 +236,12 @@ md"""
 `dump` lets you inspect the internal layout of any value — useful when exploring
 unfamiliar struct types:
 """
+
+# ╔═╡ b0000025-0000-4000-8000-00000000000c
+dump(1 + 2im)     # Complex is itself an immutable struct with re and re fields
+
+# ╔═╡ b0000026-0000-4000-8000-00000000000d
+dump(Adder(5))
 
 # ╔═╡ a000001a-0000-4000-8000-00000000001a
 md"""
@@ -264,46 +304,6 @@ begin
     show(io::IO, p::Point) = print(io, "($(p.x), $(p.y))")
 end
 
-# ╔═╡ a0000018-0000-4000-8000-000000000018
-begin
-    c.count += 1
-    c.count += 1
-    c.count += 1
-    c
-end
-
-# ╔═╡ b000001c-0000-4000-8000-000000000003
-function make_adder(n)
-    x -> x + n      # anonymous function closes over n
-end
-
-# ╔═╡ b000001d-0000-4000-8000-000000000004
-add5 = make_adder(5)
-
-# ╔═╡ b000001e-0000-4000-8000-000000000005
-add5(10)
-
-# ╔═╡ b000001f-0000-4000-8000-000000000006
-add5 |> dump      # shows the captured field
-
-# ╔═╡ b0000021-0000-4000-8000-000000000008
-begin
-    struct Adder
-        n::Int
-    end
-    # Define call syntax: Adder(3)(10) == 13
-    (a::Adder)(x) = x + a.n
-end
-
-# ╔═╡ b0000022-0000-4000-8000-000000000009
-Adder(5)(10)
-
-# ╔═╡ b0000026-0000-4000-8000-00000000000d
-dump(Adder(5))
-
-# ╔═╡ b0000025-0000-4000-8000-00000000000c
-dump(1 + 2im)     # Complex is itself an immutable struct with re and re fields
-
 # ╔═╡ a0000026-0000-4000-8000-000000000026
 Point(1.0, 2.0) + Point(3.0, 4.0)
 
@@ -339,22 +339,21 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
 PlutoTeachingTools = "~0.4.7"
-PlutoUI = "~0.7.80"
+PlutoUI = "~0.7.83"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.4"
+julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "b4c18bbc242930204ae5cca25c12954846038fac"
+project_hash = "b2ecc7c6ca1a91c35cb268bae47c4736cead32b9"
 
 [[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
+git-tree-sha1 = "6c3913f4e9bdf6ba3c08041a446fb1332716cbc2"
 uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.3.2"
+version = "1.4.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -398,10 +397,10 @@ uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 version = "1.11.0"
 
 [[deps.FixedPointNumbers]]
-deps = ["Statistics"]
-git-tree-sha1 = "05882d6995ae5c12bb5f36dd2ed3f61c98cbb172"
+deps = ["Random", "Statistics"]
+git-tree-sha1 = "59af96b98217c6ef4ae0dfe065ac7c20831d1a84"
 uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
-version = "0.8.5"
+version = "0.8.6"
 
 [[deps.Format]]
 git-tree-sha1 = "9c68794ef81b08086aeb32eeaf33531668d5f5fc"
@@ -439,9 +438,9 @@ version = "1.11.0"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
-git-tree-sha1 = "0533e564aae234aff59ab625543145446d8b6ec2"
+git-tree-sha1 = "7204148362dafe5fe6a273f855b8ccbe4df8173e"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.7.1"
+version = "1.8.0"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -486,16 +485,6 @@ version = "0.6.4"
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
 version = "8.15.0+0"
-
-[[deps.LibGit2]]
-deps = ["LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
-uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
-version = "1.11.0"
-
-[[deps.LibGit2_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll"]
-uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
-version = "1.9.0+0"
 
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "OpenSSL_jll"]
@@ -549,20 +538,9 @@ uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
 version = "3.5.4+0"
 
 [[deps.OrderedCollections]]
-git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
+git-tree-sha1 = "94ba93778373a53bfd5a0caaf7d809c445292ff4"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.8.1"
-
-[[deps.Pkg]]
-deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
-uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.12.1"
-
-    [deps.Pkg.extensions]
-    REPLExt = "REPL"
-
-    [deps.Pkg.weakdeps]
-    REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
+version = "1.8.2"
 
 [[deps.PlutoTeachingTools]]
 deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoUI"]
@@ -572,9 +550,9 @@ version = "0.4.7"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "fbc875044d82c113a9dee6fc14e16cf01fd48872"
+git-tree-sha1 = "e189d0623e7ce9c37389bac17e80aac3b0302e75"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.80"
+version = "0.7.83"
 
 [[deps.Preferences]]
 deps = ["TOML"]
@@ -632,11 +610,6 @@ deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 version = "1.0.3"
 
-[[deps.Tar]]
-deps = ["ArgTools", "SHA"]
-uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-version = "1.10.0"
-
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -675,11 +648,6 @@ version = "5.15.0+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
 version = "1.64.0+1"
-
-[[deps.p7zip_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
-uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.7.0+0"
 """
 
 # ╔═╡ Cell order:
