@@ -11,17 +11,17 @@ tags: ["module3", "track_parallel", "exercises"]
 
 ## Configuration
 
-There are multiple MPI implementations
+There are multiple MPI implementations:
 
-- OpenMPI
-- MPICH
-- Intel MPI
-- Microsoft MPI
-- IBM Spectrum MPI
-- MVAPICH
-- Cray MPICH
-- Fujitsu MPI
-- HPE MPT/HMPT
+- [Open MPI](https://www.open-mpi.org/)
+- [MPICH](https://www.mpich.org/)
+- [Intel MPI](https://www.intel.com/content/www/us/en/developer/tools/oneapi/mpi-library.html)
+- [Microsoft MPI](https://learn.microsoft.com/en-us/message-passing-interface/microsoft-mpi)
+- [IBM Spectrum MPI](https://www.ibm.com/products/spectrum-mpi)
+- [MVAPICH](https://mvapich.cse.ohio-state.edu/)
+- [Cray MPICH](https://docs.nersc.gov/development/compilers/wrappers/)
+- [Fujitsu MPI](https://www.fujitsu.com/global/about/resources/publications/technicalreview/2020-03/article07.html#cap-03)
+- [HPE MPT/HMPT](https://support.hpe.com/hpesc/public/docDisplay?docLocale=en_US&docId=a00105727en_us)
 
 ```julia-repl
 julia> using MPI
@@ -54,7 +54,7 @@ Library information:
     MPICH features:
 ```
 
-On Unix, `MPI.jl` will install and use `MPICH` through the `MPICH_jll` package. 
+On Unix, `MPI.jl` will install and use `MPICH` through the `MPICH_jll` package.
 
 ### MPIPreferences
 
@@ -71,18 +71,18 @@ julia> using MPI
 julia> MPI.install_mpiexecjl()
 ```
 
-By default, it will install to `~/.julia/bin`, but you can also choose to install it somewhere else
+By default, it will install to `~/.julia/bin`, but you can also choose to install it somewhere else.
 
-As an example to install it in the current working directory.
+As an example, to install it in the current working directory:
 
-```
+```julia-repl
 julia> using MPI
 julia> MPI.install_mpiexecjl(destdir=".")
 ```
 
-After installing it, you can use it to start Julia.
+After installing it, you can use it to launch several Julia processes under MPI:
 
-```
+```sh
 mpiexecjl --project=/path/to/project -n 4 julia script.jl
 # or
 ./mpiexecjl --project=/path/to/project -n 4 julia script.jl
@@ -92,10 +92,25 @@ mpiexecjl --project=/path/to/project -n 4 julia script.jl
 
 MPI.jl has a series of examples:
 
-- [Hello word](https://juliaparallel.org/MPI.jl/v0.20/examples/01-hello/)
+- [Hello world](https://juliaparallel.org/MPI.jl/v0.20/examples/01-hello/)
 - [Broadcast](https://juliaparallel.org/MPI.jl/v0.20/examples/02-broadcast/)
 - [Reduce](https://juliaparallel.org/MPI.jl/v0.20/examples/03-reduce/)
 - [Send/receive](https://juliaparallel.org/MPI.jl/v0.20/examples/04-sendrecv/)
+
+To get started, copy the "Hello world" example into `01-hello.jl` and run it with four processes:
+
+```sh
+mpiexecjl --project=. -n 4 julia 01-hello.jl
+```
+
+You should see one line per rank, printed in a non-deterministic order — just like the `@mpi` hello-world from the lecture:
+
+```
+Hello world, I have rank 0 out of 4 processors
+Hello world, I have rank 2 out of 4 processors
+Hello world, I have rank 1 out of 4 processors
+Hello world, I have rank 3 out of 4 processors
+```
 
 ### Diffusion
 
@@ -103,5 +118,7 @@ In [exercise 7](https://vchuravy.dev/rse-course/2026/exercises/exercise_7_accele
 Instead of implementing this on the GPU you can also implement it with MPI.
 
 !!! note
-    The "hard" part is the handling of the boundary-conditions and ghost cells. So focus on that in the beginning.
+    The "hard" part is the handling of the boundary conditions and ghost cells. So focus on that in the beginning.
     How are you going to split the computational domain? Who needs to talk to whom?
+
+To check correctness, gather the distributed result back onto a single rank (with `MPI.Gather`) and compare it against the single-process version from exercise 7. Running with one rank (`-n 1`) should reproduce the serial result exactly, and the answer should not change as you increase the number of ranks.
