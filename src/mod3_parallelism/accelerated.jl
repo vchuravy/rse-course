@@ -116,6 +116,10 @@ md"""
 - [AMDGPU.jl](https://github.com/JuliaGPU/AMDGPU.jl)
 - [oneAPI.jl](https://github.com/JuliaGPU/oneAPI.jl)
 - [Metal.jl](https://github.com/JuliaGPU/Metal.jl)
+
+#### General backends
+- [OpenCL.jl](https://github.com/JuliaGPU/OpenCL.jl)
+
 """
 
 # ╔═╡ b21b17f7-bc3e-4286-ad0b-3004e1bb4d78
@@ -284,7 +288,7 @@ md"""
 
 1. Can I **run** it on a different compute architecture
     1. Different CPU architectures
-    2. We live in a mult GPU vendor world
+    2. We live in a multi GPU vendor world
 2. Does it **compute** the same thing?
     1. Can I develop on one platform and move to another later?
 3. Does it achieve the same **performance**?
@@ -488,7 +492,7 @@ For a momement let's forget about `GPUArrays` and all the high-level primitives 
 
 # ╔═╡ 1a7bb9d3-936b-4717-b299-e1eccad05065
 md"""
-```
+```julia
 f(A::MyMatrix)  = λ ->  1 + mapreduce((v) -> v^2 / (v - λ)  , +, A.v)
 f′(A::MyMatrix) = λ ->      mapreduce((v) -> v^2 / (v - λ)^2, +, A.v)
 
@@ -884,12 +888,10 @@ GPUArraysCore = "~0.2.0"
 KernelAbstractions = "~0.9.41"
 Metal = "~1.9.3"
 MultiFloats = "~3.2.6"
-OpenCL = "~0.10.2"
+OpenCL = "~0.10.9"
 PlutoTeachingTools = "~0.4.7"
 PlutoUI = "~0.7.83"
 ThreadPinning = "~1.1.1"
-oneAPI = "~2.4.0"
-pocl_jll = "~7.1.2"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -898,7 +900,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "cc116a5687c8d83e0f53af20e72a06fae95ee2e2"
+project_hash = "3ab333e96a0cd253af2627e08c85ba925e46a796"
 
 [[deps.AMDGPU]]
 deps = ["AbstractFFTs", "AcceleratedKernels", "Adapt", "Atomix", "BFloat16s", "CEnum", "ExprTools", "GPUArrays", "GPUCompiler", "GPUToolbox", "KernelAbstractions", "LLD_jll", "LLVM", "LLVM_jll", "Libdl", "LinearAlgebra", "Pkg", "Preferences", "PrettyTables", "Printf", "ROCmDeviceLibs_jll", "Random", "Random123", "RandomNumbers", "SparseArrays", "SpecialFunctions", "StaticArraysCore", "Statistics", "UnsafeAtomics"]
@@ -2098,9 +2100,9 @@ weakdeps = ["AMDGPU", "CUDA", "oneAPI"]
 
 [[deps.NEO_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML", "gmmlib_jll", "libigc_jll", "oneAPI_Level_Zero_Headers_jll"]
-git-tree-sha1 = "3eddf998a74172ccbf60f86eacb66e0b1984d441"
+git-tree-sha1 = "ffcaded47f7e4bee4ff7382edd2561489958fc78"
 uuid = "700fe977-ac61-5f37-bbc8-c6c4b2b6a9fd"
-version = "25.31.34666+0"
+version = "25.44.36015+0"
 
 [[deps.NVML]]
 deps = ["CEnum", "CUDACore", "GPUToolbox", "Libdl"]
@@ -2178,22 +2180,16 @@ uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 version = "0.3.29+0"
 
 [[deps.OpenCL]]
-deps = ["Adapt", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "LinearAlgebra", "OpenCL_jll", "Printf", "Random", "Reexport", "SPIRVIntrinsics", "SPIRV_LLVM_Translator_unified_jll", "StaticArrays"]
-git-tree-sha1 = "40b8d8b78c7770bb40e8fab9e9fe3d65e6005889"
+deps = ["Adapt", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "LinearAlgebra", "OpenCL_jll", "Preferences", "Printf", "Random", "Random123", "RandomNumbers", "Reexport", "SPIRVIntrinsics", "SPIRV_LLVM_Backend_jll", "SPIRV_Tools_jll", "StaticArrays"]
+git-tree-sha1 = "f45be8b00dee9375b1c8f16bf6c9e25c16bb9d9d"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
-version = "0.10.2"
-
-[[deps.OpenCL_Headers_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "8ed58a53e30fc5485c6a205eaed02ee26d5e00c8"
-uuid = "a7aa756b-2b7f-562a-9e9d-e94076c5c8ee"
-version = "2025.6.13+0"
+version = "0.10.9"
 
 [[deps.OpenCL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "9ca43c4e9232963180220092063851a5390654d7"
+git-tree-sha1 = "4980a4b2679f1b9cdd65a21ccb57d1a89c0d68b9"
 uuid = "6cb37087-e8b6-5417-8430-1f242f1e46e4"
-version = "2024.5.8+1"
+version = "2024.10.24+1"
 
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
@@ -2480,16 +2476,26 @@ uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
 version = "3.7.2"
 
 [[deps.SPIRVIntrinsics]]
-deps = ["ExprTools", "LLVM", "SpecialFunctions"]
-git-tree-sha1 = "51a0ab797ab9db5d90977ac8b030a6ab8bf98a5c"
+deps = ["ExprTools", "GPUToolbox", "LLVM", "SpecialFunctions"]
+git-tree-sha1 = "ad282f32f1a2b418b3f9ac1cd8b818601a42acc6"
 uuid = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
-version = "0.2.0"
+version = "0.5.9"
+weakdeps = ["SIMD"]
+
+    [deps.SPIRVIntrinsics.extensions]
+    SPIRVIntrinsicsSIMDExt = "SIMD"
+
+[[deps.SPIRV_LLVM_Backend_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
+git-tree-sha1 = "aa98f686cb4836afb2dd665c5217558e5786cae2"
+uuid = "4376b9bf-cff8-51b6-bb48-39421dff0d0c"
+version = "20.1.5+3"
 
 [[deps.SPIRV_LLVM_Translator_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zstd_jll"]
-git-tree-sha1 = "3b58c95bfdad8be11ed0c8df569904e3e1c9f648"
+git-tree-sha1 = "11efd4b204388a7c880d6fa282e23870b96e5e0c"
 uuid = "4a5d46fc-d8cf-5151-a261-86b458210efb"
-version = "20.1.0+6"
+version = "21.1.1+0"
 
 [[deps.SPIRV_LLVM_Translator_unified_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
@@ -2971,9 +2977,9 @@ version = "1.3.0+0"
 
 [[deps.gmmlib_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "8c88db517eca5e577bd4823ed9ed8ae362978ea9"
+git-tree-sha1 = "8c87572919eb941206390dc4701eb18d2be7c205"
 uuid = "09858cae-167c-5acb-9302-fddc6874d481"
-version = "22.8.1+0"
+version = "22.8.2+0"
 
 [[deps.isoband_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -3017,9 +3023,9 @@ version = "2.0.4+0"
 
 [[deps.libigc_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "7db4bac4dd5c81b694f5585c78d6e4bfc0e8f455"
+git-tree-sha1 = "996b090f4a34628116cf57e6e1d58c03658ab5c3"
 uuid = "94295238-5935-5bd7-bb0f-b00942e9bdd5"
-version = "2.16.0+0"
+version = "2.22.2+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
@@ -3058,9 +3064,9 @@ version = "1.64.0+1"
 
 [[deps.oneAPI]]
 deps = ["AbstractFFTs", "AcceleratedKernels", "Adapt", "CEnum", "ExprTools", "GPUArrays", "GPUCompiler", "GPUToolbox", "KernelAbstractions", "LLVM", "Libdl", "LinearAlgebra", "NEO_jll", "Preferences", "Printf", "Random", "SPIRVIntrinsics", "SPIRV_LLVM_Translator_jll", "SPIRV_Tools_jll", "SparseArrays", "SpecialFunctions", "StaticArrays", "oneAPI_Level_Zero_Headers_jll", "oneAPI_Level_Zero_Loader_jll", "oneAPI_Support_jll"]
-git-tree-sha1 = "6ee764d3f3605d6f027a48b59509d8086182c2cd"
+git-tree-sha1 = "dd8abcb84c4cdc3344f3d6209e21ef971535491e"
 uuid = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
-version = "2.4.0"
+version = "2.6.1"
 
 [[deps.oneAPI_Level_Zero_Headers_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -3086,10 +3092,10 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 version = "17.7.0+0"
 
 [[deps.pocl_jll]]
-deps = ["Artifacts", "Clang_unified_jll", "Hwloc_jll", "JLLWrappers", "LLD_unified_jll", "Libdl", "OpenCL_Headers_jll", "OpenCL_jll", "SPIRV_LLVM_Translator_jll", "SPIRV_Tools_jll", "Zstd_jll"]
-git-tree-sha1 = "62cfd5ab3197414e818f79ed60642fa9b73dc98e"
+deps = ["Artifacts", "Clang_unified_jll", "Hwloc_jll", "JLLWrappers", "LLD_unified_jll", "LazyArtifacts", "Libdl", "OpenCL_jll", "SPIRV_LLVM_Translator_unified_jll", "SPIRV_Tools_jll", "TOML"]
+git-tree-sha1 = "014dc3767a9c6c03d822291cfcbcbf6e149b4409"
 uuid = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
-version = "7.1.2+2"
+version = "6.0.1+2"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
