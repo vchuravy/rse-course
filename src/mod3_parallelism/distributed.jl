@@ -6,7 +6,7 @@
 #> section = "3"
 #> order = "10"
 #> title = "Distributed programming with MPI.jl"
-#> date = "2025-06-18"
+#> date = "2026-06-17"
 #> tags = ["module3", "track_parallel"]
 #> layout = "layout.jlhtml"
 #> 
@@ -41,7 +41,7 @@ ChooseDisplayMode()
 
 # ╔═╡ 697369b1-2b76-4942-a18d-11938ddf3565
 md"""
-# Distributed computing with MPI.jl
+# Distributed programming with MPI.jl
 """
 
 # ╔═╡ 277dc532-4b7d-11f0-030e-955824d10ad2
@@ -192,6 +192,8 @@ end
 
 # ╔═╡ 5edf95fa-b068-495e-a6f1-a1a227c9a060
 md"""
+Rank 0 sends a message and waits for it to bounce back. Each iteration is therefore one full **round-trip**, so `(toc-tic)/iters` is the round-trip time; halve it to estimate the one-way **latency** between two ranks. Try increasing `sz` to see the cost grow as we become **bandwidth** bound.
+
 !!! note
     The program above is limited to two ranks!
 
@@ -230,7 +232,18 @@ md"""
 
 It is quite tricky to reason about the order of `recv` and `send` across all processes. Note how we always have to set up some `recv` then perform the matching `send`. Then flip the operations.
 
-`Irecv!` and `Isend` are non-blocking operations, that means we can issue them and wait later for them to be completed.
+!!! danger "Deadlock"
+    What happens if *every* rank tries to send before it receives?
+
+    ```julia
+    # Don't run this — it deadlocks!
+    MPI.Send(send_buf, comm; dest=mod(rank+1, N))
+    MPI.Recv!(recv_buf, comm; source=mod(rank-1, N))
+    ```
+
+    `MPI.Send` is allowed to block until the matching `Recv!` is posted. If all ranks are stuck in `Send`, nobody ever reaches `Recv!` and the program hangs forever. (For small messages the MPI library often buffers eagerly and it *happens* to work — which makes the bug even nastier, since it only deadlocks once the message grows.)
+
+`Irecv!` and `Isend` are non-blocking operations, that means we can issue them and wait later for them to be completed. Because the receive is already posted before we wait, the send always has somewhere to land and the deadlock disappears.
 
 !!! note "Tagging"
     Since we now can have many operations in flight at once, one might need to tag the operations.
@@ -257,7 +270,7 @@ It is quite tricky to reason about the order of `recv` and `send` across all pro
 						  tag=0)
 
 	# block until communication is complete
-	MPI.Waitall!([recv_req, send_req])
+	MPI.Waitall([recv_req, send_req])
 	print("$rank: Received $recv_buf\n")
 end
 
@@ -302,7 +315,7 @@ md"""
 					  dest=mod(rank+1, N))
 
 		# block until communication is complete
-		MPI.Waitall!([left_recv, right_recv, left_send, right_send])
+		MPI.Waitall([left_recv, right_recv, left_send, right_send])
 	end
 	print("$rank: Received $data\n")
 
@@ -593,11 +606,15 @@ md"""
 ### Reduce
 
 `Gather` moves all values from all ranks to one **root** rank. Instead of copying values and then manually reducing them, MPI supports an `MPI.Reduce` call.
+
+The standard ships a set of predefined reduction operators — `MPI.SUM`, `MPI.PROD`, `MPI.MAX`, `MPI.MIN`, … — which the implementation can apply very efficiently. We use `MPI.SUM` below; further down we will see that MPI.jl also lets us pass an arbitrary Julia function.
 """
 
 # ╔═╡ 3330098d-5f3e-40d3-bd03-9a4d61d81868
 md"""
-Compute $\int_0^1 \frac{4}{1+x^2} dx = [4 atan(x)]_0^1$ which evaluates to π
+Compute $\int_0^1 \frac{4}{1+x^2} dx = [4 atan(x)]_0^1$ which evaluates to π.
+
+Each rank sums its share of the terms into `mypi`. We then reduce these partials two ways: the `MPI.Reduce` **inside** the program prints the error on the root rank, while we *also* return `mypi` so that the next Pluto cell can sum the partials (`sum(pis)`) on the Julia side. The two should agree.
 """
 
 # ╔═╡ 7072e0c0-8eae-403a-b6db-1ecffd213cf9

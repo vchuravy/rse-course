@@ -99,7 +99,7 @@ MPI.jl has a series of examples:
 
 ### Diffusion
 
-In [exercise 2](https://vchuravy.dev/rse-course/exercises/exercise_2_accelerated/) we looked at a diffusion kernel.
+In [exercise 7](https://vchuravy.dev/rse-course/2026/exercises/exercise_7_accelerated/) we looked at a diffusion kernel.
 Instead of implementing this on the GPU you can also implement it with MPI.
 
 !!! note
