@@ -32,32 +32,11 @@ end
 # ╔═╡ 07565449-7cf6-47f2-b8f7-5a1bb2cd56ce
 using PlutoUI, PlutoTeachingTools
 
-# ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
-using CairoMakie
-
-# ╔═╡ e59410c8-bf6d-4fda-805d-c27c460926fe
-using ThreadPinning: pinthreads, threadinfo
-
-# ╔═╡ b99be66c-bacb-4051-a9f4-c38a5d90437a
-using KernelAbstractions, BenchmarkTools
-
-# ╔═╡ cde615e8-6301-4a3e-89f2-3f6de25f2f9f
-using MultiFloats
-
-# ╔═╡ 6aeda033-5739-43f7-9502-03f526e1e4f4
-using Atomix: @atomic, @atomicswap, @atomicreplace
-
-# ╔═╡ 0048148a-f7ed-49db-89da-c64d4a94f4a2
-using GPUArraysCore
-
-# ╔═╡ 30871c58-c0fc-42cf-acae-386f1bd15353
-using Adapt
-
-# ╔═╡ 04afb813-e4c5-48ed-b94e-7d74b4a97bd4
-using LinearAlgebra
-
 # ╔═╡ e8ccd3eb-f315-43cb-909a-416dce3f28f9
 import PlutoUI: Slider
+
+# ╔═╡ e1589ce2-e486-455c-a67e-828a54357bec
+using CairoMakie
 
 # ╔═╡ df284ffd-14eb-41eb-a4b8-94f4d7cee298
 ChooseDisplayMode()
@@ -329,12 +308,18 @@ md"""
 ## Many backends
 """
 
+# ╔═╡ e59410c8-bf6d-4fda-805d-c27c460926fe
+using ThreadPinning: pinthreads, threadinfo
+
 # ╔═╡ ca627b9b-6c00-4cf0-b4b4-278908bcc7a8
 begin
 	pinthreads(:cores)
 	threadinfo()
 	tp_marker = nothing
 end
+
+# ╔═╡ b99be66c-bacb-4051-a9f4-c38a5d90437a
+using KernelAbstractions, BenchmarkTools
 
 # ╔═╡ d6302d69-662a-4d10-b12a-20c861fd0bad
 begin
@@ -378,6 +363,9 @@ md"""
 
 based on material from Mosè Giordano
 """
+
+# ╔═╡ cde615e8-6301-4a3e-89f2-3f6de25f2f9f
+using MultiFloats
 
 # ╔═╡ b2c13cf1-3e17-44c4-994d-af3c9c48a839
 @kernel function pi_kernel!(results::AbstractVector{FT}, step, work_per_thread) where {FT}
@@ -451,18 +439,18 @@ let
     nothing
 end
 
-# ╔═╡ bc6617a8-5f8a-47c1-bbda-70c685da4be4
-blocks = 4096
-
-# ╔═╡ 20d56e67-2220-4e90-8791-8c477c1f8117
-threads_per_block = 1024
-
 # ╔═╡ 30fdbd3a-5b5c-4443-9ef5-a672d4f28dd5
 let
 	values = filter(>=(blocks * threads_per_block), 2 .^ (20:42))
 	default = max(minimum(values), 2 ^ 28)
 	md"num\_steps = $(@bind num_steps Slider(values; default, show_value=true))"
 end
+
+# ╔═╡ bc6617a8-5f8a-47c1-bbda-70c685da4be4
+blocks = 4096
+
+# ╔═╡ 20d56e67-2220-4e90-8791-8c477c1f8117
+threads_per_block = 1024
 
 # ╔═╡ 42124f2d-c655-4e06-b301-265ddda81c5c
 with_terminal() do
@@ -561,6 +549,9 @@ md"""
     This looks similar to our issues from last week! Data races galore!
 	Let's use Atomix again to avoid these issues.
 """
+
+# ╔═╡ 6aeda033-5739-43f7-9502-03f526e1e4f4
+using Atomix: @atomic, @atomicswap, @atomicreplace
 
 # ╔═╡ 475af402-ada0-452c-a465-be9f67c4f7dc
 @kernel function naive_atomic_sum(val, data)
@@ -696,6 +687,9 @@ end
 	end
 end
 
+# ╔═╡ 0048148a-f7ed-49db-89da-c64d4a94f4a2
+using GPUArraysCore
+
 # ╔═╡ bd15bebe-ee6f-4959-99a3-9a676b1515bc
 function my_mapsum(f, data)
 	backend = get_backend(data)
@@ -785,6 +779,12 @@ md"""
 # ╔═╡ ee83d480-27ed-48d9-93d0-16e53fecd0e4
 md"adapt\_backend = $(@bind adapt_backend Select(available_backends))"
 
+# ╔═╡ 30871c58-c0fc-42cf-acae-386f1bd15353
+using Adapt
+
+# ╔═╡ 04afb813-e4c5-48ed-b94e-7d74b4a97bd4
+using LinearAlgebra
+
 # ╔═╡ abe28a86-ed78-4b60-831b-8fd39f774ffc
 struct MyMatrix{A}
 	v::A
@@ -799,11 +799,11 @@ md"""
 # ╔═╡ 46c29ca2-3eec-4020-858c-02a87e39e464
 Adapt.adapt_structure(to, x::MyMatrix) = MyMatrix(adapt(to, x.v))
 
-# ╔═╡ 1ef5e72d-8648-405e-90af-7c0b774c28ba
-X = randn(1024)
-
 # ╔═╡ 84c17ade-04a3-4793-beb2-9d390041f47d
 adapt(adapt_backend, MyMatrix(X))
+
+# ╔═╡ 1ef5e72d-8648-405e-90af-7c0b774c28ba
+X = randn(1024)
 
 # ╔═╡ 33778678-1273-4698-a062-b98fb72c0402
 md"""
@@ -892,6 +892,8 @@ OpenCL = "~0.10.9"
 PlutoTeachingTools = "~0.4.7"
 PlutoUI = "~0.7.83"
 ThreadPinning = "~1.1.1"
+oneAPI = "~2.6.2"
+pocl_jll = "~7.1.3"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -900,7 +902,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "3ab333e96a0cd253af2627e08c85ba925e46a796"
+project_hash = "cf08d652a3cc7aa654219b6c8ed26c29e57f447f"
 
 [[deps.AMDGPU]]
 deps = ["AbstractFFTs", "AcceleratedKernels", "Adapt", "Atomix", "BFloat16s", "CEnum", "ExprTools", "GPUArrays", "GPUCompiler", "GPUToolbox", "KernelAbstractions", "LLD_jll", "LLVM", "LLVM_jll", "Libdl", "LinearAlgebra", "Pkg", "Preferences", "PrettyTables", "Printf", "ROCmDeviceLibs_jll", "Random", "Random123", "RandomNumbers", "SparseArrays", "SpecialFunctions", "StaticArraysCore", "Statistics", "UnsafeAtomics"]
@@ -1004,10 +1006,10 @@ weakdeps = ["CUDA", "Metal", "OpenCL", "oneAPI"]
     AtomixoneAPIExt = "oneAPI"
 
 [[deps.Automa]]
-deps = ["PrecompileTools", "SIMD", "TranscodingStreams"]
-git-tree-sha1 = "a8f503e8e1a5f583fbef15a8440c8c7e32185df2"
+deps = ["PrecompileTools", "TranscodingStreams"]
+git-tree-sha1 = "94eab0b3ccdcac361188cc661daf69d4433c1818"
 uuid = "67c07d97-cdcb-5c2c-af73-a7f9c32a568b"
-version = "1.1.0"
+version = "1.2.0"
 
 [[deps.AxisAlgorithms]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
@@ -1358,11 +1360,6 @@ git-tree-sha1 = "27415f162e6028e81c72b82ef756bf321213b6ec"
 uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
 version = "0.1.10"
 
-[[deps.Extents]]
-git-tree-sha1 = "b309b36a9e02fe7be71270dd8c0fd873625332b4"
-uuid = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
-version = "0.1.6"
-
 [[deps.FFMPEG_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libva_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
 git-tree-sha1 = "cac41ca6b2d399adfc95e51240566f8a60a80806"
@@ -1479,9 +1476,9 @@ version = "6.3.0+2"
 
 [[deps.GPUArrays]]
 deps = ["Adapt", "GPUArraysCore", "KernelAbstractions", "LLVM", "LinearAlgebra", "Printf", "Random", "Reexport", "ScopedValues", "Serialization", "SparseArrays", "Statistics"]
-git-tree-sha1 = "62ad1fd3c217acaf6d39615866e16a529b406aeb"
+git-tree-sha1 = "afd3cddb9800cde892d766595640ccf75a536c5a"
 uuid = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
-version = "11.5.5"
+version = "11.5.7"
 
     [deps.GPUArrays.extensions]
     JLD2Ext = "JLD2"
@@ -1508,16 +1505,20 @@ uuid = "096a3bc2-3ced-46d0-87f4-dd12716f4bfc"
 version = "1.1.1"
 
 [[deps.GeometryBasics]]
-deps = ["EarCut_jll", "Extents", "IterTools", "LinearAlgebra", "PrecompileTools", "Random", "StaticArrays"]
-git-tree-sha1 = "1f5a80f4ed9f5a4aada88fc2db456e637676414b"
+deps = ["EarCut_jll", "LinearAlgebra", "PrecompileTools", "Random", "StaticArrays"]
+git-tree-sha1 = "364685f5ffde25deb1bbcfd5bb278a5c6b7a9b37"
 uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-version = "0.5.10"
+version = "0.5.11"
 
     [deps.GeometryBasics.extensions]
+    ExtentsExt = "Extents"
     GeometryBasicsGeoInterfaceExt = "GeoInterface"
+    IntervalSetsExt = "IntervalSets"
 
     [deps.GeometryBasics.weakdeps]
+    Extents = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
     GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
+    IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 
 [[deps.GettextRuntime_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll"]
@@ -1551,9 +1552,9 @@ version = "1.1.3"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "8a6dbda1fd736d60cc477d99f2e7a042acfa46e8"
+git-tree-sha1 = "69ffb934a5c5b7e086a0b4fee3427db2556fba6e"
 uuid = "3b182d85-2403-5c21-9c21-1e1f0cc25472"
-version = "1.3.15+0"
+version = "1.3.16+0"
 
 [[deps.GridLayoutBase]]
 deps = ["GeometryBasics", "InteractiveUtils", "Observables"]
@@ -1670,9 +1671,9 @@ version = "1.11.0"
 
 [[deps.Interpolations]]
 deps = ["Adapt", "AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
-git-tree-sha1 = "65d505fa4c0d7072990d659ef3fc086eb6da8208"
+git-tree-sha1 = "48922d06068130f87e43edef52382e6a94305ae6"
 uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-version = "0.16.2"
+version = "0.16.3"
 
     [deps.Interpolations.extensions]
     InterpolationsForwardDiffExt = "ForwardDiff"
@@ -1836,15 +1837,15 @@ version = "18.1.7+5"
 
 [[deps.LLD_unified_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "TOML", "Zlib_jll", "Zstd_jll", "libLLVM_jll"]
-git-tree-sha1 = "ad036af580a133af43042cdbccc1352439ae95c3"
+git-tree-sha1 = "af4c4e3c93bfb964c643ae6996fb0c188c3e7aca"
 uuid = "fbc507ec-cd81-588a-baa9-9847e80d13e9"
-version = "0.1.2+1"
+version = "0.1.2+2"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "PrecompileTools", "Preferences", "Printf", "Unicode"]
-git-tree-sha1 = "0eeef733eebb4bb1464dd9d1d8c8f3ad20a090d1"
+git-tree-sha1 = "57639f07d4670fc6537e97d2686c4c99c13fdd67"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "9.8.2"
+version = "9.9.0"
 weakdeps = ["BFloat16s"]
 
     [deps.LLVM.extensions]
@@ -2128,9 +2129,9 @@ version = "3.2.2+0"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
-git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
+git-tree-sha1 = "dbd2e8cd2c1c27f0b584f6661b4309609c5a685e"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
-version = "1.1.3"
+version = "1.1.4"
 
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore", "ImageMetadata"]
@@ -2184,6 +2185,12 @@ deps = ["Adapt", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "Line
 git-tree-sha1 = "f45be8b00dee9375b1c8f16bf6c9e25c16bb9d9d"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
 version = "0.10.9"
+
+[[deps.OpenCL_Headers_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "8ed58a53e30fc5485c6a205eaed02ee26d5e00c8"
+uuid = "a7aa756b-2b7f-562a-9e9d-e94076c5c8ee"
+version = "2025.6.13+0"
 
 [[deps.OpenCL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2496,12 +2503,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Zstd_jll"]
 git-tree-sha1 = "11efd4b204388a7c880d6fa282e23870b96e5e0c"
 uuid = "4a5d46fc-d8cf-5151-a261-86b458210efb"
 version = "21.1.1+0"
-
-[[deps.SPIRV_LLVM_Translator_unified_jll]]
-deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "16ee1efef28f1e83f61dbedab24c0c912f6cb1b8"
-uuid = "85f0d8ed-5b39-5caa-b1ae-7472de402361"
-version = "0.7.1+0"
 
 [[deps.SPIRV_Tools_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -3064,9 +3065,9 @@ version = "1.64.0+1"
 
 [[deps.oneAPI]]
 deps = ["AbstractFFTs", "AcceleratedKernels", "Adapt", "CEnum", "ExprTools", "GPUArrays", "GPUCompiler", "GPUToolbox", "KernelAbstractions", "LLVM", "Libdl", "LinearAlgebra", "NEO_jll", "Preferences", "Printf", "Random", "SPIRVIntrinsics", "SPIRV_LLVM_Translator_jll", "SPIRV_Tools_jll", "SparseArrays", "SpecialFunctions", "StaticArrays", "oneAPI_Level_Zero_Headers_jll", "oneAPI_Level_Zero_Loader_jll", "oneAPI_Support_jll"]
-git-tree-sha1 = "dd8abcb84c4cdc3344f3d6209e21ef971535491e"
+git-tree-sha1 = "46515d88b6e994bb237442c3edda7f5f3a98a82f"
 uuid = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
-version = "2.6.1"
+version = "2.6.2"
 
 [[deps.oneAPI_Level_Zero_Headers_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -3092,10 +3093,10 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 version = "17.7.0+0"
 
 [[deps.pocl_jll]]
-deps = ["Artifacts", "Clang_unified_jll", "Hwloc_jll", "JLLWrappers", "LLD_unified_jll", "LazyArtifacts", "Libdl", "OpenCL_jll", "SPIRV_LLVM_Translator_unified_jll", "SPIRV_Tools_jll", "TOML"]
-git-tree-sha1 = "014dc3767a9c6c03d822291cfcbcbf6e149b4409"
+deps = ["Artifacts", "Clang_unified_jll", "Hwloc_jll", "JLLWrappers", "LLD_unified_jll", "Libdl", "OpenCL_Headers_jll", "OpenCL_jll", "SPIRV_Tools_jll", "Zstd_jll"]
+git-tree-sha1 = "0c19849abf23d6f62f1bcbbb7942d6d9842c87c8"
 uuid = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
-version = "6.0.1+2"
+version = "7.1.3+0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
