@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.24
+# v1.0.1
 
 #> [frontmatter]
 #> order = "8.3"
@@ -204,7 +204,7 @@ UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 Atomix = "~1.1.3"
 OhMyThreads = "~0.8.6"
 PlutoTeachingTools = "~0.4.7"
-StatsBase = "~0.34.11"
+StatsBase = "~0.34.12"
 UnicodePlots = "~3.8.4"
 """
 
@@ -214,7 +214,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "7c2d2f85d11aa62e14d40c1d9a675a75291347c1"
+project_hash = "64bc75acb0553fe215138d1f7f33b5441d432bbb"
 
 [[deps.AbstractPlutoDingetjes]]
 git-tree-sha1 = "6c3913f4e9bdf6ba3c08041a446fb1332716cbc2"
@@ -752,9 +752,9 @@ version = "1.8.0"
 
 [[deps.StatsBase]]
 deps = ["AliasTables", "DataAPI", "DataStructures", "IrrationalConstants", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
-git-tree-sha1 = "c6f18e5a52a176a383f6f6c635e0f81feed1d6d4"
+git-tree-sha1 = "e4d7a1a0edc20af42689ea6f4f3587a2175d50ee"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-version = "0.34.11"
+version = "0.34.12"
 
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"

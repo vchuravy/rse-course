@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.24
+# v1.0.1
 
 #> [frontmatter]
 #> order = "4.2"
@@ -689,9 +689,9 @@ version = "1.4.1"
 
 [[deps.GPUCompiler]]
 deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
-git-tree-sha1 = "e6e7327988c9ad47470636834eb811869a78bdef"
+git-tree-sha1 = "89e84350265efe953c755f91985accc7a42482ad"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "1.21.0"
+version = "1.22.0"
 
     [deps.GPUCompiler.weakdeps]
     LLVMDowngrader_jll = "f52de702-fb25-5922-94ba-81dd59b07444"
