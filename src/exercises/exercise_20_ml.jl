@@ -10,7 +10,7 @@
 #> tags = ["module4", "track_ad", "exercises"]
 #> license = "MIT"
 #> layout = "layout.jlhtml"
-#> description = "sample exercise"
+#> description = "Build a neural network from perceptrons and activation functions"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -30,14 +30,14 @@ $x_j = b_j + \sum_i w_{ij} * x_i$
 
 # ╔═╡ f8c6ade2-5196-11f0-34f7-7fa61b2cb26c
 function perceptron(inputs, weights, bias, f)
-	f(sum(w[i] * input[i] for i in 1:length(inputs)) + bias)
+	f(sum(weights[i] * inputs[i] for i in 1:length(inputs)) + bias)
 end
 
 # ╔═╡ ac3fdb66-def2-4f25-b29c-6f5da7643e35
 lineplot(-3,3, identity)
 
 # ╔═╡ 7867550c-d02f-4d25-ad37-b6765ea89bff
-relu(x) = max(0, x)
+relu(x) = max(zero(x), x)
 
 # ╔═╡ 50662471-a138-47f6-9b4e-a277a826ec3f
 lineplot(-3,3, relu)
@@ -49,10 +49,10 @@ sigmoid(x) = 1/(1+exp(-x))
 lineplot(-3,3, sigmoid)
 
 # ╔═╡ 96689fc6-1043-430e-8525-640f97bda73f
-tanh(x) = (exp(x)-exp(-x))/(exp(x)+exp(-x))
+mytanh(x) = (exp(x)-exp(-x))/(exp(x)+exp(-x))
 
 # ╔═╡ 53d60247-74f0-428e-b390-8f94ea72c2fe
-lineplot(-3,3, tanh)
+lineplot(-3,3, mytanh)
 
 # ╔═╡ 9a56c331-0894-4976-b896-823b560f026b
 md"""
@@ -75,14 +75,14 @@ b = rand(Nn)
 W = rand(Nn, Ni)
 
 # ╔═╡ c2bb91a3-60c7-4fb5-b6aa-df60c310b285
-tanh.(W*x .+ b)
+mytanh.(W*x .+ b)
 
 # ╔═╡ 9bc5444c-987a-4f3d-9743-bf238084146c
 md"""
 #### Exercise
 
-- Write your own Neuronal Network model with a couple of layers (maybe 2)
-- Remember https://vchuravy.dev/rse-course/exercises/exercise_7_gradient_descent/ as a starting point. 
+- Write your own Neural Network model with a couple of layers (maybe 2)
+- Remember https://vchuravy.dev/rse-course/2026/exercises/exercise_10_gradient_descent/ as a starting point.
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001

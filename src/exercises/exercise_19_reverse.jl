@@ -10,7 +10,7 @@
 #> tags = ["module4", "track_ad", "exercises"]
 #> license = "MIT"
 #> layout = "layout.jlhtml"
-#> description = "sample exercise"
+#> description = "Implement reverse-mode AD by hand and check it against Enzyme"
 #> 
 #>     [[frontmatter.author]]
 #>     name = "Valentin Churavy"
@@ -93,8 +93,19 @@ Note that Enzyme zeros out the `dy` memory. What would happen if it didn't?
 # ╔═╡ fd5aadad-2522-41b1-8e95-b06eb10f804e
 f3(x) = exp(sin(x))^2
 
-# ╔═╡ 693eb763-0a8a-4a72-8106-fc6688916b3a
+# ╔═╡ 4fb98eca-eee0-4f38-8e50-6a56efedea5e
+md"""
+#### Exercise:
+- `f3` is a composition of several elementary functions. Manually write its reverse
+  mode implementation `df3(x)` by applying the chain rule outward-to-inward, and check
+  it against `autodiff(Reverse, f3, Active(x))`.
+"""
 
+# ╔═╡ 693eb763-0a8a-4a72-8106-fc6688916b3a
+function df3(x)
+	# ...
+	return dx
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -595,6 +606,7 @@ version = "17.7.0+0"
 # ╟─4dcaf2e1-f217-4744-ba1e-46dd3aca37d2
 # ╟─7fedda9a-bad0-448e-b4fe-924cd0b7f0a6
 # ╠═fd5aadad-2522-41b1-8e95-b06eb10f804e
+# ╟─4fb98eca-eee0-4f38-8e50-6a56efedea5e
 # ╠═693eb763-0a8a-4a72-8106-fc6688916b3a
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
