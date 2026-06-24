@@ -108,7 +108,7 @@ coeffs_guess = rand(-2.0:0.1:2.0, 4)
 m.(xs, coeffs_guess...)
 
 # ╔═╡ 9a8ee9ba-c278-4886-8b12-220a2d9045cd
-dm(mse, xs, ys, [coeffs_guess...])
+dm(mse, ys, xs, [coeffs_guess...])
 
 # ╔═╡ 2d9dc60f-f355-4df0-97d9-d82f42b36ab9
 begin
@@ -165,10 +165,10 @@ function dm_rev(loss, ys, xs, c)
 end
 
 # ╔═╡ 8c94089b-8366-40fd-9fd9-a32eae92655f
-dm_rev(mse, xs, ys, [coeffs_guess...])
+dm_rev(mse, ys, xs, [coeffs_guess...])
 
 # ╔═╡ 92811234-0a32-4205-94e9-8f531a9c8696
-dm(mse, xs, ys, [coeffs_guess...])
+dm(mse, ys, xs, [coeffs_guess...])
 
 # ╔═╡ 7eeaa506-46d3-4f70-904c-4eb49b97f631
 md"""
@@ -275,7 +275,7 @@ i.e.,
 
 $$\nabla_x f\Bigl( g\bigl( h(x) ) \bigr) \Bigr) = f'\Bigl( g\bigl( h(x) \bigr) \Bigr) \cdot g'\bigl( h(x) \bigr) \cdot h'(x).$$
 
-Forward-mode AD is like computing the derivatives from right to left like the usual data flow when computing $(f \circ g \circ h)(x)$. In contrast, reverse-mode AD is like computing the derivatives from left to right, i.e., in reverse order. To be able to do so, you need to store the indermediate values $h(x)$ and $g\bigl( h(x) \bigr)$.
+Forward-mode AD is like computing the derivatives from right to left like the usual data flow when computing $(f \circ g \circ h)(x)$. In contrast, reverse-mode AD is like computing the derivatives from left to right, i.e., in reverse order. To be able to do so, you need to store the intermediate values $h(x)$ and $g\bigl( h(x) \bigr)$.
 """
 
 # ╔═╡ d2c1ce3f-9eee-4c67-8854-ee8bd6cd4142
@@ -383,12 +383,12 @@ function dsimple_mlp(input, weight, bias)
 	# derivative of tmp2 = tmp1 + bias
 	dtmp1 += dtmp2
 	dbias += dtmp2
-	dtmp2 = 0.0 # After a read of a shodow we always must zero
+	dtmp2 = 0.0 # After a read of a shadow we always must zero
 
 	# derivative of tmp1 = input * weight
 	dinput += dtmp1 * weight
 	dweight += dtmp1 * input
-	dtmp1 = 0.0  # After a read of a shodow we always must zero
+	dtmp1 = 0.0  # After a read of a shadow we always must zero
 
 	#we're done, return the gradient (derivative of all input variable)
 	return (dinput, dweight, dbias)
@@ -532,12 +532,12 @@ md"""
 """
 
 # ╔═╡ 7154ad08-33a6-43f7-a72d-17a22c68d529
-model = Chain(Dense(128, 256, tanh), Chain(Dense(256, 1, tanh), Dense(1, 10)))
+model = Chain(Dense(128, 256, tanh), Chain(Dense(256, 64, tanh), Dense(64, 10)))
 
 # ╔═╡ b96fd42d-4400-4021-bea5-00adcdab6abb
 md"""
-- Dense: A Fully-Connected feed-forward functions
-- Transfer-function: A non
+- **Dense**: A fully-connected, feed-forward layer computing ``y = σ.(W x + b)``.
+- **Transfer function** (activation ``σ``): A non-linearity applied element-wise, e.g. `tanh`, `relu`, or `sigmoid`.
 """
 
 # ╔═╡ f4a731bd-ca14-481c-9cd6-f8c9d5607111
