@@ -158,7 +158,7 @@ function dm_rev(loss, ys, xs, c)
 	function f(ys, xs, c)
 		loss(ys, map(x->m(x, c...), xs))
 	end
-	Enzyme.autodiff(Enzyme.Reverse, f,
+	Enzyme.autodiff(Enzyme.Reverse, f, Enzyme.Active,
 					Enzyme.Const(ys), 
 					Enzyme.Duplicated(xs, Enzyme.make_zero(xs)), Enzyme.Duplicated(c, dc))
 	dc
@@ -398,10 +398,10 @@ end
 dsimple_mlp(-2.0, 0.5, 0.3)
 
 # ╔═╡ 7eee941c-191e-4c79-9171-c410c70a1e4d
-import Enzyme: Reverse, Active, Duplicated
+import Enzyme: Reverse, Active, Duplicated, ReverseWithPrimal
 
 # ╔═╡ db8087ac-d60e-45eb-a730-c2db00027f10
-Enzyme.autodiff(Reverse, simple_mlp, Active(-2.0), Active(0.5), Active(0.3))
+Enzyme.autodiff(ReverseWithPrimal, simple_mlp, Active(-2.0), Active(0.5), Active(0.3))
 
 # ╔═╡ 452cd4bd-0b55-4478-91da-5bc9b42fab69
 function with_memory(x)
@@ -432,6 +432,12 @@ end
 # ╔═╡ ac9b2467-115a-4b92-af4e-2fed07c49a51
 dwith_memory([2.0])
 
+# ╔═╡ 04b8dc44-0641-4304-b239-4c3efecb6f9d
+let dx = [0.0]
+	Enzyme.autodiff(Reverse, with_memory, Active, Duplicated([2.0], dx))
+	dx
+end
+
 # ╔═╡ 69540420-d1aa-4ac7-a7c6-95aaeea0c981
 function with_memory2(x, y)
 	tmp1 = x[1] ^ 2
@@ -459,11 +465,37 @@ function dwith_memory2((x, dx), (y, dy))
 	return nothing
 end
 
+# ╔═╡ f233c772-31c0-4a2d-943f-6f4246929055
+let
+	x = [2.0]
+	y = [0.0]
+	with_memory2(x, y)
+	x, y
+end
+
+# ╔═╡ 47ac2a53-580a-4310-be7e-9c89c20814ef
+let
+	x = [2.0]
+	y = x
+	with_memory2(x, y)
+	x, y
+end
+
 # ╔═╡ 14ea72b6-fd5a-4118-9d87-d3058b85f1b7
 let
 	dx = [0.0]
 	dy = [1.0]
 	dwith_memory2(([2.0], dx), ([0.0], dy))
+	dx, dy
+end
+
+# ╔═╡ f2b7350f-8474-49d9-bdfb-59a6cbc9a9ee
+let
+	x = [2.0]
+	y = x
+	dx = [0.0]
+	dy = [1.0]
+	dwith_memory2((x, dx), (y, dy))
 	dx, dy
 end
 
@@ -477,7 +509,6 @@ let
 end
 
 # ╔═╡ a431d1b3-49a4-4c47-b86e-888207ab3006
-
 
 # ╔═╡ b5efe0a1-56bf-4d41-aeda-6ef5e28d43cb
 function with_control(x)
@@ -506,10 +537,10 @@ function dwith_control(x)
 
 	if cond
 		# d(x^2)/dx = 2x
-		dx = dtmp1 * 2 * x
+		dx += dtmp1 * 2 * x
 	else
 		# d(x)/dx = 1
-		dx = dtmp1 * 1
+		dx += dtmp1 * 1
 	end
 	return (dx,)
 end
@@ -602,6 +633,9 @@ convert2image(dataset, 10)
 
 # ╔═╡ f5d85376-b004-4187-9b8d-97c43dc84a92
 convert2image(dataset, 12)
+
+# ╔═╡ 936621af-b9c2-48d2-8b3d-ad7f263f0954
+dataset.targets[10]
 
 # ╔═╡ e11e8a40-a9ac-44a7-a255-497bdfeb89fd
 function loadmnist(batchsize, train_split)
@@ -3493,10 +3527,14 @@ version = "4.1.0+0"
 # ╠═452cd4bd-0b55-4478-91da-5bc9b42fab69
 # ╠═e4b21841-9aef-4280-b883-caa183326477
 # ╠═ac9b2467-115a-4b92-af4e-2fed07c49a51
+# ╠═04b8dc44-0641-4304-b239-4c3efecb6f9d
 # ╠═69540420-d1aa-4ac7-a7c6-95aaeea0c981
 # ╟─2a1a554b-3a6e-4994-926b-17a1be34a8ba
 # ╠═ed52e361-1d2a-4cc1-a697-b34ec1062ef0
+# ╠═f233c772-31c0-4a2d-943f-6f4246929055
+# ╠═47ac2a53-580a-4310-be7e-9c89c20814ef
 # ╠═14ea72b6-fd5a-4118-9d87-d3058b85f1b7
+# ╠═f2b7350f-8474-49d9-bdfb-59a6cbc9a9ee
 # ╠═001d679b-15ea-4ed6-ac73-2bdedcc964b0
 # ╠═a431d1b3-49a4-4c47-b86e-888207ab3006
 # ╠═b5efe0a1-56bf-4d41-aeda-6ef5e28d43cb
@@ -3520,6 +3558,7 @@ version = "4.1.0+0"
 # ╠═1671bb04-5bc4-42a1-bda7-693c117c94d9
 # ╠═f771674c-b757-4033-9c83-95b890909dd0
 # ╠═f5d85376-b004-4187-9b8d-97c43dc84a92
+# ╠═936621af-b9c2-48d2-8b3d-ad7f263f0954
 # ╠═e11e8a40-a9ac-44a7-a255-497bdfeb89fd
 # ╠═074426d7-b250-46c4-8a0f-d9f6c7854ee6
 # ╠═bbf9662e-50cb-4bef-bae0-73079174571e
