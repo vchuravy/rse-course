@@ -481,9 +481,6 @@ let
 	x, y
 end
 
-# ╔═╡ 4134951a-4bc0-486c-bd06-e7d17ce3641d
-
-
 # ╔═╡ 14ea72b6-fd5a-4118-9d87-d3058b85f1b7
 let
 	dx = [0.0]
@@ -512,9 +509,6 @@ let
 end
 
 # ╔═╡ a431d1b3-49a4-4c47-b86e-888207ab3006
-# function with_control(x)
-# 	return x >= 0 ? x^2 : x
-# end
 
 # ╔═╡ b5efe0a1-56bf-4d41-aeda-6ef5e28d43cb
 function with_control(x)
@@ -3539,7 +3533,6 @@ version = "4.1.0+0"
 # ╠═ed52e361-1d2a-4cc1-a697-b34ec1062ef0
 # ╠═f233c772-31c0-4a2d-943f-6f4246929055
 # ╠═47ac2a53-580a-4310-be7e-9c89c20814ef
-# ╠═4134951a-4bc0-486c-bd06-e7d17ce3641d
 # ╠═14ea72b6-fd5a-4118-9d87-d3058b85f1b7
 # ╠═f2b7350f-8474-49d9-bdfb-59a6cbc9a9ee
 # ╠═001d679b-15ea-4ed6-ac73-2bdedcc964b0
