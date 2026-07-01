@@ -77,6 +77,9 @@ begin
 	import Images
 end
 
+# ╔═╡ 03b4a49c-7e98-4f4f-8f8f-90b8ece315f8
+ChooseDisplayMode()
+
 # ╔═╡ feb264fa-e282-40e8-ac69-eb4763945966
 md"""
 ## Motivation
@@ -372,8 +375,8 @@ Let's take a function `F` from $\mathbb{R}^2\rightarrow\mathbb{R}^3$ as a concre
 function F(X) 
 	[
 		X[1]^4 - 3;
-     	exp(X[2]) - 2; 
-	 	log(X[1]) - X[2]^2
+        exp(X[2]) - 2; 
+	 	  log(X[1]) - X[2]^2
 	]
 end
 
@@ -384,9 +387,9 @@ md"""
 
 # ╔═╡ 5232357a-2d86-45e9-8591-7c4a379db12a
 begin
-	@variables X[2]
+	@variables X[1:2]
 	ex_F = F(X)
-	ex_J = Symbolics.jacobian(ex_F, X; scalarize=false)
+	ex_J = Symbolics.jacobian(ex_F, X; scalarize=Val(false))
 end
 
 # ╔═╡ 200b7150-d062-497c-a0c0-ea12856d16a8
@@ -425,7 +428,7 @@ md"""
 """
 
 # ╔═╡ c5ba102c-b475-47c9-bd68-fb66473f96e0
-ForwardDiff.jacobian(F, [1.0, 1.0])
+ForwardDiff.jacobian(F, [1.0,1.0])
 
 # ╔═╡ 0aff3351-9e5f-4e67-80c7-487569b1263c
 ForwardDiff.jacobian(F2, [1.0, 1.0])
@@ -3787,6 +3790,7 @@ version = "4.1.0+0"
 # ╠═e46cb298-35b9-4764-a867-795bbc5a0943
 # ╠═6a1c41ab-76df-4e0f-bdf9-1e71506ba45d
 # ╠═5ae4d0c3-c5da-4b90-8fab-2cd4a2f0b44a
+# ╠═03b4a49c-7e98-4f4f-8f8f-90b8ece315f8
 # ╟─feb264fa-e282-40e8-ac69-eb4763945966
 # ╟─c78a2897-7015-46d9-bfc0-9a31c3814050
 # ╟─9f020c74-ce3b-4d6d-987f-40495cde0a61
