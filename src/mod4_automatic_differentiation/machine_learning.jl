@@ -52,6 +52,9 @@ using OneHotArrays, Statistics, MLUtils, Zygote
 # ╔═╡ 29b5cea7-4ecd-4ad6-98a9-ee0c93afc32b
 using Printf
 
+# ╔═╡ 1bb8c0ed-828a-40d6-8377-b942a78c37c1
+ChooseDisplayMode()
+
 # ╔═╡ ae4cb764-5100-11f0-10a5-c5b11fb107fb
 md"""
 # Automatic Differentiation and Machine Learning
@@ -3468,6 +3471,7 @@ version = "4.1.0+0"
 # ╔═╡ Cell order:
 # ╠═e46cb298-35b9-4764-a867-795bbc5a0943
 # ╠═6a1c41ab-76df-4e0f-bdf9-1e71506ba45d
+# ╠═1bb8c0ed-828a-40d6-8377-b942a78c37c1
 # ╟─ae4cb764-5100-11f0-10a5-c5b11fb107fb
 # ╟─74bc70d5-afe4-4820-9edd-3948b5f751e8
 # ╠═750340ef-9822-4769-8605-d7f5b2cde26e
